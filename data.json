@@ -1,6 +1,6 @@
 {
   "project": {
-    "name": "Copo 23 (El Saladillo) – Progress Portal",
+    "name": "Copo 23 (El Saladillo) \u2013 Progress Portal",
     "duration_weeks": 39,
     "generated_at": "2025-12-16",
     "language": "en",
@@ -11,12 +11,12 @@
     {
       "chapter_no": 1,
       "title": "Demolition works",
-      "icon": "🧱",
+      "icon": "\ud83e\uddf1",
       "items": [
         {
           "id": "1.01",
           "code": "1.01",
-          "description": "Demolition of cavity wall (toothing / “capuchina” type)",
+          "description": "Demolition of cavity wall (toothing / \u201ccapuchina\u201d type)",
           "unit": "m2",
           "qty": 30.71,
           "planned_week_start": 1,
@@ -250,18 +250,19 @@
         {
           "id": "1.27",
           "code": "1.27",
-          "description": "Rubble container + waste management (3 units, 9 m³ each)",
+          "description": "Rubble container + waste management (3 units, 9 m\u00b3 each)",
           "unit": "st",
           "qty": 3.0,
           "planned_week_start": 1,
           "planned_week_end": 2
         }
-      ]
+      ],
+      "image_tag": "demolition"
     },
     {
       "chapter_no": 3,
       "title": "Foundations",
-      "icon": "🏗️",
+      "icon": "\ud83c\udfd7\ufe0f",
       "items": [
         {
           "id": "3.01",
@@ -290,12 +291,13 @@
           "planned_week_start": 3,
           "planned_week_end": 6
         }
-      ]
+      ],
+      "image_tag": "foundations"
     },
     {
       "chapter_no": 4,
       "title": "Structure",
-      "icon": "🏗️",
+      "icon": "\ud83c\udfd7\ufe0f",
       "items": [
         {
           "id": "4.01",
@@ -324,12 +326,13 @@
           "planned_week_start": 3,
           "planned_week_end": 6
         }
-      ]
+      ],
+      "image_tag": "structure"
     },
     {
       "chapter_no": 5,
       "title": "Masonry and claddings",
-      "icon": "🧱",
+      "icon": "\ud83e\uddf1",
       "items": [
         {
           "id": "5.01",
@@ -496,7 +499,7 @@
         {
           "id": "5.19",
           "code": "5.19",
-          "description": "Suspended moisture‑resistant plasterboard ceiling (H1)",
+          "description": "Suspended moisture\u2011resistant plasterboard ceiling (H1)",
           "unit": "m2",
           "qty": 15.26,
           "planned_week_start": 7,
@@ -529,12 +532,13 @@
           "planned_week_start": 7,
           "planned_week_end": 13
         }
-      ]
+      ],
+      "image_tag": "masonry"
     },
     {
       "chapter_no": 6,
       "title": "Roofs and waterproofing",
-      "icon": "🏠",
+      "icon": "\ud83c\udfe0",
       "items": [
         {
           "id": "6.04",
@@ -545,17 +549,18 @@
           "planned_week_start": 7,
           "planned_week_end": 9
         }
-      ]
+      ],
+      "image_tag": "roofing"
     },
     {
       "chapter_no": 7,
       "title": "Frames and doors",
-      "icon": "🚪",
+      "icon": "\ud83d\udeaa",
       "items": [
         {
           "id": "7.01.02",
           "code": "7.01.02",
-          "description": "Sliding window, 2-leaf 180×90",
+          "description": "Sliding window, 2-leaf 180\u00d790",
           "unit": "st",
           "qty": 1.0,
           "planned_week_start": 28,
@@ -564,7 +569,7 @@
         {
           "id": "7.01.03",
           "code": "7.01.03",
-          "description": "Sliding window, 2-leaf 230×90",
+          "description": "Sliding window, 2-leaf 230\u00d790",
           "unit": "st",
           "qty": 1.0,
           "planned_week_start": 28,
@@ -573,7 +578,7 @@
         {
           "id": "7.01.04",
           "code": "7.01.04",
-          "description": "Tilt-and-turn window 100×98",
+          "description": "Tilt-and-turn window 100\u00d798",
           "unit": "st",
           "qty": 2.0,
           "planned_week_start": 28,
@@ -582,7 +587,7 @@
         {
           "id": "7.01.05",
           "code": "7.01.05",
-          "description": "Tilt-and-turn window 105×107",
+          "description": "Tilt-and-turn window 105\u00d7107",
           "unit": "st",
           "qty": 1.0,
           "planned_week_start": 28,
@@ -591,7 +596,7 @@
         {
           "id": "7.01.06",
           "code": "7.01.06",
-          "description": "Fixed window 150×167",
+          "description": "Fixed window 150\u00d7167",
           "unit": "st",
           "qty": 1.0,
           "planned_week_start": 28,
@@ -600,7 +605,7 @@
         {
           "id": "7.01.07",
           "code": "7.01.07",
-          "description": "Tilt-and-turn window 90×96",
+          "description": "Tilt-and-turn window 90\u00d796",
           "unit": "st",
           "qty": 2.0,
           "planned_week_start": 28,
@@ -609,7 +614,7 @@
         {
           "id": "7.01.08",
           "code": "7.01.08",
-          "description": "Sliding door, 2-leaf 250×200",
+          "description": "Sliding door, 2-leaf 250\u00d7200",
           "unit": "st",
           "qty": 1.0,
           "planned_week_start": 28,
@@ -618,7 +623,7 @@
         {
           "id": "7.01.09",
           "code": "7.01.09",
-          "description": "Sliding door, 2-leaf 275×200",
+          "description": "Sliding door, 2-leaf 275\u00d7200",
           "unit": "st",
           "qty": 1.0,
           "planned_week_start": 28,
@@ -627,7 +632,7 @@
         {
           "id": "7.01.10",
           "code": "7.01.10",
-          "description": "Sliding door, 2-leaf 403×200",
+          "description": "Sliding door, 2-leaf 403\u00d7200",
           "unit": "st",
           "qty": 1.0,
           "planned_week_start": 28,
@@ -636,7 +641,7 @@
         {
           "id": "7.01.11",
           "code": "7.01.11",
-          "description": "Sliding door, 2-leaf 280×200",
+          "description": "Sliding door, 2-leaf 280\u00d7200",
           "unit": "st",
           "qty": 1.0,
           "planned_week_start": 28,
@@ -645,7 +650,7 @@
         {
           "id": "7.01.12",
           "code": "7.01.12",
-          "description": "Sliding door, 3-leaf 275×200",
+          "description": "Sliding door, 3-leaf 275\u00d7200",
           "unit": "st",
           "qty": 1.0,
           "planned_week_start": 28,
@@ -654,7 +659,7 @@
         {
           "id": "7.01.13",
           "code": "7.01.13",
-          "description": "Sliding door, 2-leaf 312×200",
+          "description": "Sliding door, 2-leaf 312\u00d7200",
           "unit": "st",
           "qty": 1.0,
           "planned_week_start": 28,
@@ -663,7 +668,7 @@
         {
           "id": "7.01.14",
           "code": "7.01.14",
-          "description": "Sliding door, 2-leaf 346×200",
+          "description": "Sliding door, 2-leaf 346\u00d7200",
           "unit": "st",
           "qty": 1.0,
           "planned_week_start": 28,
@@ -672,7 +677,7 @@
         {
           "id": "7.01.15",
           "code": "7.01.15",
-          "description": "Hinged door, single-leaf 130×100",
+          "description": "Hinged door, single-leaf 130\u00d7100",
           "unit": "st",
           "qty": 1.0,
           "planned_week_start": 28,
@@ -681,7 +686,7 @@
         {
           "id": "7.01.16",
           "code": "7.01.16",
-          "description": "Sliding door, 2-leaf 405×200",
+          "description": "Sliding door, 2-leaf 405\u00d7200",
           "unit": "st",
           "qty": 2.0,
           "planned_week_start": 28,
@@ -708,7 +713,7 @@
         {
           "id": "7.02.03",
           "code": "7.02.03",
-          "description": "Vanity base cabinet washbasin 80×50",
+          "description": "Vanity base cabinet washbasin 80\u00d750",
           "unit": "st",
           "qty": 2.0,
           "planned_week_start": 28,
@@ -717,7 +722,7 @@
         {
           "id": "7.02.04",
           "code": "7.02.04",
-          "description": "Vanity base cabinet washbasin 120×50",
+          "description": "Vanity base cabinet washbasin 120\u00d750",
           "unit": "st",
           "qty": 1.0,
           "planned_week_start": 28,
@@ -726,18 +731,19 @@
         {
           "id": "7.02.05",
           "code": "7.02.05",
-          "description": "Vanity base cabinet washbasin 125×50",
+          "description": "Vanity base cabinet washbasin 125\u00d750",
           "unit": "st",
           "qty": 1.0,
           "planned_week_start": 28,
           "planned_week_end": 31
         }
-      ]
+      ],
+      "image_tag": "windows-doors"
     },
     {
       "chapter_no": 8,
       "title": "Glazing",
-      "icon": "🪟",
+      "icon": "\ud83e\ude9f",
       "items": [
         {
           "id": "8.01",
@@ -760,7 +766,7 @@
         {
           "id": "8.03",
           "code": "8.03",
-          "description": "Mirror 80×110",
+          "description": "Mirror 80\u00d7110",
           "unit": "st",
           "qty": 2.0,
           "planned_week_start": 28,
@@ -769,7 +775,7 @@
         {
           "id": "8.04",
           "code": "8.04",
-          "description": "Mirror 120×110",
+          "description": "Mirror 120\u00d7110",
           "unit": "st",
           "qty": 1.0,
           "planned_week_start": 28,
@@ -778,18 +784,19 @@
         {
           "id": "8.05",
           "code": "8.05",
-          "description": "Mirror 125×110",
+          "description": "Mirror 125\u00d7110",
           "unit": "st",
           "qty": 1.0,
           "planned_week_start": 28,
           "planned_week_end": 31
         }
-      ]
+      ],
+      "image_tag": "glazing"
     },
     {
       "chapter_no": 9,
       "title": "Painting",
-      "icon": "🎨",
+      "icon": "\ud83c\udfa8",
       "items": [
         {
           "id": "9.01",
@@ -809,12 +816,13 @@
           "planned_week_start": 36,
           "planned_week_end": 38
         }
-      ]
+      ],
+      "image_tag": "painting"
     },
     {
       "chapter_no": 10,
       "title": "Installations",
-      "icon": "⚡",
+      "icon": "\u26a1",
       "items": [
         {
           "id": "10.01.01",
@@ -864,7 +872,7 @@
         {
           "id": "10.02.01",
           "code": "10.02.01",
-          "description": "Main electrical board (CPM) – dimensions and protections",
+          "description": "Main electrical board (CPM) \u2013 dimensions and protections",
           "unit": "st",
           "qty": 1.0,
           "planned_week_start": 14,
@@ -1122,12 +1130,13 @@
           "planned_week_start": 32,
           "planned_week_end": 35
         }
-      ]
+      ],
+      "image_tag": "installations"
     },
     {
       "chapter_no": 11,
       "title": "Miscellaneous",
-      "icon": "🧩",
+      "icon": "\ud83e\udde9",
       "items": [
         {
           "id": "11.01",
@@ -1138,12 +1147,13 @@
           "planned_week_start": 36,
           "planned_week_end": 38
         }
-      ]
+      ],
+      "image_tag": "cleaning"
     },
     {
       "chapter_no": 12,
       "title": "Swimming pool",
-      "icon": "🏊",
+      "icon": "\ud83c\udfca",
       "items": [
         {
           "id": "12.01",
@@ -1184,7 +1194,7 @@
         {
           "id": "12.05",
           "code": "12.05",
-          "description": "Trenches for pipes (0,30×0,40 m)",
+          "description": "Trenches for pipes (0,30\u00d70,40 m)",
           "unit": "ml",
           "qty": 12.0,
           "planned_week_start": 3,
@@ -1220,7 +1230,7 @@
         {
           "id": "12.09",
           "code": "12.09",
-          "description": "In-situ masonry steps, 4 treden, geïntegreerd",
+          "description": "In-situ masonry steps, 4 treden, ge\u00efntegreerd",
           "unit": "st",
           "qty": 1.0,
           "planned_week_start": 3,
@@ -1256,7 +1266,7 @@
         {
           "id": "12.13",
           "code": "12.13",
-          "description": "Hydraulic network PVC Ø50 + collector naar bestaande",
+          "description": "Hydraulic network PVC \u00d850 + collector naar bestaande",
           "unit": "set",
           "qty": 1.0,
           "planned_week_start": 14,
@@ -1325,12 +1335,13 @@
           "planned_week_start": 36,
           "planned_week_end": 38
         }
-      ]
+      ],
+      "image_tag": "swimming-pool"
     },
     {
       "chapter_no": 13,
       "title": "Quality control and testing",
-      "icon": "✅",
+      "icon": "\u2705",
       "items": [
         {
           "id": "13.01",
@@ -1341,39 +1352,42 @@
           "planned_week_start": 39,
           "planned_week_end": 39
         }
-      ]
+      ],
+      "image_tag": "quality-control"
     },
     {
       "chapter_no": 14,
       "title": "Waste management",
-      "icon": "♻️",
+      "icon": "\u267b\ufe0f",
       "items": [
         {
           "id": "14.02",
           "code": "14.02",
-          "description": "Containers 9 m³ (loading + transport + landfill fee)",
+          "description": "Containers 9 m\u00b3 (loading + transport + landfill fee)",
           "unit": "st",
           "qty": 2.0,
           "planned_week_start": 1,
           "planned_week_end": 39
         }
-      ]
+      ],
+      "image_tag": "waste"
     },
     {
       "chapter_no": 15,
       "title": "Safety and health",
-      "icon": "🦺",
+      "icon": "\ud83e\uddba",
       "items": [
         {
           "id": "15.01",
           "code": "15.01",
-          "description": "Plan en coördinatie Veiligheid en Gezondheid",
+          "description": "Plan en co\u00f6rdinatie Veiligheid en Gezondheid",
           "unit": "st",
           "qty": 1.0,
           "planned_week_start": 1,
           "planned_week_end": 39
         }
-      ]
+      ],
+      "image_tag": "safety"
     }
   ]
 }
