@@ -712,6 +712,42 @@
       "icon": "🏠",
       "items": [
         {
+          "id": "6.01",
+          "code": "6.01",
+          "description": "Non-walkable flat roof (gravel ballast, XPS 80 mm, double-layer APP membrane)",
+          "unit": "m2",
+          "qty": 44.93,
+          "planned_week_start": 7,
+          "planned_week_end": 9,
+          "description_en": "Non-walkable flat roof (gravel ballast, XPS 80 mm, double-layer APP membrane)",
+          "description_es": "Cubierta plana no transitable (lastre de grava, XPS 80 mm, doble lámina APP)",
+          "description_nl": "Niet-beloopbaar plat dak (grindballast, XPS 80 mm, dubbellaagse APP-membraan)"
+        },
+        {
+          "id": "6.02",
+          "code": "6.02",
+          "description": "Walkable flat roof (XPS 80 mm, APP membrane + 2 cm screed)",
+          "unit": "m2",
+          "qty": 50.5,
+          "planned_week_start": 7,
+          "planned_week_end": 9,
+          "description_en": "Walkable flat roof (XPS 80 mm, APP membrane + 2 cm screed)",
+          "description_es": "Cubierta plana transitable (XPS 80 mm, lámina APP + recrecido 2 cm)",
+          "description_nl": "Beloopbaar plat dak (XPS 80 mm, APP-membraan + 2 cm dekvloer)"
+        },
+        {
+          "id": "6.03",
+          "code": "6.03",
+          "description": "Walkable flat roof without insulation (APP membrane + screed)",
+          "unit": "m2",
+          "qty": 52.21,
+          "planned_week_start": 7,
+          "planned_week_end": 9,
+          "description_en": "Walkable flat roof without insulation (APP membrane + screed)",
+          "description_es": "Cubierta plana transitable sin aislamiento (lámina APP + recrecido)",
+          "description_nl": "Beloopbaar plat dak zonder isolatie (APP-membraan + dekvloer)"
+        },
+        {
           "id": "6.04",
           "code": "6.04",
           "description": "Pitched tiled roof (PU 40 mm + SBS membrane + finishes)",
@@ -722,6 +758,18 @@
           "description_en": "Pitched tiled roof (PU 40 mm + SBS membrane + finishes)",
           "description_es": "Cubierta inclinada con teja (PU 40 mm + lámina SBS + acabados)",
           "description_nl": "Hellend pannendak (PU 40 mm + SBS-membraan + afwerking)"
+        },
+        {
+          "id": "6.05",
+          "code": "6.05",
+          "description": "Adhered single-layer EVAC membrane (parapets / overhangs / drip edges)",
+          "unit": "m2",
+          "qty": 160.56,
+          "planned_week_start": 7,
+          "planned_week_end": 9,
+          "description_en": "Adhered single-layer EVAC membrane (parapets / overhangs / drip edges)",
+          "description_es": "Lámina EVAC monocapa adherida (petos / voladizos / goterones)",
+          "description_nl": "Verlijmde enkellaagse EVAC-membraan (opstanden / overstekken / druipranden)"
         }
       ],
       "title_en": "Roofs and waterproofing",
