@@ -1,0 +1,1377 @@
+{
+  "project": {
+    "name": "Copo 23 (El Saladillo) – Progress Portal",
+    "duration_weeks": 39,
+    "generated_at": "2025-12-16",
+    "language": "en"
+  },
+  "chapters": [
+    {
+      "chapter_no": 1,
+      "title": "Demolition works",
+      "icon": "🧱",
+      "items": [
+        {
+          "id": "1.01",
+          "code": "1.01",
+          "description": "Demolition cavity wall (a la capuchina)",
+          "unit": "m2",
+          "qty": 30.71,
+          "planned_week_start": 1,
+          "planned_week_end": 2
+        },
+        {
+          "id": "1.02",
+          "code": "1.02",
+          "description": "Demolition fireplace/chimney",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 1,
+          "planned_week_end": 2
+        },
+        {
+          "id": "1.03",
+          "code": "1.03",
+          "description": "Dismantling metal fence",
+          "unit": "set",
+          "qty": 1.0,
+          "planned_week_start": 1,
+          "planned_week_end": 2
+        },
+        {
+          "id": "1.04",
+          "code": "1.04",
+          "description": "Dismantling exterior joinery",
+          "unit": "set",
+          "qty": 1.0,
+          "planned_week_start": 1,
+          "planned_week_end": 2
+        },
+        {
+          "id": "1.05",
+          "code": "1.05",
+          "description": "Dismantling interior joinery",
+          "unit": "set",
+          "qty": 1.0,
+          "planned_week_start": 1,
+          "planned_week_end": 2
+        },
+        {
+          "id": "1.06",
+          "code": "1.06",
+          "description": "Dismantling washbasin",
+          "unit": "st",
+          "qty": 2.0,
+          "planned_week_start": 1,
+          "planned_week_end": 2
+        },
+        {
+          "id": "1.07",
+          "code": "1.07",
+          "description": "Dismantling Toilet",
+          "unit": "st",
+          "qty": 2.0,
+          "planned_week_start": 1,
+          "planned_week_end": 2
+        },
+        {
+          "id": "1.08",
+          "code": "1.08",
+          "description": "Dismantling bathtub",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 1,
+          "planned_week_end": 2
+        },
+        {
+          "id": "1.09",
+          "code": "1.09",
+          "description": "Demolition reinforced concrete floor slab",
+          "unit": "m2",
+          "qty": 102.92,
+          "planned_week_start": 1,
+          "planned_week_end": 2
+        },
+        {
+          "id": "1.10",
+          "code": "1.10",
+          "description": "Demolition reinforced concrete slab",
+          "unit": "m2",
+          "qty": 208.86,
+          "planned_week_start": 1,
+          "planned_week_end": 2
+        },
+        {
+          "id": "1.11",
+          "code": "1.11",
+          "description": "Dismantling roof tiles",
+          "unit": "m2",
+          "qty": 88.06,
+          "planned_week_start": 1,
+          "planned_week_end": 2
+        },
+        {
+          "id": "1.12",
+          "code": "1.12",
+          "description": "Demolition sloping mortar op dak",
+          "unit": "m2",
+          "qty": 57.77,
+          "planned_week_start": 1,
+          "planned_week_end": 2
+        },
+        {
+          "id": "1.13",
+          "code": "1.13",
+          "description": "Demolition half-brick wall",
+          "unit": "m2",
+          "qty": 25.06,
+          "planned_week_start": 1,
+          "planned_week_end": 2
+        },
+        {
+          "id": "1.14",
+          "code": "1.14",
+          "description": "Demolition one-brick wall",
+          "unit": "m2",
+          "qty": 84.82,
+          "planned_week_start": 1,
+          "planned_week_end": 2
+        },
+        {
+          "id": "1.15",
+          "code": "1.15",
+          "description": "Demolition Internal wall",
+          "unit": "m2",
+          "qty": 35.34,
+          "planned_week_start": 1,
+          "planned_week_end": 2
+        },
+        {
+          "id": "1.16",
+          "code": "1.16",
+          "description": "Dismantling plumbing installation",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 1,
+          "planned_week_end": 2
+        },
+        {
+          "id": "1.17",
+          "code": "1.17",
+          "description": "Dismantling electrical installation",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 1,
+          "planned_week_end": 2
+        },
+        {
+          "id": "1.18",
+          "code": "1.18",
+          "description": "Dismantling wastewater drain",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 1,
+          "planned_week_end": 2
+        },
+        {
+          "id": "1.19",
+          "code": "1.19",
+          "description": "Removal of ceramic outdoor flooring",
+          "unit": "m2",
+          "qty": 195.36,
+          "planned_week_start": 1,
+          "planned_week_end": 2
+        },
+        {
+          "id": "1.20",
+          "code": "1.20",
+          "description": "Removal of ceramic indoor flooring",
+          "unit": "m2",
+          "qty": 113.58,
+          "planned_week_start": 1,
+          "planned_week_end": 2
+        },
+        {
+          "id": "1.21",
+          "code": "1.21",
+          "description": "Removal of stair cladding",
+          "unit": "m2",
+          "qty": 7.33,
+          "planned_week_start": 1,
+          "planned_week_end": 2
+        },
+        {
+          "id": "1.22",
+          "code": "1.22",
+          "description": "Removal of paving sub-base layer",
+          "unit": "m2",
+          "qty": 308.94,
+          "planned_week_start": 1,
+          "planned_week_end": 2
+        },
+        {
+          "id": "1.23",
+          "code": "1.23",
+          "description": "Removal of wall tiling",
+          "unit": "m2",
+          "qty": 15.99,
+          "planned_week_start": 1,
+          "planned_week_end": 2
+        },
+        {
+          "id": "1.24",
+          "code": "1.24",
+          "description": "Removal of zwembadmozaïek",
+          "unit": "m2",
+          "qty": 54.59,
+          "planned_week_start": 1,
+          "planned_week_end": 2
+        },
+        {
+          "id": "1.25",
+          "code": "1.25",
+          "description": "Removal of thresholds / drip edges",
+          "unit": "m",
+          "qty": 19.05,
+          "planned_week_start": 1,
+          "planned_week_end": 2
+        },
+        {
+          "id": "1.26",
+          "code": "1.26",
+          "description": "Demolition lichte overkapping (porches)",
+          "unit": "m2",
+          "qty": 54.35,
+          "planned_week_start": 1,
+          "planned_week_end": 2
+        },
+        {
+          "id": "1.27",
+          "code": "1.27",
+          "description": "Container + afvalverwerking (3 st., 9 m³)",
+          "unit": "st",
+          "qty": 3.0,
+          "planned_week_start": 1,
+          "planned_week_end": 2
+        }
+      ]
+    },
+    {
+      "chapter_no": 3,
+      "title": "Foundations",
+      "icon": "🏗️",
+      "items": [
+        {
+          "id": "3.01",
+          "code": "3.01",
+          "description": "Egalisatie-/reinigingslaag beton HL-150 (10 cm)",
+          "unit": "m2",
+          "qty": 20.88,
+          "planned_week_start": 3,
+          "planned_week_end": 6
+        },
+        {
+          "id": "3.02",
+          "code": "3.02",
+          "description": "Funderingsplaat HA-30",
+          "unit": "m3",
+          "qty": 17.26,
+          "planned_week_start": 3,
+          "planned_week_end": 6
+        },
+        {
+          "id": "3.03",
+          "code": "3.03",
+          "description": "Vloerplaat 25 cm HA-30 met dubbele wapeningsmat",
+          "unit": "m2",
+          "qty": 174.34,
+          "planned_week_start": 3,
+          "planned_week_end": 6
+        }
+      ]
+    },
+    {
+      "chapter_no": 4,
+      "title": "Structure",
+      "icon": "🏗️",
+      "items": [
+        {
+          "id": "4.01",
+          "code": "4.01",
+          "description": "Eenrichtingsvloer met stalen liggers (25 = 20+5 cm)",
+          "unit": "m2",
+          "qty": 77.87,
+          "planned_week_start": 3,
+          "planned_week_end": 6
+        },
+        {
+          "id": "4.02",
+          "code": "4.02",
+          "description": "Massieve plaat HA-30 20 cm",
+          "unit": "m2",
+          "qty": 13.2,
+          "planned_week_start": 3,
+          "planned_week_end": 6
+        },
+        {
+          "id": "4.03",
+          "code": "4.03",
+          "description": "Stalen pergola S275JR, geschilderd",
+          "unit": "m2",
+          "qty": 40.6,
+          "planned_week_start": 3,
+          "planned_week_end": 6
+        }
+      ]
+    },
+    {
+      "chapter_no": 5,
+      "title": "Masonry and claddings",
+      "icon": "🧱",
+      "items": [
+        {
+          "id": "5.01",
+          "code": "5.01",
+          "description": "Cavity wall (dubbele huid + isolatie in spouw)",
+          "unit": "m2",
+          "qty": 105.54,
+          "planned_week_start": 10,
+          "planned_week_end": 13
+        },
+        {
+          "id": "5.02",
+          "code": "5.02",
+          "description": "Baksteenmetselwerk 25 cm (geperforeerde baksteen)",
+          "unit": "m2",
+          "qty": 67.48,
+          "planned_week_start": 10,
+          "planned_week_end": 13
+        },
+        {
+          "id": "5.03",
+          "code": "5.03",
+          "description": "Internal wall (scheidingswand)",
+          "unit": "m2",
+          "qty": 78.3,
+          "planned_week_start": 10,
+          "planned_week_end": 13
+        },
+        {
+          "id": "5.04",
+          "code": "5.04",
+          "description": "Druiplijst in Blanco Macael marmer",
+          "unit": "m",
+          "qty": 7.67,
+          "planned_week_start": 7,
+          "planned_week_end": 13
+        },
+        {
+          "id": "5.05",
+          "code": "5.05",
+          "description": "Dorpel in Blanco Macael marmer",
+          "unit": "m",
+          "qty": 62.65,
+          "planned_week_start": 7,
+          "planned_week_end": 13
+        },
+        {
+          "id": "5.06",
+          "code": "5.06",
+          "description": "Afdekplaten in Blanco Macael marmer",
+          "unit": "m",
+          "qty": 77.02,
+          "planned_week_start": 7,
+          "planned_week_end": 13
+        },
+        {
+          "id": "5.07",
+          "code": "5.07",
+          "description": "Waterdichte cementpleister gevel, afgevlakt",
+          "unit": "m2",
+          "qty": 402.1,
+          "planned_week_start": 19,
+          "planned_week_end": 22
+        },
+        {
+          "id": "5.08",
+          "code": "5.08",
+          "description": "Gipspleister binnen, afgevlakt",
+          "unit": "m2",
+          "qty": 318.65,
+          "planned_week_start": 19,
+          "planned_week_end": 22
+        },
+        {
+          "id": "5.09",
+          "code": "5.09",
+          "description": "Cementgebonden ondervloer/mortelbed",
+          "unit": "m2",
+          "qty": 140.35,
+          "planned_week_start": 19,
+          "planned_week_end": 22
+        },
+        {
+          "id": "5.10",
+          "code": "5.10",
+          "description": "Aanbrengen sloping mortar",
+          "unit": "m2",
+          "qty": 174.34,
+          "planned_week_start": 7,
+          "planned_week_end": 13
+        },
+        {
+          "id": "5.11",
+          "code": "5.11",
+          "description": "Wandtegelwerk porcellanato",
+          "unit": "m2",
+          "qty": 65.72,
+          "planned_week_start": 23,
+          "planned_week_end": 27
+        },
+        {
+          "id": "5.12",
+          "code": "5.12",
+          "description": "Vloerafwerking porcellanato binnen",
+          "unit": "m2",
+          "qty": 140.35,
+          "planned_week_start": 23,
+          "planned_week_end": 27
+        },
+        {
+          "id": "5.13",
+          "code": "5.13",
+          "description": "Porcellanato buitentegels antislip C3",
+          "unit": "m2",
+          "qty": 286.71,
+          "planned_week_start": 23,
+          "planned_week_end": 27
+        },
+        {
+          "id": "5.14",
+          "code": "5.14",
+          "description": "Antislip porcellanato in douchevloeren",
+          "unit": "m2",
+          "qty": 4.01,
+          "planned_week_start": 23,
+          "planned_week_end": 27
+        },
+        {
+          "id": "5.15",
+          "code": "5.15",
+          "description": "Bekleding trap (Blanco Macael marmer)",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 7,
+          "planned_week_end": 13
+        },
+        {
+          "id": "5.16",
+          "code": "5.16",
+          "description": "In situ douchebak, waterdicht",
+          "unit": "m2",
+          "qty": 4.01,
+          "planned_week_start": 7,
+          "planned_week_end": 13
+        },
+        {
+          "id": "5.17",
+          "code": "5.17",
+          "description": "Wastafelblad Blanco Macael marmer (2 cm)",
+          "unit": "m",
+          "qty": 2.03,
+          "planned_week_start": 7,
+          "planned_week_end": 13
+        },
+        {
+          "id": "5.18",
+          "code": "5.18",
+          "description": "Doorlopend verlaagd plafond gipskarton N",
+          "unit": "m2",
+          "qty": 125.09,
+          "planned_week_start": 7,
+          "planned_week_end": 13
+        },
+        {
+          "id": "5.19",
+          "code": "5.19",
+          "description": "Verlaagd plafond gipskarton H1 (vochtbestendig)",
+          "unit": "m2",
+          "qty": 15.26,
+          "planned_week_start": 7,
+          "planned_week_end": 13
+        },
+        {
+          "id": "5.20",
+          "code": "5.20",
+          "description": "Koof/gordijnkoof in gipskarton",
+          "unit": "m",
+          "qty": 42.8,
+          "planned_week_start": 7,
+          "planned_week_end": 13
+        },
+        {
+          "id": "5.21",
+          "code": "5.21",
+          "description": "Inbouwframe schuifdeur (casoneto)",
+          "unit": "st",
+          "qty": 2.0,
+          "planned_week_start": 7,
+          "planned_week_end": 13
+        },
+        {
+          "id": "5.22",
+          "code": "5.22",
+          "description": "Bouwkundige hulp bij installaties (klein werk)",
+          "unit": "m2",
+          "qty": 1.0,
+          "planned_week_start": 7,
+          "planned_week_end": 13
+        }
+      ]
+    },
+    {
+      "chapter_no": 6,
+      "title": "Roofs and waterproofing",
+      "icon": "🏠",
+      "items": [
+        {
+          "id": "6.04",
+          "code": "6.04",
+          "description": "Hellend dak met dakpan (PU 40 mm + SBS + afwerkingen)",
+          "unit": "m2",
+          "qty": 40.75,
+          "planned_week_start": 7,
+          "planned_week_end": 9
+        }
+      ]
+    },
+    {
+      "chapter_no": 7,
+      "title": "Frames and doors",
+      "icon": "🚪",
+      "items": [
+        {
+          "id": "7.01.02",
+          "code": "7.01.02",
+          "description": "Sliding window 2-vaks 180×90",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 28,
+          "planned_week_end": 31
+        },
+        {
+          "id": "7.01.03",
+          "code": "7.01.03",
+          "description": "Sliding window 2-vaks 230×90",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 28,
+          "planned_week_end": 31
+        },
+        {
+          "id": "7.01.04",
+          "code": "7.01.04",
+          "description": "Tilt-and-turn window 100×98",
+          "unit": "st",
+          "qty": 2.0,
+          "planned_week_start": 28,
+          "planned_week_end": 31
+        },
+        {
+          "id": "7.01.05",
+          "code": "7.01.05",
+          "description": "Tilt-and-turn window 105×107",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 28,
+          "planned_week_end": 31
+        },
+        {
+          "id": "7.01.06",
+          "code": "7.01.06",
+          "description": "Vast raam 150×167",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 28,
+          "planned_week_end": 31
+        },
+        {
+          "id": "7.01.07",
+          "code": "7.01.07",
+          "description": "Tilt-and-turn window 90×96",
+          "unit": "st",
+          "qty": 2.0,
+          "planned_week_start": 28,
+          "planned_week_end": 31
+        },
+        {
+          "id": "7.01.08",
+          "code": "7.01.08",
+          "description": "Sliding door 2-delig 250×200",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 28,
+          "planned_week_end": 31
+        },
+        {
+          "id": "7.01.09",
+          "code": "7.01.09",
+          "description": "Sliding door 2-delig 275×200",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 28,
+          "planned_week_end": 31
+        },
+        {
+          "id": "7.01.10",
+          "code": "7.01.10",
+          "description": "Sliding door 2-delig 403×200",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 28,
+          "planned_week_end": 31
+        },
+        {
+          "id": "7.01.11",
+          "code": "7.01.11",
+          "description": "Sliding door 2-delig 280×200",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 28,
+          "planned_week_end": 31
+        },
+        {
+          "id": "7.01.12",
+          "code": "7.01.12",
+          "description": "Sliding door 3-delig 275×200",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 28,
+          "planned_week_end": 31
+        },
+        {
+          "id": "7.01.13",
+          "code": "7.01.13",
+          "description": "Sliding door 2-delig 312×200",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 28,
+          "planned_week_end": 31
+        },
+        {
+          "id": "7.01.14",
+          "code": "7.01.14",
+          "description": "Sliding door 2-delig 346×200",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 28,
+          "planned_week_end": 31
+        },
+        {
+          "id": "7.01.15",
+          "code": "7.01.15",
+          "description": "Draaiende deur 1-velds 130×100",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 28,
+          "planned_week_end": 31
+        },
+        {
+          "id": "7.01.16",
+          "code": "7.01.16",
+          "description": "Sliding door 2-delig 405×200",
+          "unit": "st",
+          "qty": 2.0,
+          "planned_week_start": 28,
+          "planned_week_end": 31
+        },
+        {
+          "id": "7.02.01",
+          "code": "7.02.01",
+          "description": "Internal door gelakt, draaideur",
+          "unit": "st",
+          "qty": 7.0,
+          "planned_week_start": 28,
+          "planned_week_end": 31
+        },
+        {
+          "id": "7.02.02",
+          "code": "7.02.02",
+          "description": "Internal door gelakt, schuivend 1-vleugelig",
+          "unit": "st",
+          "qty": 2.0,
+          "planned_week_start": 28,
+          "planned_week_end": 31
+        },
+        {
+          "id": "7.02.03",
+          "code": "7.02.03",
+          "description": "Vanity base cabinet washbasin 80×50",
+          "unit": "st",
+          "qty": 2.0,
+          "planned_week_start": 28,
+          "planned_week_end": 31
+        },
+        {
+          "id": "7.02.04",
+          "code": "7.02.04",
+          "description": "Vanity base cabinet washbasin 120×50",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 28,
+          "planned_week_end": 31
+        },
+        {
+          "id": "7.02.05",
+          "code": "7.02.05",
+          "description": "Vanity base cabinet washbasin 125×50",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 28,
+          "planned_week_end": 31
+        }
+      ]
+    },
+    {
+      "chapter_no": 8,
+      "title": "Glazing",
+      "icon": "🪟",
+      "items": [
+        {
+          "id": "8.01",
+          "code": "8.01",
+          "description": "Shower screen M1 (glas 8 mm antikalk)",
+          "unit": "st",
+          "qty": 2.0,
+          "planned_week_start": 28,
+          "planned_week_end": 31
+        },
+        {
+          "id": "8.02",
+          "code": "8.02",
+          "description": "Shower screen M2 (speciaal)",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 28,
+          "planned_week_end": 31
+        },
+        {
+          "id": "8.03",
+          "code": "8.03",
+          "description": "Mirror 80×110",
+          "unit": "st",
+          "qty": 2.0,
+          "planned_week_start": 28,
+          "planned_week_end": 31
+        },
+        {
+          "id": "8.04",
+          "code": "8.04",
+          "description": "Mirror 120×110",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 28,
+          "planned_week_end": 31
+        },
+        {
+          "id": "8.05",
+          "code": "8.05",
+          "description": "Mirror 125×110",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 28,
+          "planned_week_end": 31
+        }
+      ]
+    },
+    {
+      "chapter_no": 9,
+      "title": "Painting",
+      "icon": "🎨",
+      "items": [
+        {
+          "id": "9.01",
+          "code": "9.01",
+          "description": "Binnenmuren: matte wasbare muurverf (2 lagen)",
+          "unit": "m2",
+          "qty": 480.4,
+          "planned_week_start": 36,
+          "planned_week_end": 38
+        },
+        {
+          "id": "9.02",
+          "code": "9.02",
+          "description": "Gevel: matte muurverf (2 lagen)",
+          "unit": "m2",
+          "qty": 402.1,
+          "planned_week_start": 36,
+          "planned_week_end": 38
+        }
+      ]
+    },
+    {
+      "chapter_no": 10,
+      "title": "Installations",
+      "icon": "⚡",
+      "items": [
+        {
+          "id": "10.01.01",
+          "code": "10.01.01",
+          "description": "Plafondarmatuur ArkosLight GAP GX5.3",
+          "unit": "st",
+          "qty": 48.0,
+          "planned_week_start": 32,
+          "planned_week_end": 35
+        },
+        {
+          "id": "10.01.02",
+          "code": "10.01.02",
+          "description": "Onderwaterarmatuur LEDS C4 GEA55-9623-14-T2 IP67",
+          "unit": "st",
+          "qty": 3.0,
+          "planned_week_start": 32,
+          "planned_week_end": 35
+        },
+        {
+          "id": "10.01.03",
+          "code": "10.01.03",
+          "description": "Inbouwgrondspot LED",
+          "unit": "st",
+          "qty": 10.0,
+          "planned_week_start": 14,
+          "planned_week_end": 18
+        },
+        {
+          "id": "10.01.04",
+          "code": "10.01.04",
+          "description": "Floodlight FOC-21",
+          "unit": "st",
+          "qty": 10.0,
+          "planned_week_start": 14,
+          "planned_week_end": 18
+        },
+        {
+          "id": "10.01.05",
+          "code": "10.01.05",
+          "description": "Floodlight OLAN LED",
+          "unit": "st",
+          "qty": 12.0,
+          "planned_week_start": 14,
+          "planned_week_end": 18
+        },
+        {
+          "id": "10.02.01",
+          "code": "10.02.01",
+          "description": "Meter-/beveiligingskast (CPM)",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 14,
+          "planned_week_end": 18
+        },
+        {
+          "id": "10.02.02",
+          "code": "10.02.02",
+          "description": "Electrical installation en telecom woning (compleet)",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 14,
+          "planned_week_end": 18
+        },
+        {
+          "id": "10.02.03",
+          "code": "10.02.03",
+          "description": "Aardingssysteem voor constructie",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 14,
+          "planned_week_end": 18
+        },
+        {
+          "id": "10.02.04",
+          "code": "10.02.04",
+          "description": "Potentiaalvereffening",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 14,
+          "planned_week_end": 18
+        },
+        {
+          "id": "10.02.05",
+          "code": "10.02.05",
+          "description": "Voorinstallatie alarmsysteem",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 14,
+          "planned_week_end": 18
+        },
+        {
+          "id": "10.03.01",
+          "code": "10.03.01",
+          "description": "Binneninstallatie water (hoofdring)",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 14,
+          "planned_week_end": 18
+        },
+        {
+          "id": "10.03.02",
+          "code": "10.03.02",
+          "description": "Bathroom 1 (Toilet, washbasin, douche)",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 32,
+          "planned_week_end": 35
+        },
+        {
+          "id": "10.03.03",
+          "code": "10.03.03",
+          "description": "Bathroom 2 (Toilet, washbasin, douche)",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 32,
+          "planned_week_end": 35
+        },
+        {
+          "id": "10.03.04",
+          "code": "10.03.04",
+          "description": "Bathroom 4 (Toilet, washbasin, douche)",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 32,
+          "planned_week_end": 35
+        },
+        {
+          "id": "10.03.05",
+          "code": "10.03.05",
+          "description": "Toilet (Toilet, washbasin)",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 32,
+          "planned_week_end": 35
+        },
+        {
+          "id": "10.03.06",
+          "code": "10.03.06",
+          "description": "Kitchen (spoelbak, vaatwasser, wasmachine)",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 14,
+          "planned_week_end": 18
+        },
+        {
+          "id": "10.03.07",
+          "code": "10.03.07",
+          "description": "Veranda/porche (waterpunt, afvoer)",
+          "unit": "st",
+          "qty": 2.0,
+          "planned_week_start": 14,
+          "planned_week_end": 18
+        },
+        {
+          "id": "10.03.08",
+          "code": "10.03.08",
+          "description": "Elektrische boiler",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 14,
+          "planned_week_end": 18
+        },
+        {
+          "id": "10.03.09",
+          "code": "10.03.09",
+          "description": "Internal drainage woning",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 14,
+          "planned_week_end": 18
+        },
+        {
+          "id": "10.03.10",
+          "code": "10.03.10",
+          "description": "Buitenriolering woning",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 14,
+          "planned_week_end": 18
+        },
+        {
+          "id": "10.04.01",
+          "code": "10.04.01",
+          "description": "Airconditioning Daikin 4MXS100KVM",
+          "unit": "st",
+          "qty": 2.0,
+          "planned_week_start": 14,
+          "planned_week_end": 18
+        },
+        {
+          "id": "10.04.02",
+          "code": "10.04.02",
+          "description": "Airconditioning Daikin RXA42B",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 14,
+          "planned_week_end": 18
+        },
+        {
+          "id": "10.04.03",
+          "code": "10.04.03",
+          "description": "Binnenunit Daikin FTXS35KVM",
+          "unit": "st",
+          "qty": 2.0,
+          "planned_week_start": 14,
+          "planned_week_end": 18
+        },
+        {
+          "id": "10.04.04",
+          "code": "10.04.04",
+          "description": "Binnenunit Daikin FTXA42AW",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 14,
+          "planned_week_end": 18
+        },
+        {
+          "id": "10.04.05",
+          "code": "10.04.05",
+          "description": "Keukenventilatie (kanalen en afzuiger)",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 14,
+          "planned_week_end": 18
+        },
+        {
+          "id": "10.04.06",
+          "code": "10.04.06",
+          "description": "Installatie airco (interconnecties, afvoeren, inbedrijfstelling)",
+          "unit": "set",
+          "qty": 1.0,
+          "planned_week_start": 14,
+          "planned_week_end": 18
+        },
+        {
+          "id": "10.05.01",
+          "code": "10.05.01",
+          "description": "Zonneboiler ACS: 2 collectoren + tank 200 L",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 14,
+          "planned_week_end": 18
+        },
+        {
+          "id": "10.06.01",
+          "code": "10.06.01",
+          "description": "Elektrische vloerverwarming: basisisolatie",
+          "unit": "m2",
+          "qty": 12.93,
+          "planned_week_start": 14,
+          "planned_week_end": 18
+        },
+        {
+          "id": "10.06.02",
+          "code": "10.06.02",
+          "description": "Elektrische vloerverwarming: mat/kabel 880 W",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 14,
+          "planned_week_end": 18
+        },
+        {
+          "id": "10.06.03",
+          "code": "10.06.03",
+          "description": "Elektrische vloerverwarming: mat/kabel 640 W",
+          "unit": "st",
+          "qty": 2.0,
+          "planned_week_start": 14,
+          "planned_week_end": 18
+        },
+        {
+          "id": "10.06.04",
+          "code": "10.06.04",
+          "description": "Thermostaat elektrische vloerverwarming",
+          "unit": "st",
+          "qty": 3.0,
+          "planned_week_start": 14,
+          "planned_week_end": 18
+        },
+        {
+          "id": "10.07.01",
+          "code": "10.07.01",
+          "description": "Washbasin op blad + mengkraan",
+          "unit": "st",
+          "qty": 5.0,
+          "planned_week_start": 32,
+          "planned_week_end": 35
+        },
+        {
+          "id": "10.07.02",
+          "code": "10.07.02",
+          "description": "Hangtoilet met inbouwreservoir",
+          "unit": "st",
+          "qty": 4.0,
+          "planned_week_start": 32,
+          "planned_week_end": 35
+        },
+        {
+          "id": "10.07.03",
+          "code": "10.07.03",
+          "description": "Douchemengkraan",
+          "unit": "st",
+          "qty": 3.0,
+          "planned_week_start": 32,
+          "planned_week_end": 35
+        }
+      ]
+    },
+    {
+      "chapter_no": 11,
+      "title": "Miscellaneous",
+      "icon": "🧩",
+      "items": [
+        {
+          "id": "11.01",
+          "code": "11.01",
+          "description": "Final cleaning (binnen/buiten)",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 36,
+          "planned_week_end": 38
+        }
+      ]
+    },
+    {
+      "chapter_no": 12,
+      "title": "Swimming pool",
+      "icon": "🏊",
+      "items": [
+        {
+          "id": "12.01",
+          "code": "12.01",
+          "description": "Setting out and temporary works",
+          "unit": "set",
+          "qty": 1.0,
+          "planned_week_start": 3,
+          "planned_week_end": 4
+        },
+        {
+          "id": "12.02",
+          "code": "12.02",
+          "description": "Disconnect existing connections and drain/empty",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 3,
+          "planned_week_end": 4
+        },
+        {
+          "id": "12.03",
+          "code": "12.03",
+          "description": "Removal of prefab PVC-zwembad met kraan (hijsen, laden)",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 3,
+          "planned_week_end": 4
+        },
+        {
+          "id": "12.04",
+          "code": "12.04",
+          "description": "Transport to licensed landfill + disposal fee",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 3,
+          "planned_week_end": 4
+        },
+        {
+          "id": "12.05",
+          "code": "12.05",
+          "description": "Trenches for pipes (0,30×0,40 m)",
+          "unit": "ml",
+          "qty": 12.0,
+          "planned_week_start": 3,
+          "planned_week_end": 4
+        },
+        {
+          "id": "12.06",
+          "code": "12.06",
+          "description": "Repair of bij kleine afschuivingen (voorziening)",
+          "unit": "set",
+          "qty": 1.0,
+          "planned_week_start": 3,
+          "planned_week_end": 4
+        },
+        {
+          "id": "12.07",
+          "code": "12.07",
+          "description": "Base slab HA-30 20 cm met dubbele wapeningsmat",
+          "unit": "m2",
+          "qty": 28.0,
+          "planned_week_start": 3,
+          "planned_week_end": 9
+        },
+        {
+          "id": "12.08",
+          "code": "12.08",
+          "description": "Pool shell walls HA-30 20 cm gewapend",
+          "unit": "m3",
+          "qty": 7.16,
+          "planned_week_start": 3,
+          "planned_week_end": 9
+        },
+        {
+          "id": "12.09",
+          "code": "12.09",
+          "description": "In-situ masonry steps, 4 treden, geïntegreerd",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 3,
+          "planned_week_end": 9
+        },
+        {
+          "id": "12.10",
+          "code": "12.10",
+          "description": "Waterproofing kuip (flexibele mortel + wapeningsnet)",
+          "unit": "m2",
+          "qty": 61.8,
+          "planned_week_start": 3,
+          "planned_week_end": 9
+        },
+        {
+          "id": "12.11",
+          "code": "12.11",
+          "description": "Mosaic finish (gresite) met lijm C2TES2 + epoxyvoeg",
+          "unit": "m2",
+          "qty": 61.8,
+          "planned_week_start": 23,
+          "planned_week_end": 27
+        },
+        {
+          "id": "12.12",
+          "code": "12.12",
+          "description": "Coping / edge finish (coping) antislip 30 cm, rondom",
+          "unit": "ml",
+          "qty": 22.0,
+          "planned_week_start": 23,
+          "planned_week_end": 27
+        },
+        {
+          "id": "12.13",
+          "code": "12.13",
+          "description": "Hydraulic network PVC Ø50 + collector naar bestaande",
+          "unit": "set",
+          "qty": 1.0,
+          "planned_week_start": 14,
+          "planned_week_end": 18
+        },
+        {
+          "id": "12.14",
+          "code": "12.14",
+          "description": "Pool accessories: 2 skimmers + 3 inspuiters + 1",
+          "unit": "set",
+          "qty": 1.0,
+          "planned_week_start": 14,
+          "planned_week_end": 18
+        },
+        {
+          "id": "12.15",
+          "code": "12.15",
+          "description": "Underwater lighting LED 12V IP68 (incl. trafo en",
+          "unit": "st",
+          "qty": 2.0,
+          "planned_week_start": 14,
+          "planned_week_end": 18
+        },
+        {
+          "id": "12.16",
+          "code": "12.16",
+          "description": "Electrical panel voor verlichting en aansluiting op",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 14,
+          "planned_week_end": 18
+        },
+        {
+          "id": "12.17",
+          "code": "12.17",
+          "description": "Backfilling around met gebroken steen (zahorra) en",
+          "unit": "m3",
+          "qty": 10.42,
+          "planned_week_start": 19,
+          "planned_week_end": 22
+        },
+        {
+          "id": "12.18",
+          "code": "12.18",
+          "description": "Commissioning and leak tests",
+          "unit": "set",
+          "qty": 1.0,
+          "planned_week_start": 32,
+          "planned_week_end": 35
+        },
+        {
+          "id": "12.19",
+          "code": "12.19",
+          "description": "Starter chemical kit",
+          "unit": "set",
+          "qty": 1.0,
+          "planned_week_start": 36,
+          "planned_week_end": 38
+        },
+        {
+          "id": "12.20",
+          "code": "12.20",
+          "description": "Final cleaning",
+          "unit": "set",
+          "qty": 1.0,
+          "planned_week_start": 36,
+          "planned_week_end": 38
+        }
+      ]
+    },
+    {
+      "chapter_no": 13,
+      "title": "Quality control and testing",
+      "icon": "✅",
+      "items": [
+        {
+          "id": "13.01",
+          "code": "13.01",
+          "description": "Proeven en testen (bouw en laboratorium)",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 39,
+          "planned_week_end": 39
+        }
+      ]
+    },
+    {
+      "chapter_no": 14,
+      "title": "Waste management",
+      "icon": "♻️",
+      "items": [
+        {
+          "id": "14.02",
+          "code": "14.02",
+          "description": "Containers 9 m³ (laden + transport + stortkosten)",
+          "unit": "st",
+          "qty": 2.0,
+          "planned_week_start": 1,
+          "planned_week_end": 39
+        }
+      ]
+    },
+    {
+      "chapter_no": 15,
+      "title": "Safety and health",
+      "icon": "🦺",
+      "items": [
+        {
+          "id": "15.01",
+          "code": "15.01",
+          "description": "Plan en coördinatie Veiligheid en Gezondheid",
+          "unit": "st",
+          "qty": 1.0,
+          "planned_week_start": 1,
+          "planned_week_end": 39
+        }
+      ]
+    }
+  ]
+}
