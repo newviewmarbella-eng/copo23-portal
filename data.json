@@ -20,7 +20,8 @@
           "planned_week_start": 1,
           "planned_week_end": 2,
           "description_en": "Demolition cavity wall (a la capuchina)",
-          "description_es": "Demolición de muro de cámara (tipo capuchina)"
+          "description_es": "Demolición de muro de cámara (tipo capuchina)",
+          "description_nl": "Sloop spouwmuur (capuchina-type)"
         },
         {
           "id": "1.02",
@@ -31,7 +32,8 @@
           "planned_week_start": 1,
           "planned_week_end": 2,
           "description_en": "Demolition fireplace/chimney",
-          "description_es": "Demolición de chimenea/hogar"
+          "description_es": "Demolición de chimenea/hogar",
+          "description_nl": "Sloop open haard/schoorsteen"
         },
         {
           "id": "1.03",
@@ -42,7 +44,8 @@
           "planned_week_start": 1,
           "planned_week_end": 2,
           "description_en": "Dismantling metal fence",
-          "description_es": "Desmontaje de valla metálica"
+          "description_es": "Desmontaje de valla metálica",
+          "description_nl": "Demonteren metalen hek"
         },
         {
           "id": "1.04",
@@ -53,7 +56,8 @@
           "planned_week_start": 1,
           "planned_week_end": 2,
           "description_en": "Dismantling exterior joinery",
-          "description_es": "Desmontaje de carpintería exterior"
+          "description_es": "Desmontaje de carpintería exterior",
+          "description_nl": "Demonteren buitenschrijnwerk"
         },
         {
           "id": "1.05",
@@ -64,7 +68,8 @@
           "planned_week_start": 1,
           "planned_week_end": 2,
           "description_en": "Dismantling interior joinery",
-          "description_es": "Desmontaje de carpintería interior"
+          "description_es": "Desmontaje de carpintería interior",
+          "description_nl": "Demonteren binnenschrijnwerk"
         },
         {
           "id": "1.06",
@@ -75,7 +80,8 @@
           "planned_week_start": 1,
           "planned_week_end": 2,
           "description_en": "Dismantling washbasin",
-          "description_es": "Desmontaje de lavabo"
+          "description_es": "Desmontaje de lavabo",
+          "description_nl": "Demonteren wastafel"
         },
         {
           "id": "1.07",
@@ -86,7 +92,8 @@
           "planned_week_start": 1,
           "planned_week_end": 2,
           "description_en": "Dismantling Toilet",
-          "description_es": "Desmontaje de inodoro"
+          "description_es": "Desmontaje de inodoro",
+          "description_nl": "Demonteren toilet"
         },
         {
           "id": "1.08",
@@ -97,7 +104,8 @@
           "planned_week_start": 1,
           "planned_week_end": 2,
           "description_en": "Dismantling bathtub",
-          "description_es": "Desmontaje de bañera"
+          "description_es": "Desmontaje de bañera",
+          "description_nl": "Demonteren badkuip"
         },
         {
           "id": "1.09",
@@ -108,7 +116,8 @@
           "planned_week_start": 1,
           "planned_week_end": 2,
           "description_en": "Demolition reinforced concrete floor slab",
-          "description_es": "Demolición de forjado de hormigón armado"
+          "description_es": "Demolición de forjado de hormigón armado",
+          "description_nl": "Sloop gewapende betonvloer"
         },
         {
           "id": "1.10",
@@ -119,7 +128,8 @@
           "planned_week_start": 1,
           "planned_week_end": 2,
           "description_en": "Demolition reinforced concrete slab",
-          "description_es": "Demolición de losa de hormigón armado"
+          "description_es": "Demolición de losa de hormigón armado",
+          "description_nl": "Sloop gewapende betonnen plaat"
         },
         {
           "id": "1.11",
@@ -130,7 +140,8 @@
           "planned_week_start": 1,
           "planned_week_end": 2,
           "description_en": "Dismantling roof tiles",
-          "description_es": "Retirada de tejas de cubierta"
+          "description_es": "Retirada de tejas de cubierta",
+          "description_nl": "Demonteren dakpannen"
         },
         {
           "id": "1.12",
@@ -141,7 +152,8 @@
           "planned_week_start": 1,
           "planned_week_end": 2,
           "description_en": "Demolition of roof slope mortar layer",
-          "description_es": "Demolición de capa de mortero de pendiente en cubierta"
+          "description_es": "Demolición de capa de mortero de pendiente en cubierta",
+          "description_nl": "Verwijderen mortellaag dakhelling"
         },
         {
           "id": "1.13",
@@ -152,7 +164,8 @@
           "planned_week_start": 1,
           "planned_week_end": 2,
           "description_en": "Demolition half-brick wall",
-          "description_es": "Demolición de tabique de medio pie"
+          "description_es": "Demolición de tabique de medio pie",
+          "description_nl": "Sloop halfsteens muur"
         },
         {
           "id": "1.14",
@@ -163,7 +176,8 @@
           "planned_week_start": 1,
           "planned_week_end": 2,
           "description_en": "Demolition one-brick wall",
-          "description_es": "Demolición de muro de un pie"
+          "description_es": "Demolición de muro de un pie",
+          "description_nl": "Sloop steens muur"
         },
         {
           "id": "1.15",
@@ -174,7 +188,8 @@
           "planned_week_start": 1,
           "planned_week_end": 2,
           "description_en": "Demolition Internal wall",
-          "description_es": "Demolición de tabique interior"
+          "description_es": "Demolición de tabique interior",
+          "description_nl": "Sloop binnenwand"
         },
         {
           "id": "1.16",
@@ -185,7 +200,8 @@
           "planned_week_start": 1,
           "planned_week_end": 2,
           "description_en": "Dismantling plumbing installation",
-          "description_es": "Desmontaje de instalación de fontanería"
+          "description_es": "Desmontaje de instalación de fontanería",
+          "description_nl": "Demonteren sanitaire installatie"
         },
         {
           "id": "1.17",
@@ -196,7 +212,8 @@
           "planned_week_start": 1,
           "planned_week_end": 2,
           "description_en": "Dismantling electrical installation",
-          "description_es": "Desmontaje de instalación eléctrica"
+          "description_es": "Desmontaje de instalación eléctrica",
+          "description_nl": "Demonteren elektrische installatie"
         },
         {
           "id": "1.18",
@@ -207,7 +224,8 @@
           "planned_week_start": 1,
           "planned_week_end": 2,
           "description_en": "Dismantling wastewater drain",
-          "description_es": "Desmontaje de bajantes/saneamiento"
+          "description_es": "Desmontaje de bajantes/saneamiento",
+          "description_nl": "Demonteren afvalwaterafvoer"
         },
         {
           "id": "1.19",
@@ -218,7 +236,8 @@
           "planned_week_start": 1,
           "planned_week_end": 2,
           "description_en": "Removal of ceramic outdoor flooring",
-          "description_es": "Retirada de pavimento cerámico exterior"
+          "description_es": "Retirada de pavimento cerámico exterior",
+          "description_nl": "Verwijderen keramische buitenvloer"
         },
         {
           "id": "1.20",
@@ -229,7 +248,8 @@
           "planned_week_start": 1,
           "planned_week_end": 2,
           "description_en": "Removal of ceramic indoor flooring",
-          "description_es": "Retirada de pavimento cerámico interior"
+          "description_es": "Retirada de pavimento cerámico interior",
+          "description_nl": "Verwijderen keramische binnenvloer"
         },
         {
           "id": "1.21",
@@ -240,7 +260,8 @@
           "planned_week_start": 1,
           "planned_week_end": 2,
           "description_en": "Removal of stair cladding",
-          "description_es": "Retirada de revestimiento de escalera"
+          "description_es": "Retirada de revestimiento de escalera",
+          "description_nl": "Verwijderen trapbekleding"
         },
         {
           "id": "1.22",
@@ -251,7 +272,8 @@
           "planned_week_start": 1,
           "planned_week_end": 2,
           "description_en": "Removal of paving sub-base layer",
-          "description_es": "Retirada de capa de subbase de pavimento"
+          "description_es": "Retirada de capa de subbase de pavimento",
+          "description_nl": "Verwijderen funderingslaag bestrating"
         },
         {
           "id": "1.23",
@@ -262,7 +284,8 @@
           "planned_week_start": 1,
           "planned_week_end": 2,
           "description_en": "Removal of wall tiling",
-          "description_es": "Retirada de alicatado"
+          "description_es": "Retirada de alicatado",
+          "description_nl": "Verwijderen wandtegels"
         },
         {
           "id": "1.24",
@@ -273,7 +296,8 @@
           "planned_week_start": 1,
           "planned_week_end": 2,
           "description_en": "Removal of pool mosaic (gresite)",
-          "description_es": "Retirada de mosaico de piscina"
+          "description_es": "Retirada de mosaico de piscina",
+          "description_nl": "Verwijderen zwembadmozaïek (gresite)"
         },
         {
           "id": "1.25",
@@ -284,7 +308,8 @@
           "planned_week_start": 1,
           "planned_week_end": 2,
           "description_en": "Removal of thresholds / drip edges",
-          "description_es": "Retirada de umbrales/goterones"
+          "description_es": "Retirada de umbrales/goterones",
+          "description_nl": "Verwijderen dorpels / drupranden"
         },
         {
           "id": "1.26",
@@ -295,7 +320,8 @@
           "planned_week_start": 1,
           "planned_week_end": 2,
           "description_en": "Demolition of light porch structure",
-          "description_es": "Demolición de porche/estructura ligera"
+          "description_es": "Demolición de porche/estructura ligera",
+          "description_nl": "Sloop lichte veranda-constructie"
         },
         {
           "id": "1.27",
@@ -306,11 +332,13 @@
           "planned_week_start": 1,
           "planned_week_end": 2,
           "description_en": "Rubble container + waste management (3 units, 9 m³ each)",
-          "description_es": "Contenedor y gestión de residuos (3 ud., 9 m³)"
+          "description_es": "Contenedor y gestión de residuos (3 ud., 9 m³)",
+          "description_nl": "Pucontainer + afvalverwerking (3 stuks van 9 m³)"
         }
       ],
       "title_en": "Demolition works",
-      "title_es": "Demoliciones"
+      "title_es": "Demoliciones",
+      "title_nl": "Sloopwerkzaamheden"
     },
     {
       "chapter_no": 3,
@@ -326,7 +354,8 @@
           "planned_week_start": 3,
           "planned_week_end": 6,
           "description_en": "Levelling/cleaning concrete layer HL-150 (10 cm)",
-          "description_es": "Capa de limpieza/regularización de hormigón HL-150 (10 cm)"
+          "description_es": "Capa de limpieza/regularización de hormigón HL-150 (10 cm)",
+          "description_nl": "Uitvul-/reinigingsbetonlaag HL-150 (10 cm)"
         },
         {
           "id": "3.02",
@@ -337,7 +366,8 @@
           "planned_week_start": 3,
           "planned_week_end": 6,
           "description_en": "Foundation slab HA-30",
-          "description_es": "Losa de cimentación HA-30"
+          "description_es": "Losa de cimentación HA-30",
+          "description_nl": "Funderingplaat HA-30"
         },
         {
           "id": "3.03",
@@ -348,11 +378,13 @@
           "planned_week_start": 3,
           "planned_week_end": 6,
           "description_en": "25 cm HA-30 slab with double reinforcement mesh",
-          "description_es": "Losa de 25 cm HA-30 con doble malla de armado"
+          "description_es": "Losa de 25 cm HA-30 con doble malla de armado",
+          "description_nl": "Betonplaat 25 cm HA-30 met dubbele wapening"
         }
       ],
       "title_en": "Foundations",
-      "title_es": "Cimentaciones"
+      "title_es": "Cimentaciones",
+      "title_nl": "Funderingen"
     },
     {
       "chapter_no": 4,
@@ -368,7 +400,8 @@
           "planned_week_start": 3,
           "planned_week_end": 6,
           "description_en": "One-way slab with steel beams (25 = 20+5 cm)",
-          "description_es": "Forjado unidireccional con vigas de acero (25 = 20+5 cm)"
+          "description_es": "Forjado unidireccional con vigas de acero (25 = 20+5 cm)",
+          "description_nl": "Eenrichtingsvloer met stalen liggers (25 = 20+5 cm)"
         },
         {
           "id": "4.02",
@@ -379,7 +412,8 @@
           "planned_week_start": 3,
           "planned_week_end": 6,
           "description_en": "Solid slab HA-30 20 cm",
-          "description_es": "Losa maciza HA-30 de 20 cm"
+          "description_es": "Losa maciza HA-30 de 20 cm",
+          "description_nl": "Volle betonplaat HA-30, 20 cm"
         },
         {
           "id": "4.03",
@@ -390,11 +424,13 @@
           "planned_week_start": 3,
           "planned_week_end": 6,
           "description_en": "Steel pergola S275JR, painted",
-          "description_es": "Pérgola de acero S275JR pintada"
+          "description_es": "Pérgola de acero S275JR pintada",
+          "description_nl": "Stalen pergola S275JR, geschilderd"
         }
       ],
       "title_en": "Structure",
-      "title_es": "Estructura"
+      "title_es": "Estructura",
+      "title_nl": "Constructie"
     },
     {
       "chapter_no": 5,
@@ -410,7 +446,8 @@
           "planned_week_start": 10,
           "planned_week_end": 13,
           "description_en": "Cavity wall (double leaf + cavity insulation)",
-          "description_es": "Muro de cerramiento de doble hoja con aislamiento en cámara"
+          "description_es": "Muro de cerramiento de doble hoja con aislamiento en cámara",
+          "description_nl": "Spouwmuur (dubbele blad + spouwisolatie)"
         },
         {
           "id": "5.02",
@@ -421,7 +458,8 @@
           "planned_week_start": 10,
           "planned_week_end": 13,
           "description_en": "25 cm brick masonry (perforated brick)",
-          "description_es": "Fábrica de ladrillo 25 cm (ladrillo perforado)"
+          "description_es": "Fábrica de ladrillo 25 cm (ladrillo perforado)",
+          "description_nl": "25 cm metselwerk (geperforeerde baksteen)"
         },
         {
           "id": "5.03",
@@ -432,7 +470,8 @@
           "planned_week_start": 10,
           "planned_week_end": 13,
           "description_en": "Internal partition wall",
-          "description_es": "Tabique interior divisorio"
+          "description_es": "Tabique interior divisorio",
+          "description_nl": "Binnenwand"
         },
         {
           "id": "5.04",
@@ -443,7 +482,8 @@
           "planned_week_start": 7,
           "planned_week_end": 13,
           "description_en": "Marble drip edge (Blanco Macael)",
-          "description_es": "Goterón en mármol Blanco Macael"
+          "description_es": "Goterón en mármol Blanco Macael",
+          "description_nl": "Marmeren druiprand (Blanco Macael)"
         },
         {
           "id": "5.05",
@@ -454,7 +494,8 @@
           "planned_week_start": 7,
           "planned_week_end": 13,
           "description_en": "Marble threshold (Blanco Macael)",
-          "description_es": "Umbral en mármol Blanco Macael"
+          "description_es": "Umbral en mármol Blanco Macael",
+          "description_nl": "Marmeren dorpel (Blanco Macael)"
         },
         {
           "id": "5.06",
@@ -465,7 +506,8 @@
           "planned_week_start": 7,
           "planned_week_end": 13,
           "description_en": "Marble coping stones (Blanco Macael)",
-          "description_es": "Albardillas en mármol Blanco Macael"
+          "description_es": "Albardillas en mármol Blanco Macael",
+          "description_nl": "Marmeren afdekstenen (Blanco Macael)"
         },
         {
           "id": "5.07",
@@ -476,7 +518,8 @@
           "planned_week_start": 19,
           "planned_week_end": 22,
           "description_en": "Waterproof cement render on façade, trowelled finish",
-          "description_es": "Revoco de cemento impermeable en fachada, maestreado"
+          "description_es": "Revoco de cemento impermeable en fachada, maestreado",
+          "description_nl": "Waterdichte cementpleister gevel, afgepleisterd"
         },
         {
           "id": "5.08",
@@ -487,7 +530,8 @@
           "planned_week_start": 19,
           "planned_week_end": 22,
           "description_en": "Interior gypsum plaster, trowelled finish",
-          "description_es": "Enlucido de yeso interior, maestreado"
+          "description_es": "Enlucido de yeso interior, maestreado",
+          "description_nl": "Binnenpleister gips, afgepleisterd"
         },
         {
           "id": "5.09",
@@ -498,7 +542,8 @@
           "planned_week_start": 19,
           "planned_week_end": 22,
           "description_en": "Cement-based screed / mortar bed",
-          "description_es": "Mortero de recrecido/base cementosa"
+          "description_es": "Mortero de recrecido/base cementosa",
+          "description_nl": "Cementdekvloer / mortelbed"
         },
         {
           "id": "5.10",
@@ -509,7 +554,8 @@
           "planned_week_start": 7,
           "planned_week_end": 13,
           "description_en": "Installation of sloping mortar",
-          "description_es": "Formación de pendientes en mortero"
+          "description_es": "Formación de pendientes en mortero",
+          "description_nl": "Plaatsen afschotmortel"
         },
         {
           "id": "5.11",
@@ -520,7 +566,8 @@
           "planned_week_start": 23,
           "planned_week_end": 27,
           "description_en": "Porcelain wall tiling",
-          "description_es": "Alicatado porcelánico"
+          "description_es": "Alicatado porcelánico",
+          "description_nl": "Porseleinen wandtegelwerk"
         },
         {
           "id": "5.12",
@@ -531,7 +578,8 @@
           "planned_week_start": 23,
           "planned_week_end": 27,
           "description_en": "Interior porcelain floor finish",
-          "description_es": "Pavimento porcelánico interior"
+          "description_es": "Pavimento porcelánico interior",
+          "description_nl": "Binnentegelvloer porselein"
         },
         {
           "id": "5.13",
@@ -542,7 +590,8 @@
           "planned_week_start": 23,
           "planned_week_end": 27,
           "description_en": "Exterior anti-slip porcelain tiles (C3)",
-          "description_es": "Pavimento porcelánico exterior antideslizante C3"
+          "description_es": "Pavimento porcelánico exterior antideslizante C3",
+          "description_nl": "Buiten antislip porseleinen tegels (C3)"
         },
         {
           "id": "5.14",
@@ -553,7 +602,8 @@
           "planned_week_start": 23,
           "planned_week_end": 27,
           "description_en": "Anti-slip porcelain tiles in shower floors",
-          "description_es": "Gres porcelánico antideslizante en suelos de ducha"
+          "description_es": "Gres porcelánico antideslizante en suelos de ducha",
+          "description_nl": "Antislip porseleinen tegels douchevloeren"
         },
         {
           "id": "5.15",
@@ -564,7 +614,8 @@
           "planned_week_start": 7,
           "planned_week_end": 13,
           "description_en": "Stair cladding (Blanco Macael marble)",
-          "description_es": "Revestimiento de escalera (mármol Blanco Macael)"
+          "description_es": "Revestimiento de escalera (mármol Blanco Macael)",
+          "description_nl": "Trapbekleding (Blanco Macael marmer)"
         },
         {
           "id": "5.16",
@@ -575,7 +626,8 @@
           "planned_week_start": 7,
           "planned_week_end": 13,
           "description_en": "In-situ shower tray, waterproofed",
-          "description_es": "Plato de ducha in situ, impermeable"
+          "description_es": "Plato de ducha in situ, impermeable",
+          "description_nl": "Gietvloer douchebak, waterdicht"
         },
         {
           "id": "5.17",
@@ -586,7 +638,8 @@
           "planned_week_start": 7,
           "planned_week_end": 13,
           "description_en": "Washbasin countertop (Blanco Macael marble, 2 cm)",
-          "description_es": "Encimera de lavabo en mármol Blanco Macael (2 cm)"
+          "description_es": "Encimera de lavabo en mármol Blanco Macael (2 cm)",
+          "description_nl": "Wastafelblad (Blanco Macael marmer, 2 cm)"
         },
         {
           "id": "5.18",
@@ -597,7 +650,8 @@
           "planned_week_start": 7,
           "planned_week_end": 13,
           "description_en": "Continuous suspended plasterboard ceiling (standard)",
-          "description_es": "Falso techo continuo de cartón-yeso N"
+          "description_es": "Falso techo continuo de cartón-yeso N",
+          "description_nl": "Doorlopend verlaagd gipsplafond (standaard)"
         },
         {
           "id": "5.19",
@@ -608,7 +662,8 @@
           "planned_week_start": 7,
           "planned_week_end": 13,
           "description_en": "Suspended moisture-resistant plasterboard ceiling (H1)",
-          "description_es": "Falso techo de cartón-yeso H1 (hidrófugo)"
+          "description_es": "Falso techo de cartón-yeso H1 (hidrófugo)",
+          "description_nl": "Verlaagd vochtwerend gipsplafond (H1)"
         },
         {
           "id": "5.20",
@@ -619,7 +674,8 @@
           "planned_week_start": 7,
           "planned_week_end": 13,
           "description_en": "Plasterboard bulkhead / curtain pelmet",
-          "description_es": "Foseado/galería para cortina en cartón-yeso"
+          "description_es": "Foseado/galería para cortina en cartón-yeso",
+          "description_nl": "Gipsplaten koof / gordijnkoof"
         },
         {
           "id": "5.21",
@@ -630,7 +686,8 @@
           "planned_week_start": 7,
           "planned_week_end": 13,
           "description_en": "Pocket door frame (casoneto)",
-          "description_es": "Bastidor empotrado para puerta corredera (casoneto)"
+          "description_es": "Bastidor empotrado para puerta corredera (casoneto)",
+          "description_nl": "Inbouwkozijn schuifdeur (casoneto)"
         },
         {
           "id": "5.22",
@@ -641,11 +698,13 @@
           "planned_week_start": 7,
           "planned_week_end": 13,
           "description_en": "Minor building works for installations (small tasks)",
-          "description_es": "Apoyo de albañilería para instalaciones (pequeños trabajos)"
+          "description_es": "Apoyo de albañilería para instalaciones (pequeños trabajos)",
+          "description_nl": "Kleine bouwkundige werken voor installaties"
         }
       ],
       "title_en": "Masonry and claddings",
-      "title_es": "Albañilería y revestimientos"
+      "title_es": "Albañilería y revestimientos",
+      "title_nl": "Metselwerk en bekledingen"
     },
     {
       "chapter_no": 6,
@@ -661,11 +720,13 @@
           "planned_week_start": 7,
           "planned_week_end": 9,
           "description_en": "Pitched tiled roof (PU 40 mm + SBS membrane + finishes)",
-          "description_es": "Cubierta inclinada con teja (PU 40 mm + lámina SBS + acabados)"
+          "description_es": "Cubierta inclinada con teja (PU 40 mm + lámina SBS + acabados)",
+          "description_nl": "Hellend pannendak (PU 40 mm + SBS-membraan + afwerking)"
         }
       ],
       "title_en": "Roofs and waterproofing",
-      "title_es": "Cubiertas e impermeabilización"
+      "title_es": "Cubiertas e impermeabilización",
+      "title_nl": "Daken en waterdichting"
     },
     {
       "chapter_no": 7,
@@ -681,7 +742,8 @@
           "planned_week_start": 28,
           "planned_week_end": 31,
           "description_en": "Sliding window, 2-leaf 180×90",
-          "description_es": "Ventana corredera 2 hojas 180×90"
+          "description_es": "Ventana corredera 2 hojas 180×90",
+          "description_nl": "Schuifraam, 2-delig 180×90"
         },
         {
           "id": "7.01.03",
@@ -692,7 +754,8 @@
           "planned_week_start": 28,
           "planned_week_end": 31,
           "description_en": "Sliding window, 2-leaf 230×90",
-          "description_es": "Ventana corredera 2 hojas 230×90"
+          "description_es": "Ventana corredera 2 hojas 230×90",
+          "description_nl": "Schuifraam, 2-delig 230×90"
         },
         {
           "id": "7.01.04",
@@ -703,7 +766,8 @@
           "planned_week_start": 28,
           "planned_week_end": 31,
           "description_en": "Tilt-and-turn window 100×98",
-          "description_es": "Ventana oscilobatiente 100×98"
+          "description_es": "Ventana oscilobatiente 100×98",
+          "description_nl": "Draaikiepraam 100×98"
         },
         {
           "id": "7.01.05",
@@ -714,7 +778,8 @@
           "planned_week_start": 28,
           "planned_week_end": 31,
           "description_en": "Tilt-and-turn window 105×107",
-          "description_es": "Ventana oscilobatiente 105×107"
+          "description_es": "Ventana oscilobatiente 105×107",
+          "description_nl": "Draaikiepraam 105×107"
         },
         {
           "id": "7.01.06",
@@ -725,7 +790,8 @@
           "planned_week_start": 28,
           "planned_week_end": 31,
           "description_en": "Fixed window 150×167",
-          "description_es": "Ventana fija 150×167"
+          "description_es": "Ventana fija 150×167",
+          "description_nl": "Vast raam 150×167"
         },
         {
           "id": "7.01.07",
@@ -736,7 +802,8 @@
           "planned_week_start": 28,
           "planned_week_end": 31,
           "description_en": "Tilt-and-turn window 90×96",
-          "description_es": "Ventana oscilobatiente 90×96"
+          "description_es": "Ventana oscilobatiente 90×96",
+          "description_nl": "Draaikiepraam 90×96"
         },
         {
           "id": "7.01.08",
@@ -747,7 +814,8 @@
           "planned_week_start": 28,
           "planned_week_end": 31,
           "description_en": "Sliding door, 2-leaf 250×200",
-          "description_es": "Puerta corredera 2 hojas 250×200"
+          "description_es": "Puerta corredera 2 hojas 250×200",
+          "description_nl": "Schuifdeur, 2-delig 250×200"
         },
         {
           "id": "7.01.09",
@@ -758,7 +826,8 @@
           "planned_week_start": 28,
           "planned_week_end": 31,
           "description_en": "Sliding door, 2-leaf 275×200",
-          "description_es": "Puerta corredera 2 hojas 275×200"
+          "description_es": "Puerta corredera 2 hojas 275×200",
+          "description_nl": "Schuifdeur, 2-delig 275×200"
         },
         {
           "id": "7.01.10",
@@ -769,7 +838,8 @@
           "planned_week_start": 28,
           "planned_week_end": 31,
           "description_en": "Sliding door, 2-leaf 403×200",
-          "description_es": "Puerta corredera 2 hojas 403×200"
+          "description_es": "Puerta corredera 2 hojas 403×200",
+          "description_nl": "Schuifdeur, 2-delig 403×200"
         },
         {
           "id": "7.01.11",
@@ -780,7 +850,8 @@
           "planned_week_start": 28,
           "planned_week_end": 31,
           "description_en": "Sliding door, 2-leaf 280×200",
-          "description_es": "Puerta corredera 2 hojas 280×200"
+          "description_es": "Puerta corredera 2 hojas 280×200",
+          "description_nl": "Schuifdeur, 2-delig 280×200"
         },
         {
           "id": "7.01.12",
@@ -791,7 +862,8 @@
           "planned_week_start": 28,
           "planned_week_end": 31,
           "description_en": "Sliding door, 3-leaf 275×200",
-          "description_es": "Puerta corredera 3 hojas 275×200"
+          "description_es": "Puerta corredera 3 hojas 275×200",
+          "description_nl": "Schuifdeur, 3-delig 275×200"
         },
         {
           "id": "7.01.13",
@@ -802,7 +874,8 @@
           "planned_week_start": 28,
           "planned_week_end": 31,
           "description_en": "Sliding door, 2-leaf 312×200",
-          "description_es": "Puerta corredera 2 hojas 312×200"
+          "description_es": "Puerta corredera 2 hojas 312×200",
+          "description_nl": "Schuifdeur, 2-delig 312×200"
         },
         {
           "id": "7.01.14",
@@ -813,7 +886,8 @@
           "planned_week_start": 28,
           "planned_week_end": 31,
           "description_en": "Sliding door, 2-leaf 346×200",
-          "description_es": "Puerta corredera 2 hojas 346×200"
+          "description_es": "Puerta corredera 2 hojas 346×200",
+          "description_nl": "Schuifdeur, 2-delig 346×200"
         },
         {
           "id": "7.01.15",
@@ -824,7 +898,8 @@
           "planned_week_start": 28,
           "planned_week_end": 31,
           "description_en": "Hinged door, single-leaf 130×100",
-          "description_es": "Puerta abatible 1 hoja 130×100"
+          "description_es": "Puerta abatible 1 hoja 130×100",
+          "description_nl": "Draaiende deur, 1-delig 130×100"
         },
         {
           "id": "7.01.16",
@@ -835,7 +910,8 @@
           "planned_week_start": 28,
           "planned_week_end": 31,
           "description_en": "Sliding door, 2-leaf 405×200",
-          "description_es": "Puerta corredera 2 hojas 405×200"
+          "description_es": "Puerta corredera 2 hojas 405×200",
+          "description_nl": "Schuifdeur, 2-delig 405×200"
         },
         {
           "id": "7.02.01",
@@ -846,7 +922,8 @@
           "planned_week_start": 28,
           "planned_week_end": 31,
           "description_en": "Internal door, lacquered, hinged",
-          "description_es": "Puerta interior lacada, abatible"
+          "description_es": "Puerta interior lacada, abatible",
+          "description_nl": "Binnendeur, gelakt, draaibaar"
         },
         {
           "id": "7.02.02",
@@ -857,7 +934,8 @@
           "planned_week_start": 28,
           "planned_week_end": 31,
           "description_en": "Internal door, lacquered, sliding (single-leaf)",
-          "description_es": "Puerta interior lacada, corredera de 1 hoja"
+          "description_es": "Puerta interior lacada, corredera de 1 hoja",
+          "description_nl": "Binnendeur, gelakt, schuivend (1-delig)"
         },
         {
           "id": "7.02.03",
@@ -868,7 +946,8 @@
           "planned_week_start": 28,
           "planned_week_end": 31,
           "description_en": "Vanity base cabinet washbasin 80×50",
-          "description_es": "Mueble base de lavabo 80×50"
+          "description_es": "Mueble base de lavabo 80×50",
+          "description_nl": "Onderkast wastafel 80×50"
         },
         {
           "id": "7.02.04",
@@ -879,7 +958,8 @@
           "planned_week_start": 28,
           "planned_week_end": 31,
           "description_en": "Vanity base cabinet washbasin 120×50",
-          "description_es": "Mueble base de lavabo 120×50"
+          "description_es": "Mueble base de lavabo 120×50",
+          "description_nl": "Onderkast wastafel 120×50"
         },
         {
           "id": "7.02.05",
@@ -890,11 +970,13 @@
           "planned_week_start": 28,
           "planned_week_end": 31,
           "description_en": "Vanity base cabinet washbasin 125×50",
-          "description_es": "Mueble base de lavabo 125×50"
+          "description_es": "Mueble base de lavabo 125×50",
+          "description_nl": "Onderkast wastafel 125×50"
         }
       ],
       "title_en": "Frames and doors",
-      "title_es": "Carpinterías y puertas"
+      "title_es": "Carpinterías y puertas",
+      "title_nl": "Kozijnen en deuren"
     },
     {
       "chapter_no": 8,
@@ -910,7 +992,8 @@
           "planned_week_start": 28,
           "planned_week_end": 31,
           "description_en": "Shower screen M1 (8 mm anti-limescale glass)",
-          "description_es": "Mampara de ducha M1 (vidrio 8 mm antical)"
+          "description_es": "Mampara de ducha M1 (vidrio 8 mm antical)",
+          "description_nl": "Douchewand M1 (8 mm kalkwerend glas)"
         },
         {
           "id": "8.02",
@@ -921,7 +1004,8 @@
           "planned_week_start": 28,
           "planned_week_end": 31,
           "description_en": "Shower screen M2 (special)",
-          "description_es": "Mampara de ducha M2 (especial)"
+          "description_es": "Mampara de ducha M2 (especial)",
+          "description_nl": "Douchewand M2 (speciaal)"
         },
         {
           "id": "8.03",
@@ -932,7 +1016,8 @@
           "planned_week_start": 28,
           "planned_week_end": 31,
           "description_en": "Mirror 80×110",
-          "description_es": "Espejo 80×110"
+          "description_es": "Espejo 80×110",
+          "description_nl": "Spiegel 80×110"
         },
         {
           "id": "8.04",
@@ -943,7 +1028,8 @@
           "planned_week_start": 28,
           "planned_week_end": 31,
           "description_en": "Mirror 120×110",
-          "description_es": "Espejo 120×110"
+          "description_es": "Espejo 120×110",
+          "description_nl": "Spiegel 120×110"
         },
         {
           "id": "8.05",
@@ -954,11 +1040,13 @@
           "planned_week_start": 28,
           "planned_week_end": 31,
           "description_en": "Mirror 125×110",
-          "description_es": "Espejo 125×110"
+          "description_es": "Espejo 125×110",
+          "description_nl": "Spiegel 125×110"
         }
       ],
       "title_en": "Glazing",
-      "title_es": "Acristalamientos"
+      "title_es": "Acristalamientos",
+      "title_nl": "Beglazing"
     },
     {
       "chapter_no": 9,
@@ -974,7 +1062,8 @@
           "planned_week_start": 36,
           "planned_week_end": 38,
           "description_en": "Interior walls: washable matte paint (2 coats)",
-          "description_es": "Interior: pintura plástica mate lavable (2 manos)"
+          "description_es": "Interior: pintura plástica mate lavable (2 manos)",
+          "description_nl": "Binnenwanden: afwasbare matte verf (2 lagen)"
         },
         {
           "id": "9.02",
@@ -985,11 +1074,13 @@
           "planned_week_start": 36,
           "planned_week_end": 38,
           "description_en": "Façade: matte paint (2 coats)",
-          "description_es": "Fachada: pintura mate (2 manos)"
+          "description_es": "Fachada: pintura mate (2 manos)",
+          "description_nl": "Gevel: matte verf (2 lagen)"
         }
       ],
       "title_en": "Painting",
-      "title_es": "Pintura"
+      "title_es": "Pintura",
+      "title_nl": "Schilderwerk"
     },
     {
       "chapter_no": 10,
@@ -1005,7 +1096,8 @@
           "planned_week_start": 32,
           "planned_week_end": 35,
           "description_en": "Ceiling light point ArkosLight GAP GX5.3",
-          "description_es": "Punto de luz de techo ArkosLight GAP GX5.3"
+          "description_es": "Punto de luz de techo ArkosLight GAP GX5.3",
+          "description_nl": "Plafond lichtpunt ArkosLight GAP GX5.3"
         },
         {
           "id": "10.01.02",
@@ -1016,7 +1108,8 @@
           "planned_week_start": 32,
           "planned_week_end": 35,
           "description_en": "Underwater fixture LEDS C4 GEA55-9623-14-T2 IP67",
-          "description_es": "Proyector subacuático LEDS C4 GEA55-9623-14-T2 IP67"
+          "description_es": "Proyector subacuático LEDS C4 GEA55-9623-14-T2 IP67",
+          "description_nl": "Onderwaterarmatuur LEDS C4 GEA55-9623-14-T2 IP67"
         },
         {
           "id": "10.01.03",
@@ -1027,7 +1120,8 @@
           "planned_week_start": 14,
           "planned_week_end": 18,
           "description_en": "Recessed ground beacon LED",
-          "description_es": "Baliza empotrada en suelo LED"
+          "description_es": "Baliza empotrada en suelo LED",
+          "description_nl": "Inbouw grondspot LED"
         },
         {
           "id": "10.01.04",
@@ -1038,7 +1132,8 @@
           "planned_week_start": 14,
           "planned_week_end": 18,
           "description_en": "Floodlight FOC-21",
-          "description_es": "Proyector FOC-21"
+          "description_es": "Proyector FOC-21",
+          "description_nl": "Schijnwerper FOC-21"
         },
         {
           "id": "10.01.05",
@@ -1049,7 +1144,8 @@
           "planned_week_start": 14,
           "planned_week_end": 18,
           "description_en": "Floodlight OLAN LED",
-          "description_es": "Proyector OLAN LED"
+          "description_es": "Proyector OLAN LED",
+          "description_nl": "Schijnwerper OLAN LED"
         },
         {
           "id": "10.02.01",
@@ -1060,7 +1156,8 @@
           "planned_week_start": 14,
           "planned_week_end": 18,
           "description_en": "Main electrical board (CPM)",
-          "description_es": "Cuadro eléctrico principal (CPM)"
+          "description_es": "Cuadro eléctrico principal (CPM)",
+          "description_nl": "Hoofdverdeelkast (CPM)"
         },
         {
           "id": "10.02.02",
@@ -1071,7 +1168,8 @@
           "planned_week_start": 14,
           "planned_week_end": 18,
           "description_en": "Electrical and telecom installation (dwelling, complete)",
-          "description_es": "Instalación eléctrica y telecom vivienda (completa)"
+          "description_es": "Instalación eléctrica y telecom vivienda (completa)",
+          "description_nl": "Elektrische en telecominstallatie (woning, compleet)"
         },
         {
           "id": "10.02.03",
@@ -1082,7 +1180,8 @@
           "planned_week_start": 14,
           "planned_week_end": 18,
           "description_en": "Earthing system for building",
-          "description_es": "Sistema de puesta a tierra para la construcción"
+          "description_es": "Sistema de puesta a tierra para la construcción",
+          "description_nl": "Aardingssysteem voor gebouw"
         },
         {
           "id": "10.02.04",
@@ -1093,7 +1192,8 @@
           "planned_week_start": 14,
           "planned_week_end": 18,
           "description_en": "Equipotential bonding",
-          "description_es": "Equipotencialidad"
+          "description_es": "Equipotencialidad",
+          "description_nl": "Potentialevlakverbinding"
         },
         {
           "id": "10.02.05",
@@ -1104,7 +1204,8 @@
           "planned_week_start": 14,
           "planned_week_end": 18,
           "description_en": "Alarm system pre-installation",
-          "description_es": "Preinstalación de alarma"
+          "description_es": "Preinstalación de alarma",
+          "description_nl": "Voorinstallatie alarmsysteem"
         },
         {
           "id": "10.03.01",
@@ -1115,7 +1216,8 @@
           "planned_week_start": 14,
           "planned_week_end": 18,
           "description_en": "Internal water installation (main ring)",
-          "description_es": "Instalación interior de agua (anillo principal)"
+          "description_es": "Instalación interior de agua (anillo principal)",
+          "description_nl": "Interne waterinstallatie (hoofdring)"
         },
         {
           "id": "10.03.02",
@@ -1126,7 +1228,8 @@
           "planned_week_start": 32,
           "planned_week_end": 35,
           "description_en": "Bathroom 1 (toilet, washbasin, shower)",
-          "description_es": "Baño 1 (inodoro, lavabo, ducha)"
+          "description_es": "Baño 1 (inodoro, lavabo, ducha)",
+          "description_nl": "Badkamer 1 (toilet, wastafel, douche)"
         },
         {
           "id": "10.03.03",
@@ -1137,7 +1240,8 @@
           "planned_week_start": 32,
           "planned_week_end": 35,
           "description_en": "Bathroom 2 (toilet, washbasin, shower)",
-          "description_es": "Baño 2 (inodoro, lavabo, ducha)"
+          "description_es": "Baño 2 (inodoro, lavabo, ducha)",
+          "description_nl": "Badkamer 2 (toilet, wastafel, douche)"
         },
         {
           "id": "10.03.04",
@@ -1148,7 +1252,8 @@
           "planned_week_start": 32,
           "planned_week_end": 35,
           "description_en": "Bathroom 4 (toilet, washbasin, shower)",
-          "description_es": "Baño 4 (inodoro, lavabo, ducha)"
+          "description_es": "Baño 4 (inodoro, lavabo, ducha)",
+          "description_nl": "Badkamer 4 (toilet, wastafel, douche)"
         },
         {
           "id": "10.03.05",
@@ -1159,7 +1264,8 @@
           "planned_week_start": 32,
           "planned_week_end": 35,
           "description_en": "Toilet (Toilet, washbasin)",
-          "description_es": "Aseo (inodoro, lavabo)"
+          "description_es": "Aseo (inodoro, lavabo)",
+          "description_nl": "Toilet (toilet, wastafel)"
         },
         {
           "id": "10.03.06",
@@ -1170,7 +1276,8 @@
           "planned_week_start": 14,
           "planned_week_end": 18,
           "description_en": "Kitchen (sink, dishwasher, washing machine)",
-          "description_es": "Cocina (fregadero, lavavajillas, lavadora)"
+          "description_es": "Cocina (fregadero, lavavajillas, lavadora)",
+          "description_nl": "Keuken (spoelbak, vaatwasser, wasmachine)"
         },
         {
           "id": "10.03.07",
@@ -1181,7 +1288,8 @@
           "planned_week_start": 14,
           "planned_week_end": 18,
           "description_en": "Porch (water point + drain connection)",
-          "description_es": "Porche (punto de agua y desagüe)"
+          "description_es": "Porche (punto de agua y desagüe)",
+          "description_nl": "Veranda (waterpunt + afvoeraansluiting)"
         },
         {
           "id": "10.03.08",
@@ -1192,7 +1300,8 @@
           "planned_week_start": 14,
           "planned_week_end": 18,
           "description_en": "Electric water heater",
-          "description_es": "Termo eléctrico"
+          "description_es": "Termo eléctrico",
+          "description_nl": "Elektrische boiler"
         },
         {
           "id": "10.03.09",
@@ -1203,7 +1312,8 @@
           "planned_week_start": 14,
           "planned_week_end": 18,
           "description_en": "Internal drainage system (dwelling)",
-          "description_es": "Saneamiento interior de vivienda"
+          "description_es": "Saneamiento interior de vivienda",
+          "description_nl": "Interne riolering (woning)"
         },
         {
           "id": "10.03.10",
@@ -1214,7 +1324,8 @@
           "planned_week_start": 14,
           "planned_week_end": 18,
           "description_en": "External drainage system (dwelling)",
-          "description_es": "Red de saneamiento exterior vivienda"
+          "description_es": "Red de saneamiento exterior vivienda",
+          "description_nl": "Externe riolering (woning)"
         },
         {
           "id": "10.04.01",
@@ -1225,7 +1336,8 @@
           "planned_week_start": 14,
           "planned_week_end": 18,
           "description_en": "Airconditioning Daikin 4MXS100KVM",
-          "description_es": "Aire acondicionado Daikin 4MXS100KVM"
+          "description_es": "Aire acondicionado Daikin 4MXS100KVM",
+          "description_nl": "Airconditioning Daikin 4MXS100KVM"
         },
         {
           "id": "10.04.02",
@@ -1236,7 +1348,8 @@
           "planned_week_start": 14,
           "planned_week_end": 18,
           "description_en": "Airconditioning Daikin RXA42B",
-          "description_es": "Aire acondicionado Daikin RXA42B"
+          "description_es": "Aire acondicionado Daikin RXA42B",
+          "description_nl": "Airconditioning Daikin RXA42B"
         },
         {
           "id": "10.04.03",
@@ -1247,7 +1360,8 @@
           "planned_week_start": 14,
           "planned_week_end": 18,
           "description_en": "Indoor unit Daikin FTXS35KVM",
-          "description_es": "Unidad interior Daikin FTXS35KVM"
+          "description_es": "Unidad interior Daikin FTXS35KVM",
+          "description_nl": "Binnenunit Daikin FTXS35KVM"
         },
         {
           "id": "10.04.04",
@@ -1258,7 +1372,8 @@
           "planned_week_start": 14,
           "planned_week_end": 18,
           "description_en": "Indoor unit Daikin FTXA42AW",
-          "description_es": "Unidad interior Daikin FTXA42AW"
+          "description_es": "Unidad interior Daikin FTXA42AW",
+          "description_nl": "Binnenunit Daikin FTXA42AW"
         },
         {
           "id": "10.04.05",
@@ -1269,7 +1384,8 @@
           "planned_week_start": 14,
           "planned_week_end": 18,
           "description_en": "Kitchen ventilation (ducts and extractor)",
-          "description_es": "Ventilación de cocina (conductos y extractor)"
+          "description_es": "Ventilación de cocina (conductos y extractor)",
+          "description_nl": "Keukenventilatie (kanalen en afzuiging)"
         },
         {
           "id": "10.04.06",
@@ -1280,7 +1396,8 @@
           "planned_week_start": 14,
           "planned_week_end": 18,
           "description_en": "Air conditioning installation (connections, drains, commissioning)",
-          "description_es": "Instalación de aire acondicionado (interconexiones, desagües, puesta en marcha)"
+          "description_es": "Instalación de aire acondicionado (interconexiones, desagües, puesta en marcha)",
+          "description_nl": "Airco-installatie (aansluitingen, afvoeren, inbedrijfstelling)"
         },
         {
           "id": "10.05.01",
@@ -1291,7 +1408,8 @@
           "planned_week_start": 14,
           "planned_week_end": 18,
           "description_en": "DHW solar tank: 2 collectors + 200 L tank",
-          "description_es": "Acumulador solar ACS: 2 captadores + depósito 200 L"
+          "description_es": "Acumulador solar ACS: 2 captadores + depósito 200 L",
+          "description_nl": "Zonneboiler voor SSW: 2 collectoren + 200 L vat"
         },
         {
           "id": "10.06.01",
@@ -1302,7 +1420,8 @@
           "planned_week_start": 14,
           "planned_week_end": 18,
           "description_en": "Electric underfloor heating: insulation base",
-          "description_es": "Suelo radiante eléctrico: base aislante"
+          "description_es": "Suelo radiante eléctrico: base aislante",
+          "description_nl": "Elektrische vloerverwarming: isolerende onderlaag"
         },
         {
           "id": "10.06.02",
@@ -1313,7 +1432,8 @@
           "planned_week_start": 14,
           "planned_week_end": 18,
           "description_en": "Electric underfloor heating: heating mat/cable 880 W",
-          "description_es": "Suelo radiante eléctrico: manta/cable 880 W"
+          "description_es": "Suelo radiante eléctrico: manta/cable 880 W",
+          "description_nl": "Elektrische vloerverwarming: verwarmingsmat/kabel 880 W"
         },
         {
           "id": "10.06.03",
@@ -1324,7 +1444,8 @@
           "planned_week_start": 14,
           "planned_week_end": 18,
           "description_en": "Electric underfloor heating: heating mat/cable 640 W",
-          "description_es": "Suelo radiante eléctrico: manta/cable 640 W"
+          "description_es": "Suelo radiante eléctrico: manta/cable 640 W",
+          "description_nl": "Elektrische vloerverwarming: verwarmingsmat/kabel 640 W"
         },
         {
           "id": "10.06.04",
@@ -1335,7 +1456,8 @@
           "planned_week_start": 14,
           "planned_week_end": 18,
           "description_en": "Thermostat for electric underfloor heating",
-          "description_es": "Termostato suelo radiante eléctrico"
+          "description_es": "Termostato suelo radiante eléctrico",
+          "description_nl": "Thermostaat voor elektrische vloerverwarming"
         },
         {
           "id": "10.07.01",
@@ -1346,7 +1468,8 @@
           "planned_week_start": 32,
           "planned_week_end": 35,
           "description_en": "Washbasin on countertop + mixer tap",
-          "description_es": "Lavabo sobre encimera + grifo mezclador"
+          "description_es": "Lavabo sobre encimera + grifo mezclador",
+          "description_nl": "Wastafel op blad + mengkraan"
         },
         {
           "id": "10.07.02",
@@ -1357,7 +1480,8 @@
           "planned_week_start": 32,
           "planned_week_end": 35,
           "description_en": "Wall-hung WC with concealed cistern",
-          "description_es": "Inodoro suspendido con cisterna empotrada"
+          "description_es": "Inodoro suspendido con cisterna empotrada",
+          "description_nl": "Hangtoilet met inbouwreservoir"
         },
         {
           "id": "10.07.03",
@@ -1368,11 +1492,13 @@
           "planned_week_start": 32,
           "planned_week_end": 35,
           "description_en": "Shower mixer tap",
-          "description_es": "Mezclador de ducha"
+          "description_es": "Mezclador de ducha",
+          "description_nl": "Douchemengkraan"
         }
       ],
       "title_en": "Installations",
-      "title_es": "Instalaciones"
+      "title_es": "Instalaciones",
+      "title_nl": "Installaties"
     },
     {
       "chapter_no": 11,
@@ -1388,11 +1514,13 @@
           "planned_week_start": 36,
           "planned_week_end": 38,
           "description_en": "Final cleaning (interior/exterior)",
-          "description_es": "Limpieza final (interior/exterior)"
+          "description_es": "Limpieza final (interior/exterior)",
+          "description_nl": "Eindschoonmaak (binnen/buiten)"
         }
       ],
       "title_en": "Miscellaneous",
-      "title_es": "Varios"
+      "title_es": "Varios",
+      "title_nl": "Diverse werkzaamheden"
     },
     {
       "chapter_no": 12,
@@ -1408,7 +1536,8 @@
           "planned_week_start": 3,
           "planned_week_end": 4,
           "description_en": "Setting out and temporary works",
-          "description_es": "Replanteo y medios auxiliares"
+          "description_es": "Replanteo y medios auxiliares",
+          "description_nl": "Uitzetwerk en tijdelijke voorzieningen"
         },
         {
           "id": "12.02",
@@ -1419,7 +1548,8 @@
           "planned_week_start": 3,
           "planned_week_end": 4,
           "description_en": "Disconnect existing connections and drain/empty",
-          "description_es": "Desconexión de acometidas y vaciado"
+          "description_es": "Desconexión de acometidas y vaciado",
+          "description_nl": "Ontkoppelen bestaande aansluitingen en leegpompen"
         },
         {
           "id": "12.03",
@@ -1430,7 +1560,8 @@
           "planned_week_start": 3,
           "planned_week_end": 4,
           "description_en": "Removal of prefabricated PVC pool with crane (lifting and loading)",
-          "description_es": "Retirada de piscina prefabricada de PVC con grúa (izaje y carga)"
+          "description_es": "Retirada de piscina prefabricada de PVC con grúa (izaje y carga)",
+          "description_nl": "Verwijderen prefab PVC-zwembad met kraan (hijsen en laden)"
         },
         {
           "id": "12.04",
@@ -1441,7 +1572,8 @@
           "planned_week_start": 3,
           "planned_week_end": 4,
           "description_en": "Transport to licensed landfill + disposal fee",
-          "description_es": "Transporte a vertedero autorizado + tasa de vertido"
+          "description_es": "Transporte a vertedero autorizado + tasa de vertido",
+          "description_nl": "Transport naar erkende stortplaats + stortkosten"
         },
         {
           "id": "12.05",
@@ -1452,7 +1584,8 @@
           "planned_week_start": 3,
           "planned_week_end": 4,
           "description_en": "Trenches for pipes (0,30×0,40 m)",
-          "description_es": "Zanjas para tuberías (0,30×0,40 m)"
+          "description_es": "Zanjas para tuberías (0,30×0,40 m)",
+          "description_nl": "Sleuven voor leidingen (0,30×0,40 m)"
         },
         {
           "id": "12.06",
@@ -1463,7 +1596,8 @@
           "planned_week_start": 3,
           "planned_week_end": 4,
           "description_en": "Repair of small slips (allowance)",
-          "description_es": "Reparación de pequeños desprendimientos (provisión)"
+          "description_es": "Reparación de pequeños desprendimientos (provisión)",
+          "description_nl": "Herstel van kleine verzakkingen (stelpost)"
         },
         {
           "id": "12.07",
@@ -1474,7 +1608,8 @@
           "planned_week_start": 3,
           "planned_week_end": 9,
           "description_en": "Base slab HA-30 20 cm with double reinforcement mesh",
-          "description_es": "Losa de base HA-30 de 20 cm con doble malla"
+          "description_es": "Losa de base HA-30 de 20 cm con doble malla",
+          "description_nl": "Fundamentplaat HA-30 20 cm met dubbele wapeningsnetten"
         },
         {
           "id": "12.08",
@@ -1485,7 +1620,8 @@
           "planned_week_start": 3,
           "planned_week_end": 9,
           "description_en": "Pool shell walls HA-30 20 cm reinforced",
-          "description_es": "Muros de vaso HA-30 20 cm armados"
+          "description_es": "Muros de vaso HA-30 20 cm armados",
+          "description_nl": "Badkuipwanden HA-30 20 cm gewapend"
         },
         {
           "id": "12.09",
@@ -1496,7 +1632,8 @@
           "planned_week_start": 3,
           "planned_week_end": 9,
           "description_en": "In-situ masonry steps, 4 steps, integrated",
-          "description_es": "Escalera de fábrica in situ, 4 peldaños integrados"
+          "description_es": "Escalera de fábrica in situ, 4 peldaños integrados",
+          "description_nl": "In het werk gemetselde trap, 4 treden, geïntegreerd"
         },
         {
           "id": "12.10",
@@ -1507,7 +1644,8 @@
           "planned_week_start": 3,
           "planned_week_end": 9,
           "description_en": "Waterproofing of basin (flexible mortar + reinforcement mesh)",
-          "description_es": "Impermeabilización del vaso (mortero flexible + malla)"
+          "description_es": "Impermeabilización del vaso (mortero flexible + malla)",
+          "description_nl": "Waterdichting bassin (flexibele mortel + wapeningsnet)"
         },
         {
           "id": "12.11",
@@ -1518,7 +1656,8 @@
           "planned_week_start": 23,
           "planned_week_end": 27,
           "description_en": "Mosaic finish (gresite) with C2TES2 adhesive + epoxy grout",
-          "description_es": "Acabado en mosaico (gresite) con adhesivo C2TES2 + junta epoxi"
+          "description_es": "Acabado en mosaico (gresite) con adhesivo C2TES2 + junta epoxi",
+          "description_nl": "Mozaïekafwerking (gresite) met C2TES2 lijm + epoxivoeg"
         },
         {
           "id": "12.12",
@@ -1529,7 +1668,8 @@
           "planned_week_start": 23,
           "planned_week_end": 27,
           "description_en": "Coping / edge finish, anti-slip 30 cm perimeter",
-          "description_es": "Coronación antideslizante 30 cm perimetral"
+          "description_es": "Coronación antideslizante 30 cm perimetral",
+          "description_nl": "Randafwerking/boordsteen, antislip 30 cm rondom"
         },
         {
           "id": "12.13",
@@ -1540,7 +1680,8 @@
           "planned_week_start": 14,
           "planned_week_end": 18,
           "description_en": "Hydraulic network PVC Ø50 + collector to existing system",
-          "description_es": "Red hidráulica PVC Ø50 + colector a existente"
+          "description_es": "Red hidráulica PVC Ø50 + colector a existente",
+          "description_nl": "Hydraulisch netwerk PVC Ø50 + verzamelaar naar bestaand systeem"
         },
         {
           "id": "12.14",
@@ -1551,7 +1692,8 @@
           "planned_week_start": 14,
           "planned_week_end": 18,
           "description_en": "Pool accessories: 2 skimmers + 3 inlets + 1 drain",
-          "description_es": "Accesorios de piscina: 2 skimmers + 3 impulsores + 1 sumidero"
+          "description_es": "Accesorios de piscina: 2 skimmers + 3 impulsores + 1 sumidero",
+          "description_nl": "Zwembadtoebehoren: 2 skimmers + 3 inlaten + 1 afvoer"
         },
         {
           "id": "12.15",
@@ -1562,7 +1704,8 @@
           "planned_week_start": 14,
           "planned_week_end": 18,
           "description_en": "Underwater lighting LED 12V IP68 (incl. transformer and cabling)",
-          "description_es": "Iluminación subacuática LED 12V IP68 (incl. trafo y cableado)"
+          "description_es": "Iluminación subacuática LED 12V IP68 (incl. trafo y cableado)",
+          "description_nl": "Onderwaterverlichting LED 12V IP68 (incl. trafo en bekabeling)"
         },
         {
           "id": "12.16",
@@ -1573,7 +1716,8 @@
           "planned_week_start": 14,
           "planned_week_end": 18,
           "description_en": "Electrical panel for lighting and connection to system",
-          "description_es": "Cuadro eléctrico para iluminación y conexión al sistema"
+          "description_es": "Cuadro eléctrico para iluminación y conexión al sistema",
+          "description_nl": "Elektrisch paneel voor verlichting en aansluiting op systeem"
         },
         {
           "id": "12.17",
@@ -1584,7 +1728,8 @@
           "planned_week_start": 19,
           "planned_week_end": 22,
           "description_en": "Backfilling around with crushed stone (zahorra) and compaction",
-          "description_es": "Relleno perimetral con zahorra y compactación"
+          "description_es": "Relleno perimetral con zahorra y compactación",
+          "description_nl": "Aanvullen rondom met gebroken steen (zahorra) en verdichten"
         },
         {
           "id": "12.18",
@@ -1595,7 +1740,8 @@
           "planned_week_start": 32,
           "planned_week_end": 35,
           "description_en": "Commissioning and leak tests",
-          "description_es": "Puesta en marcha y pruebas de estanqueidad"
+          "description_es": "Puesta en marcha y pruebas de estanqueidad",
+          "description_nl": "Inbedrijfstelling en lektests"
         },
         {
           "id": "12.19",
@@ -1606,7 +1752,8 @@
           "planned_week_start": 36,
           "planned_week_end": 38,
           "description_en": "Starter chemical kit",
-          "description_es": "Kit inicial de productos químicos"
+          "description_es": "Kit inicial de productos químicos",
+          "description_nl": "Startpakket chemicaliën"
         },
         {
           "id": "12.20",
@@ -1617,11 +1764,13 @@
           "planned_week_start": 36,
           "planned_week_end": 38,
           "description_en": "Final cleaning",
-          "description_es": "Limpieza final"
+          "description_es": "Limpieza final",
+          "description_nl": "Eindschoonmaak"
         }
       ],
       "title_en": "Swimming pool",
-      "title_es": "Piscina"
+      "title_es": "Piscina",
+      "title_nl": "Zwembad"
     },
     {
       "chapter_no": 13,
@@ -1637,11 +1786,13 @@
           "planned_week_start": 39,
           "planned_week_end": 39,
           "description_en": "Tests and trials (site and laboratory)",
-          "description_es": "Pruebas y ensayos (obra y laboratorio)"
+          "description_es": "Pruebas y ensayos (obra y laboratorio)",
+          "description_nl": "Proeven en testen (op de site en in laboratorium)"
         }
       ],
       "title_en": "Quality control and testing",
-      "title_es": "Control de calidad y ensayos"
+      "title_es": "Control de calidad y ensayos",
+      "title_nl": "Kwaliteitscontrole en beproevingen"
     },
     {
       "chapter_no": 14,
@@ -1657,11 +1808,13 @@
           "planned_week_start": 1,
           "planned_week_end": 39,
           "description_en": "Containers 9 m³ (loading + transport + landfill fee)",
-          "description_es": "Contenedores 9 m³ (carga + transporte + tasa de vertedero)"
+          "description_es": "Contenedores 9 m³ (carga + transporte + tasa de vertedero)",
+          "description_nl": "Containers 9 m³ (laden + transport + stortkosten)"
         }
       ],
       "title_en": "Waste management",
-      "title_es": "Gestión de residuos"
+      "title_es": "Gestión de residuos",
+      "title_nl": "Afvalbeheer"
     },
     {
       "chapter_no": 15,
@@ -1677,11 +1830,13 @@
           "planned_week_start": 1,
           "planned_week_end": 39,
           "description_en": "Safety and health plan and coordination",
-          "description_es": "Plan y coordinación de Seguridad y Salud"
+          "description_es": "Plan y coordinación de Seguridad y Salud",
+          "description_nl": "V&G-plan en coördinatie"
         }
       ],
       "title_en": "Safety and health",
-      "title_es": "Seguridad y salud"
+      "title_es": "Seguridad y salud",
+      "title_nl": "Veiligheid en gezondheid"
     }
   ],
   "plans": [
@@ -1689,31 +1844,36 @@
       "id": "plan1",
       "title_en": "Look & Feel Plan",
       "title_es": "Plan de look & feel",
-      "file": "Look&Feel Plan.pdf"
+      "file": "Look&Feel Plan.pdf",
+      "title_nl": "Look & feel-plan"
     },
     {
       "id": "plan2",
       "title_en": "Basic Plan – Copo 23",
       "title_es": "Plano básico – Copo 23",
-      "file": "200_PL_PLANOS_P. BÁSICO_C DEL COPO 23_F.pdf"
+      "file": "200_PL_PLANOS_P. BÁSICO_C DEL COPO 23_F.pdf",
+      "title_nl": "Basisplan – Copo 23"
     },
     {
       "id": "plan3",
       "title_en": "Construction Plans",
       "title_es": "Planos de construcción",
-      "file": "Construction plans.pdf"
+      "file": "Construction plans.pdf",
+      "title_nl": "Bouwplannen"
     },
     {
       "id": "plan4",
       "title_en": "Facilities Plans",
       "title_es": "Planos de instalaciones",
-      "file": "Facilities plans.pdf"
+      "file": "Facilities plans.pdf",
+      "title_nl": "Installatieplannen"
     },
     {
       "id": "plan5",
       "title_en": "Structure Plan",
       "title_es": "Plano de estructura",
-      "file": "Structure plan.pdf"
+      "file": "Structure plan.pdf",
+      "title_nl": "Constructieplan"
     }
   ]
 }

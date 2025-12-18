@@ -91,6 +91,7 @@ code{background:#10182810;padding:2px 6px;border-radius:8px}
 <body>
 <header>
   <div class="lang-toggle">
+    <button id="langNl" class="langbtn" type="button">🇳🇱 NL</button>
     <button id="langEn" class="langbtn" type="button">🇬🇧 EN</button>
     <button id="langEs" class="langbtn" type="button">🇪🇸 ES</button>
   </div>
@@ -354,10 +355,74 @@ const I18N = {
     ahead: "Adelantado",
     behind: "Retrasado",
     vs_plan: "vs plan"
+  },
+  nl: {
+    project_title: "Copo 23 (El Saladillo) – Voortgangsportaal",
+    progress: "Voortgang",
+    schedule: "Planning",
+    plans: "Plannen",
+    edit_mode_on: "Bewerkmodus: AAN",
+    edit_mode_off: "Bewerkmodus: UIT",
+    search_placeholder: "Zoek items (code of beschrijving)...",
+    status_line_draft: "Lokale conceptweergave (niet gepubliceerd). Gepubliceerd: {published} · Lokaal: {local}",
+    status_line_published: "Gepubliceerde voortgang. Bijgewerkt: {published}",
+    project_start_date: "Project startdatum",
+    week_now: "Huidige week",
+    planned_vs_actual: "Gepland vs werkelijk",
+    planned_actual_sub: "% gepland / % werkelijk",
+    status: "Status",
+    chapter: "Hoofdstuk",
+    planned_weeks: "Geplande weken",
+    planned_now: "Gepland % (nu)",
+    actual: "Werkelijk %",
+    admin_tools: "Beheerhulpmiddelen",
+    admin_hint: "Om updates voor klanten te publiceren, exporteer state.json en upload deze naar je GitHub-repo (vervang het bestaande state.json-bestand).",
+    export_state: "Exporteer state.json",
+    import_state: "Importeer state.json",
+    discard_draft: "Lokaal concept verwijderen",
+    plans_hint: "Selecteer een plan om te bekijken. Pdf's openen in alleen-lezen modus.",
+    pdf: "PDF",
+    plan_label: "Plan",
+    open_new_tab: "Openen in nieuw tabblad",
+    download: "Downloaden",
+    close: "Sluiten",
+    all: "Alle",
+    pending: "Niet gestart",
+    in_progress: "Bezig",
+    done: "Voltooid",
+    blocked: "Geblokkeerd",
+    read_only_view: "Alleen-lezen weergave",
+    edit_enabled_device: "Bewerken ingeschakeld op dit apparaat",
+    items: "items",
+    average: "Gemiddelde",
+    planned_label: "Gepland",
+    week_label: "Week",
+    status_label: "Status",
+    complete: "afgerond",
+    progress_label: "Voortgang",
+    notes_placeholder: "Notities...",
+    saved: "Opgeslagen",
+    draft_discarded: "Lokaal concept verwijderd",
+    state_imported: "Status geïmporteerd",
+    edit_mode_enabled: "Bewerkmodus geactiveerd",
+    pin_saved_enabled: "Pincode opgeslagen. Bewerkmodus ingeschakeld",
+    incorrect_pin: "Onjuiste pincode",
+    create_pin_prompt: "Maak een beheerderspincode (4–8 cijfers):",
+    enter_pin_prompt: "Voer beheerderspincode in:",
+    discard_confirm: "Lokale conceptwijzigingen op dit apparaat verwijderen?",
+    import_invalid: "Ongeldige state.json",
+    import_error_prefix: "Kan niet importeren: ",
+    days_elapsed: "dagen verstreken",
+    on_track: "Op schema",
+    ahead: "Voor op schema",
+    behind: "Achter op schema",
+    vs_plan: "vs plan"
   }
 };
 
 const LS_LANG = "portal_lang";
+const storedLang = (localStorage.getItem(LS_LANG) || "en").toLowerCase();
+let currentLang = ["en","es","nl"].includes(storedLang) ? storedLang : "en";
 let DATA = {
   "project": {
     "name": "Copo 23 (El Saladillo) – Progress Portal",
@@ -1826,7 +1891,6 @@ const LS_PIN = "copo23_admin_pin_v3";
 const LS_ADMIN_SESSION = "copo23_admin_session_v3";
 const LS_DRAFT = "copo23_state_draft_v3";
 const LS_START = "copo23_start_date_v3";
-let currentLang = (localStorage.getItem(LS_LANG) || "en").toLowerCase();
 
 const el = (id)=>document.getElementById(id);
 let SERVER_STATE = null;
@@ -1924,11 +1988,11 @@ function setTab(tab){
 }
 
 function currentLanguage(){
-  return currentLang === "es" ? "es" : "en";
+  return ["en","es","nl"].includes(currentLang) ? currentLang : "en";
 }
 
 function setLanguage(lang){
-  currentLang = lang === "es" ? "es" : "en";
+  currentLang = ["en","es","nl"].includes(lang) ? lang : "en";
   localStorage.setItem(LS_LANG, currentLang);
   if(DATA?.project) DATA.project.language = currentLang;
   document.documentElement.lang = currentLanguage();
@@ -1941,23 +2005,38 @@ function normalizeData(){
   for(const ch of DATA?.chapters || []){
     ch.title_en = ch.title_en || ch.title || "";
     ch.title_es = ch.title_es || "";
+    ch.title_nl = ch.title_nl || ch.title_en || ch.title || "";
     for(const it of ch.items || []){
       it.description_en = it.description_en || it.description || "";
       it.description_es = it.description_es || "";
+      it.description_nl = it.description_nl || it.description_en || "";
     }
+  }
+  for(const p of DATA?.plans || []){
+    p.title_en = p.title_en || p.title || p.file;
+    p.title_es = p.title_es || "";
+    p.title_nl = p.title_nl || p.title_en || "";
   }
 }
 
 function chapterTitle(ch){
   const en = ch.title_en || ch.title || "";
   const es = ch.title_es || "";
-  return currentLanguage()==="es" ? (es || en) : (en || es);
+  const nl = ch.title_nl || "";
+  const lang = currentLanguage();
+  if(lang==="nl") return nl || en;
+  if(lang==="es") return es || en;
+  return en;
 }
 
 function itemDescription(it){
   const en = it.description_en || it.description || "";
   const es = it.description_es || "";
-  return currentLanguage()==="es" ? (es || en) : (en || es);
+  const nl = it.description_nl || "";
+  const lang = currentLanguage();
+  if(lang==="nl") return nl || en;
+  if(lang==="es") return es || en;
+  return en;
 }
 
 function chapterLabel(ch){
@@ -1966,9 +2045,9 @@ function chapterLabel(ch){
 
 function planTitle(plan){
   const lang = currentLanguage();
-  return lang==="es"
-    ? (plan.title_es || plan.title_en || plan.file)
-    : (plan.title_en || plan.title_es || plan.file);
+  if(lang==="nl") return plan.title_nl || plan.title_en || plan.file;
+  if(lang==="es") return plan.title_es || plan.title_en || plan.file;
+  return plan.title_en || plan.file;
 }
 
 function planSrc(plan){
@@ -1989,8 +2068,10 @@ function ensureAdminSessionValid(){
 
 function updateLanguageToggle(){
   const lang = currentLanguage();
+  const nl = el("langNl");
   const en = el("langEn");
   const es = el("langEs");
+  if(nl) nl.classList.toggle("active", lang==="nl");
   if(en) en.classList.toggle("active", lang==="en");
   if(es) es.classList.toggle("active", lang==="es");
 }
@@ -2419,6 +2500,7 @@ el("tabProgress").addEventListener("click", ()=>setTab("progress"));
 el("tabSchedule").addEventListener("click", ()=>setTab("schedule"));
 el("tabPlans").addEventListener("click", ()=>setTab("plans"));
 el("btnAdmin").addEventListener("click", askPinAndEnable);
+el("langNl").addEventListener("click", ()=>setLanguage("nl"));
 el("langEn").addEventListener("click", ()=>setLanguage("en"));
 el("langEs").addEventListener("click", ()=>setLanguage("es"));
 
