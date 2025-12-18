@@ -1373,5 +1373,37 @@
         }
       ]
     }
+  ],
+  "plans": [
+    {
+      "id": "plan1",
+      "title_en": "Look & Feel Plan",
+      "title_es": "Plan de look & feel",
+      "file": "Look&Feel Plan.pdf"
+    },
+    {
+      "id": "plan2",
+      "title_en": "Basic Plan – Copo 23",
+      "title_es": "Plano básico – Copo 23",
+      "file": "200_PL_PLANOS_P. BÁSICO_C DEL COPO 23_F.pdf"
+    },
+    {
+      "id": "plan3",
+      "title_en": "Construction Plans",
+      "title_es": "Planos de construcción",
+      "file": "Construction plans.pdf"
+    },
+    {
+      "id": "plan4",
+      "title_en": "Facilities Plans",
+      "title_es": "Planos de instalaciones",
+      "file": "Facilities plans.pdf"
+    },
+    {
+      "id": "plan5",
+      "title_en": "Structure Plan",
+      "title_es": "Plano de estructura",
+      "file": "Structure plan.pdf"
+    }
   ]
 }
