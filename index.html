@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Copo 23 (El Saladillo) – Progress Portal</title>
+<meta name="theme-color" content="#0b2a3a"/>
+<style>
+:root{--ink:#0b2a3a;--bg:#f6f7f9;--card:#ffffff;--muted:#667085;--line:#e7ebf0;--shadow:0 6px 20px rgba(0,0,0,.08);}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:#101828}
+a{color:inherit}
+/* Header */
+header{background:var(--ink);color:#fff}
+.header-logo{height:86px;display:flex;align-items:center;justify-content:center;padding:10px 12px}
+.header-logo img{width:100%;height:100%;object-fit:contain}
+.header-title{text-align:center;padding:6px 14px 0}
+.header-title h1{margin:0;font-size:18px;letter-spacing:.2px}
+.header-nav{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;padding:12px 14px 14px}
+.navbtn{border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.10);color:#fff;border-radius:14px;padding:10px 14px;font-weight:700;cursor:pointer;transition:transform .08s ease, background .2s ease, border-color .2s ease}
+.navbtn:hover{background:rgba(255,255,255,.14)}
+.navbtn:active{transform:scale(.98)}
+.navbtn.active{background:#fff;color:var(--ink);border-color:#fff}
+.navbtn.ghost{background:transparent}
+.wrap{max-width:1100px;margin:0 auto;padding:14px}
+/* Cards */
+.grid{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:900px){.grid{grid-template-columns:1fr 1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);overflow:hidden;cursor:pointer;transition:transform .12s ease, box-shadow .2s ease}
+.card:hover{transform:translateY(-2px)}
+.card:active{transform:scale(.99)}
+.cover{height:142px;background-size:cover;background-position:center;position:relative}
+.cover::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg, rgba(11,42,58,.10) 0%, rgba(11,42,58,.68) 100%)}
+.cover .capno{position:absolute;top:12px;left:12px;background:rgba(255,255,255,.92);color:var(--ink);border-radius:999px;padding:6px 10px;font-weight:800;font-size:12px;z-index:1}
+.cover .title{position:absolute;left:12px;right:12px;bottom:12px;color:#fff;font-weight:900;font-size:16px;line-height:1.2;z-index:1;text-shadow:0 2px 10px rgba(0,0,0,.35)}
+.card .body{padding:12px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.muted{color:var(--muted);font-size:13px}
+.pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);padding:4px 10px;border-radius:999px;font-size:12px;background:#fbfcfd}
+.progress{height:9px;background:#eef2f6;border-radius:999px;overflow:hidden}
+.progress>div{height:100%;background:var(--ink);width:0%}
+/* Toolbar */
+.toolbar{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:12px}
+.toolbar input{width:100%;padding:11px 12px;border-radius:14px;border:1px solid var(--line)}
+.toolbar .hint{margin-top:8px}
+/* Modal */
+.modal{position:fixed;inset:0;display:none;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.45);padding:10px;z-index:50}
+.sheet{width:min(980px,100%);max-height:92vh;background:#fff;border-radius:18px;overflow:hidden;border:1px solid var(--line)}
+.sheet header{background:#fff;color:#101828;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:12px 14px}
+.sheet header h2{margin:0;font-size:16px}
+.sheet .content{padding:12px;overflow:auto;max-height:calc(92vh - 56px)}
+.list{display:flex;flex-direction:column;gap:10px}
+.item{border:1px solid var(--line);border-radius:14px;padding:10px}
+.item h4{margin:0 0 6px 0;font-size:14px}
+.meta{display:flex;gap:8px;flex-wrap:wrap}
+.meta span{font-size:12px;color:var(--muted)}
+.controls{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.range{display:flex;gap:10px;align-items:center;border:1px solid var(--line);background:#fbfcfd;border-radius:14px;padding:6px 10px}
+.range input{width:200px}
+select, textarea, button{font:inherit}
+select{padding:10px;border-radius:14px;border:1px solid var(--line)}
+textarea{width:100%;min-height:56px;border-radius:14px;border:1px solid var(--line);padding:10px}
+.smallbtn{padding:9px 12px;border-radius:14px;border:1px solid var(--line);background:#fff;color:var(--ink);font-weight:800;cursor:pointer}
+.smallbtn:active{transform:scale(.98)}
+.statusDone{border-color:#abefc6;background:#ecfdf3}
+.statusBlocked{border-color:#fda29b;background:#fff5f5}
+.badge{font-weight:900}
+/* Views */
+.view{display:none}
+.view.active{display:block}
+/* Schedule */
+.kpis{display:grid;grid-template-columns:1fr;gap:12px;margin-top:12px}
+@media(min-width:860px){.kpis{grid-template-columns:1fr 1fr 1fr}}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:12px}
+.kpi .big{font-size:22px;font-weight:1000}
+.table{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);overflow:hidden;margin-top:12px}
+.table table{width:100%;border-collapse:collapse}
+.table th,.table td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px}
+.table th{background:#fbfcfd;font-weight:900}
+.notice{background:#0b2a3a10;border:1px solid var(--line);border-radius:18px;padding:12px;margin-top:12px}
+.notice strong{font-weight:900}
+/* Toast */
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#101828;color:#fff;padding:10px 14px;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s ease;z-index:60}
+.toast.show{opacity:1}
+code{background:#10182810;padding:2px 6px;border-radius:8px}
+</style>
+</head>
+<body>
+<header>
+  <div class="header-logo">
+    <img id="brandLogo" src="NVM_logo_inverted_2.png" alt="NVM logo" onerror="this.onerror=null;this.src='NVM_logo.png';" />
+  </div>
+  <div class="header-title">
+    <h1 id="projectTitle">Copo 23 (El Saladillo) – Progress Portal</h1>
+  </div>
+  <div class="header-nav">
+    <button id="tabProgress" class="navbtn active" type="button">Progress</button>
+    <button id="tabSchedule" class="navbtn" type="button">Schedule</button>
+    <button id="btnAdmin" class="navbtn ghost" type="button">Edit mode: OFF</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <section id="viewProgress" class="view active">
+    <div class="toolbar">
+      <input id="search" placeholder="Search items (code or description)..." />
+      <div class="muted hint" id="statusLine"></div>
+    </div>
+    <div style="height:12px"></div>
+    <div class="grid" id="chaptersGrid"></div>
+  </section>
+
+  <section id="viewSchedule" class="view">
+    <div class="toolbar">
+      <div class="row" style="justify-content:flex-start;gap:12px">
+        <div>
+          <div class="muted">Project start date</div>
+          <input id="startDate" type="date" style="max-width:220px"/>
+        </div>
+        <div class="muted" style="align-self:flex-end" id="scheduleLine"></div>
+      </div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi">
+        <div class="muted">Week now</div>
+        <div class="big" id="kWeek">—</div>
+        <div class="muted" id="kDays">—</div>
+      </div>
+      <div class="kpi">
+        <div class="muted">Planned vs actual</div>
+        <div class="big"><span id="kPlanned">—</span> / <span id="kActual">—</span></div>
+        <div class="muted">Planned % / Actual %</div>
+      </div>
+      <div class="kpi">
+        <div class="muted">Status</div>
+        <div class="big" id="kStatus">—</div>
+        <div class="muted" id="kDelta">—</div>
+      </div>
+    </div>
+
+    <div class="table">
+      <table>
+        <thead>
+          <tr>
+            <th>Chapter</th>
+            <th>Planned weeks</th>
+            <th>Planned % (now)</th>
+            <th>Actual %</th>
+          </tr>
+        </thead>
+        <tbody id="scheduleTable"></tbody>
+      </table>
+    </div>
+
+    <div class="notice" id="adminTools" style="display:none">
+      <strong>Admin tools</strong>
+      <div class="muted" style="margin-top:6px">To publish updates to clients, export <code>state.json</code> and upload it to your GitHub repo (replace the existing <code>state.json</code>).</div>
+      <div class="row" style="justify-content:flex-start;margin-top:10px">
+        <button id="btnExport" class="smallbtn" type="button">Export state.json</button>
+        <button id="btnImport" class="smallbtn" type="button">Import state.json</button>
+        <button id="btnResetDraft" class="smallbtn" type="button">Discard local draft</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="modal" id="modal">
+  <div class="sheet">
+    <header>
+      <div>
+        <h2 id="mTitle">Chapter</h2>
+        <div class="muted" id="mSub"></div>
+      </div>
+      <button id="btnClose" class="smallbtn" type="button">Close</button>
+    </header>
+    <div class="content">
+      <div class="row" style="justify-content:flex-start;gap:10px">
+        <span class="pill" id="mCount"></span>
+        <span class="pill" id="mAvg"></span>
+        <select id="filterStatus">
+          <option value="">All</option>
+          <option value="pending">Pending</option>
+          <option value="in_progress">In progress</option>
+          <option value="done">Done</option>
+          <option value="blocked">Blocked</option>
+        </select>
+      </div>
+      <div style="height:10px"></div>
+      <div class="list" id="itemsList"></div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="importFile" accept="application/json" style="display:none"/>
+<div class="toast" id="toast">Saved</div>
+
+<script>
+const DATA = {"project": {"name": "Copo 23 (El Saladillo) – Progress Portal", "duration_weeks": 39, "generated_at": "2025-12-16", "language": "en", "start_date": "2025-12-11", "updated_at": "2025-12-16"}, "chapters": [{"chapter_no": 1, "title": "Demolition works", "icon": "🧱", "items": [{"id": "1.01", "code": "1.01", "description": "Demolition of cavity wall (toothing / “capuchina” type)", "unit": "m2", "qty": 30.71, "planned_week_start": 1, "planned_week_end": 2}, {"id": "1.02", "code": "1.02", "description": "Demolition fireplace/chimney", "unit": "st", "qty": 1.0, "planned_week_start": 1, "planned_week_end": 2}, {"id": "1.03", "code": "1.03", "description": "Dismantling metal fence", "unit": "set", "qty": 1.0, "planned_week_start": 1, "planned_week_end": 2}, {"id": "1.04", "code": "1.04", "description": "Dismantling exterior joinery", "unit": "set", "qty": 1.0, "planned_week_start": 1, "planned_week_end": 2}, {"id": "1.05", "code": "1.05", "description": "Dismantling interior joinery", "unit": "set", "qty": 1.0, "planned_week_start": 1, "planned_week_end": 2}, {"id": "1.06", "code": "1.06", "description": "Dismantling washbasin", "unit": "st", "qty": 2.0, "planned_week_start": 1, "planned_week_end": 2}, {"id": "1.07", "code": "1.07", "description": "Dismantling Toilet", "unit": "st", "qty": 2.0, "planned_week_start": 1, "planned_week_end": 2}, {"id": "1.08", "code": "1.08", "description": "Dismantling bathtub", "unit": "st", "qty": 1.0, "planned_week_start": 1, "planned_week_end": 2}, {"id": "1.09", "code": "1.09", "description": "Demolition reinforced concrete floor slab", "unit": "m2", "qty": 102.92, "planned_week_start": 1, "planned_week_end": 2}, {"id": "1.10", "code": "1.10", "description": "Demolition reinforced concrete slab", "unit": "m2", "qty": 208.86, "planned_week_start": 1, "planned_week_end": 2}, {"id": "1.11", "code": "1.11", "description": "Dismantling roof tiles", "unit": "m2", "qty": 88.06, "planned_week_start": 1, "planned_week_end": 2}, {"id": "1.12", "code": "1.12", "description": "Demolition of roof slope mortar layer", "unit": "m2", "qty": 57.77, "planned_week_start": 1, "planned_week_end": 2}, {"id": "1.13", "code": "1.13", "description": "Demolition half-brick wall", "unit": "m2", "qty": 25.06, "planned_week_start": 1, "planned_week_end": 2}, {"id": "1.14", "code": "1.14", "description": "Demolition one-brick wall", "unit": "m2", "qty": 84.82, "planned_week_start": 1, "planned_week_end": 2}, {"id": "1.15", "code": "1.15", "description": "Demolition Internal wall", "unit": "m2", "qty": 35.34, "planned_week_start": 1, "planned_week_end": 2}, {"id": "1.16", "code": "1.16", "description": "Dismantling plumbing installation", "unit": "st", "qty": 1.0, "planned_week_start": 1, "planned_week_end": 2}, {"id": "1.17", "code": "1.17", "description": "Dismantling electrical installation", "unit": "st", "qty": 1.0, "planned_week_start": 1, "planned_week_end": 2}, {"id": "1.18", "code": "1.18", "description": "Dismantling wastewater drain", "unit": "st", "qty": 1.0, "planned_week_start": 1, "planned_week_end": 2}, {"id": "1.19", "code": "1.19", "description": "Removal of ceramic outdoor flooring", "unit": "m2", "qty": 195.36, "planned_week_start": 1, "planned_week_end": 2}, {"id": "1.20", "code": "1.20", "description": "Removal of ceramic indoor flooring", "unit": "m2", "qty": 113.58, "planned_week_start": 1, "planned_week_end": 2}, {"id": "1.21", "code": "1.21", "description": "Removal of trapbekleding", "unit": "m2", "qty": 7.33, "planned_week_start": 1, "planned_week_end": 2}, {"id": "1.22", "code": "1.22", "description": "Demolition onderlaag bestrating", "unit": "m2", "qty": 308.94, "planned_week_start": 1, "planned_week_end": 2}, {"id": "1.23", "code": "1.23", "description": "Removal of wandtegelwerk", "unit": "m2", "qty": 15.99, "planned_week_start": 1, "planned_week_end": 2}, {"id": "1.24", "code": "1.24", "description": "Removal of pool mosaic (gresite)", "unit": "m2", "qty": 54.59, "planned_week_start": 1, "planned_week_end": 2}, {"id": "1.25", "code": "1.25", "description": "Removal of dorpels/druiplijsten", "unit": "m", "qty": 19.05, "planned_week_start": 1, "planned_week_end": 2}, {"id": "1.26", "code": "1.26", "description": "Demolition of light porch structure", "unit": "m2", "qty": 54.35, "planned_week_start": 1, "planned_week_end": 2}, {"id": "1.27", "code": "1.27", "description": "Rubble container + waste management (3 units, 9 m³ each)", "unit": "st", "qty": 3.0, "planned_week_start": 1, "planned_week_end": 2}]}, {"chapter_no": 3, "title": "Foundations", "icon": "🏗️", "items": [{"id": "3.01", "code": "3.01", "description": "Egalisatie-/reinigingslaag beton HL-150 (10 cm)", "unit": "m2", "qty": 20.88, "planned_week_start": 3, "planned_week_end": 6}, {"id": "3.02", "code": "3.02", "description": "Funderingsplaat HA-30", "unit": "m3", "qty": 17.26, "planned_week_start": 3, "planned_week_end": 6}, {"id": "3.03", "code": "3.03", "description": "Reinforced concrete slab 25 cm (HA-30) with double reinforcement mesh", "unit": "m2", "qty": 174.34, "planned_week_start": 3, "planned_week_end": 6}]}, {"chapter_no": 4, "title": "Structure", "icon": "🏗️", "items": [{"id": "4.01", "code": "4.01", "description": "One-way floor slab with steel beams (25 = 20+5 cm)", "unit": "m2", "qty": 77.87, "planned_week_start": 3, "planned_week_end": 6}, {"id": "4.02", "code": "4.02", "description": "Massieve plaat HA-30 20 cm", "unit": "m2", "qty": 13.2, "planned_week_start": 3, "planned_week_end": 6}, {"id": "4.03", "code": "4.03", "description": "Laminated timber pergola GL24h (autoclave class IV), galvanised fittings, 2 coats of lasur, installation", "unit": "m2", "qty": 40.6, "planned_week_start": 3, "planned_week_end": 6}]}, {"chapter_no": 5, "title": "Masonry and claddings", "icon": "🧱", "items": [{"id": "5.01", "code": "5.01", "description": "Double-leaf enclosure wall + cavity insulation", "unit": "m2", "qty": 105.54, "planned_week_start": 10, "planned_week_end": 13}, {"id": "5.02", "code": "5.02", "description": "25 cm brickwork wall (perforated clay brick)", "unit": "m2", "qty": 67.48, "planned_week_start": 10, "planned_week_end": 13}, {"id": "5.03", "code": "5.03", "description": "Internal wall (scheidingswand)", "unit": "m2", "qty": 78.3, "planned_week_start": 10, "planned_week_end": 13}, {"id": "5.04", "code": "5.04", "description": "Marble drip edge (Blanco Macael)", "unit": "m", "qty": 7.67, "planned_week_start": 7, "planned_week_end": 13}, {"id": "5.05", "code": "5.05", "description": "Marble lintel/threshold (Blanco Macael)", "unit": "m", "qty": 62.65, "planned_week_start": 7, "planned_week_end": 13}, {"id": "5.06", "code": "5.06", "description": "Marble coping stones (Blanco Macael)", "unit": "m", "qty": 77.02, "planned_week_start": 7, "planned_week_end": 13}, {"id": "5.07", "code": "5.07", "description": "Waterdichte cementpleister gevel, afgevlakt", "unit": "m2", "qty": 402.1, "planned_week_start": 19, "planned_week_end": 22}, {"id": "5.08", "code": "5.08", "description": "Interior gypsum plaster, trowelled finish", "unit": "m2", "qty": 318.65, "planned_week_start": 19, "planned_week_end": 22}, {"id": "5.09", "code": "5.09", "description": "Cement screed / base mortar layer", "unit": "m2", "qty": 140.35, "planned_week_start": 19, "planned_week_end": 22}, {"id": "5.10", "code": "5.10", "description": "Aanbrengen sloping mortar", "unit": "m2", "qty": 174.34, "planned_week_start": 7, "planned_week_end": 13}, {"id": "5.11", "code": "5.11", "description": "Wandtegelwerk porcellanato", "unit": "m2", "qty": 65.72, "planned_week_start": 23, "planned_week_end": 27}, {"id": "5.12", "code": "5.12", "description": "Interior porcelain floor tiles", "unit": "m2", "qty": 140.35, "planned_week_start": 23, "planned_week_end": 27}, {"id": "5.13", "code": "5.13", "description": "Exterior anti-slip porcelain floor tiles (C3)", "unit": "m2", "qty": 286.71, "planned_week_start": 23, "planned_week_end": 27}, {"id": "5.14", "code": "5.14", "description": "Anti-slip porcelain tiles in shower floors", "unit": "m2", "qty": 4.01, "planned_week_start": 23, "planned_week_end": 27}, {"id": "5.15", "code": "5.15", "description": "Stair cladding (Blanco Macael marble)", "unit": "st", "qty": 1.0, "planned_week_start": 7, "planned_week_end": 13}, {"id": "5.16", "code": "5.16", "description": "In situ douchebak, waterdicht", "unit": "m2", "qty": 4.01, "planned_week_start": 7, "planned_week_end": 13}, {"id": "5.17", "code": "5.17", "description": "Washbasin countertop (Blanco Macael marble, 2 cm)", "unit": "m", "qty": 2.03, "planned_week_start": 7, "planned_week_end": 13}, {"id": "5.18", "code": "5.18", "description": "Continuous suspended plasterboard ceiling (standard)", "unit": "m2", "qty": 125.09, "planned_week_start": 7, "planned_week_end": 13}, {"id": "5.19", "code": "5.19", "description": "Suspended moisture‑resistant plasterboard ceiling (H1)", "unit": "m2", "qty": 15.26, "planned_week_start": 7, "planned_week_end": 13}, {"id": "5.20", "code": "5.20", "description": "Plasterboard bulkhead / curtain pelmet", "unit": "m", "qty": 42.8, "planned_week_start": 7, "planned_week_end": 13}, {"id": "5.21", "code": "5.21", "description": "Pocket door frame (casoneto)", "unit": "st", "qty": 2.0, "planned_week_start": 7, "planned_week_end": 13}, {"id": "5.22", "code": "5.22", "description": "Minor building works for installations (small tasks)", "unit": "m2", "qty": 1.0, "planned_week_start": 7, "planned_week_end": 13}]}, {"chapter_no": 6, "title": "Roofs and waterproofing", "icon": "🏠", "items": [{"id": "6.04", "code": "6.04", "description": "Pitched tiled roof (PU 40 mm + SBS membrane + finishes)", "unit": "m2", "qty": 40.75, "planned_week_start": 7, "planned_week_end": 9}]}, {"chapter_no": 7, "title": "Frames and doors", "icon": "🚪", "items": [{"id": "7.01.02", "code": "7.01.02", "description": "Sliding window, 2-leaf 180×90", "unit": "st", "qty": 1.0, "planned_week_start": 28, "planned_week_end": 31}, {"id": "7.01.03", "code": "7.01.03", "description": "Sliding window, 2-leaf 230×90", "unit": "st", "qty": 1.0, "planned_week_start": 28, "planned_week_end": 31}, {"id": "7.01.04", "code": "7.01.04", "description": "Tilt-and-turn window 100×98", "unit": "st", "qty": 2.0, "planned_week_start": 28, "planned_week_end": 31}, {"id": "7.01.05", "code": "7.01.05", "description": "Tilt-and-turn window 105×107", "unit": "st", "qty": 1.0, "planned_week_start": 28, "planned_week_end": 31}, {"id": "7.01.06", "code": "7.01.06", "description": "Fixed window 150×167", "unit": "st", "qty": 1.0, "planned_week_start": 28, "planned_week_end": 31}, {"id": "7.01.07", "code": "7.01.07", "description": "Tilt-and-turn window 90×96", "unit": "st", "qty": 2.0, "planned_week_start": 28, "planned_week_end": 31}, {"id": "7.01.08", "code": "7.01.08", "description": "Sliding door, 2-leaf 250×200", "unit": "st", "qty": 1.0, "planned_week_start": 28, "planned_week_end": 31}, {"id": "7.01.09", "code": "7.01.09", "description": "Sliding door, 2-leaf 275×200", "unit": "st", "qty": 1.0, "planned_week_start": 28, "planned_week_end": 31}, {"id": "7.01.10", "code": "7.01.10", "description": "Sliding door, 2-leaf 403×200", "unit": "st", "qty": 1.0, "planned_week_start": 28, "planned_week_end": 31}, {"id": "7.01.11", "code": "7.01.11", "description": "Sliding door, 2-leaf 280×200", "unit": "st", "qty": 1.0, "planned_week_start": 28, "planned_week_end": 31}, {"id": "7.01.12", "code": "7.01.12", "description": "Sliding door, 3-leaf 275×200", "unit": "st", "qty": 1.0, "planned_week_start": 28, "planned_week_end": 31}, {"id": "7.01.13", "code": "7.01.13", "description": "Sliding door, 2-leaf 312×200", "unit": "st", "qty": 1.0, "planned_week_start": 28, "planned_week_end": 31}, {"id": "7.01.14", "code": "7.01.14", "description": "Sliding door, 2-leaf 346×200", "unit": "st", "qty": 1.0, "planned_week_start": 28, "planned_week_end": 31}, {"id": "7.01.15", "code": "7.01.15", "description": "Hinged door, single-leaf 130×100", "unit": "st", "qty": 1.0, "planned_week_start": 28, "planned_week_end": 31}, {"id": "7.01.16", "code": "7.01.16", "description": "Sliding door, 2-leaf 405×200", "unit": "st", "qty": 2.0, "planned_week_start": 28, "planned_week_end": 31}, {"id": "7.02.01", "code": "7.02.01", "description": "Internal door, lacquered, hinged", "unit": "st", "qty": 7.0, "planned_week_start": 28, "planned_week_end": 31}, {"id": "7.02.02", "code": "7.02.02", "description": "Internal door, lacquered, sliding (single-leaf)", "unit": "st", "qty": 2.0, "planned_week_start": 28, "planned_week_end": 31}, {"id": "7.02.03", "code": "7.02.03", "description": "Vanity base cabinet washbasin 80×50", "unit": "st", "qty": 2.0, "planned_week_start": 28, "planned_week_end": 31}, {"id": "7.02.04", "code": "7.02.04", "description": "Vanity base cabinet washbasin 120×50", "unit": "st", "qty": 1.0, "planned_week_start": 28, "planned_week_end": 31}, {"id": "7.02.05", "code": "7.02.05", "description": "Vanity base cabinet washbasin 125×50", "unit": "st", "qty": 1.0, "planned_week_start": 28, "planned_week_end": 31}]}, {"chapter_no": 8, "title": "Glazing", "icon": "🪟", "items": [{"id": "8.01", "code": "8.01", "description": "Shower screen M1 (glas 8 mm antikalk)", "unit": "st", "qty": 2.0, "planned_week_start": 28, "planned_week_end": 31}, {"id": "8.02", "code": "8.02", "description": "Shower screen M2 (speciaal)", "unit": "st", "qty": 1.0, "planned_week_start": 28, "planned_week_end": 31}, {"id": "8.03", "code": "8.03", "description": "Mirror 80×110", "unit": "st", "qty": 2.0, "planned_week_start": 28, "planned_week_end": 31}, {"id": "8.04", "code": "8.04", "description": "Mirror 120×110", "unit": "st", "qty": 1.0, "planned_week_start": 28, "planned_week_end": 31}, {"id": "8.05", "code": "8.05", "description": "Mirror 125×110", "unit": "st", "qty": 1.0, "planned_week_start": 28, "planned_week_end": 31}]}, {"chapter_no": 9, "title": "Painting", "icon": "🎨", "items": [{"id": "9.01", "code": "9.01", "description": "Interior: washable matte paint (2 coats)", "unit": "m2", "qty": 480.4, "planned_week_start": 36, "planned_week_end": 38}, {"id": "9.02", "code": "9.02", "description": "Gevel: matte muurverf (2 lagen)", "unit": "m2", "qty": 402.1, "planned_week_start": 36, "planned_week_end": 38}]}, {"chapter_no": 10, "title": "Installations", "icon": "⚡", "items": [{"id": "10.01.01", "code": "10.01.01", "description": "Ceiling light point ArkosLight GAP GX5.3", "unit": "st", "qty": 48.0, "planned_week_start": 32, "planned_week_end": 35}, {"id": "10.01.02", "code": "10.01.02", "description": "Underwater LED projector LEDS C4 GEA55-9623-14-T2 IP67", "unit": "st", "qty": 3.0, "planned_week_start": 32, "planned_week_end": 35}, {"id": "10.01.03", "code": "10.01.03", "description": "Recessed ground beacon LED", "unit": "st", "qty": 10.0, "planned_week_start": 14, "planned_week_end": 18}, {"id": "10.01.04", "code": "10.01.04", "description": "Floodlight FOC-21", "unit": "st", "qty": 10.0, "planned_week_start": 14, "planned_week_end": 18}, {"id": "10.01.05", "code": "10.01.05", "description": "Floodlight OLAN LED", "unit": "st", "qty": 12.0, "planned_week_start": 14, "planned_week_end": 18}, {"id": "10.02.01", "code": "10.02.01", "description": "Main electrical board (CPM) – dimensions and protections", "unit": "st", "qty": 1.0, "planned_week_start": 14, "planned_week_end": 18}, {"id": "10.02.02", "code": "10.02.02", "description": "Electrical installation en telecom woning (compleet)", "unit": "st", "qty": 1.0, "planned_week_start": 14, "planned_week_end": 18}, {"id": "10.02.03", "code": "10.02.03", "description": "Aardingssysteem voor constructie", "unit": "st", "qty": 1.0, "planned_week_start": 14, "planned_week_end": 18}, {"id": "10.02.04", "code": "10.02.04", "description": "Potentiaalvereffening", "unit": "st", "qty": 1.0, "planned_week_start": 14, "planned_week_end": 18}, {"id": "10.02.05", "code": "10.02.05", "description": "Alarm system pre-installation", "unit": "st", "qty": 1.0, "planned_week_start": 14, "planned_week_end": 18}, {"id": "10.03.01", "code": "10.03.01", "description": "Internal water installation (main ring)", "unit": "st", "qty": 1.0, "planned_week_start": 14, "planned_week_end": 18}, {"id": "10.03.02", "code": "10.03.02", "description": "Bathroom 1 (Toilet, washbasin, douche)", "unit": "st", "qty": 1.0, "planned_week_start": 32, "planned_week_end": 35}, {"id": "10.03.03", "code": "10.03.03", "description": "Bathroom 2 (Toilet, washbasin, douche)", "unit": "st", "qty": 1.0, "planned_week_start": 32, "planned_week_end": 35}, {"id": "10.03.04", "code": "10.03.04", "description": "Bathroom 4 (Toilet, washbasin, douche)", "unit": "st", "qty": 1.0, "planned_week_start": 32, "planned_week_end": 35}, {"id": "10.03.05", "code": "10.03.05", "description": "Toilet (Toilet, washbasin)", "unit": "st", "qty": 1.0, "planned_week_start": 32, "planned_week_end": 35}, {"id": "10.03.06", "code": "10.03.06", "description": "Kitchen (spoelbak, vaatwasser, wasmachine)", "unit": "st", "qty": 1.0, "planned_week_start": 14, "planned_week_end": 18}, {"id": "10.03.07", "code": "10.03.07", "description": "Porch (water point + drain connection)", "unit": "st", "qty": 2.0, "planned_week_start": 14, "planned_week_end": 18}, {"id": "10.03.08", "code": "10.03.08", "description": "Elektrische boiler", "unit": "st", "qty": 1.0, "planned_week_start": 14, "planned_week_end": 18}, {"id": "10.03.09", "code": "10.03.09", "description": "Internal drainage woning", "unit": "st", "qty": 1.0, "planned_week_start": 14, "planned_week_end": 18}, {"id": "10.03.10", "code": "10.03.10", "description": "External drainage system (dwelling)", "unit": "st", "qty": 1.0, "planned_week_start": 14, "planned_week_end": 18}, {"id": "10.04.01", "code": "10.04.01", "description": "Airconditioning Daikin 4MXS100KVM", "unit": "st", "qty": 2.0, "planned_week_start": 14, "planned_week_end": 18}, {"id": "10.04.02", "code": "10.04.02", "description": "Airconditioning Daikin RXA42B", "unit": "st", "qty": 1.0, "planned_week_start": 14, "planned_week_end": 18}, {"id": "10.04.03", "code": "10.04.03", "description": "Indoor unit Daikin FTXS35KVM", "unit": "st", "qty": 2.0, "planned_week_start": 14, "planned_week_end": 18}, {"id": "10.04.04", "code": "10.04.04", "description": "Indoor unit Daikin FTXA42AW", "unit": "st", "qty": 1.0, "planned_week_start": 14, "planned_week_end": 18}, {"id": "10.04.05", "code": "10.04.05", "description": "Kitchen ventilation (ducts and extractor)", "unit": "st", "qty": 1.0, "planned_week_start": 14, "planned_week_end": 18}, {"id": "10.04.06", "code": "10.04.06", "description": "Air conditioning installation (connections, drains, commissioning)", "unit": "set", "qty": 1.0, "planned_week_start": 14, "planned_week_end": 18}, {"id": "10.05.01", "code": "10.05.01", "description": "Zonneboiler ACS: 2 collectoren + tank 200 L", "unit": "st", "qty": 1.0, "planned_week_start": 14, "planned_week_end": 18}, {"id": "10.06.01", "code": "10.06.01", "description": "Electric underfloor heating: insulation base", "unit": "m2", "qty": 12.93, "planned_week_start": 14, "planned_week_end": 18}, {"id": "10.06.02", "code": "10.06.02", "description": "Electric underfloor heating: heating mat/cable 880 W", "unit": "st", "qty": 1.0, "planned_week_start": 14, "planned_week_end": 18}, {"id": "10.06.03", "code": "10.06.03", "description": "Electric underfloor heating: heating mat/cable 640 W", "unit": "st", "qty": 2.0, "planned_week_start": 14, "planned_week_end": 18}, {"id": "10.06.04", "code": "10.06.04", "description": "Thermostat for electric underfloor heating", "unit": "st", "qty": 3.0, "planned_week_start": 14, "planned_week_end": 18}, {"id": "10.07.01", "code": "10.07.01", "description": "Washbasin on countertop + mixer tap", "unit": "st", "qty": 5.0, "planned_week_start": 32, "planned_week_end": 35}, {"id": "10.07.02", "code": "10.07.02", "description": "Wall-hung WC with concealed cistern", "unit": "st", "qty": 4.0, "planned_week_start": 32, "planned_week_end": 35}, {"id": "10.07.03", "code": "10.07.03", "description": "Shower mixer tap", "unit": "st", "qty": 3.0, "planned_week_start": 32, "planned_week_end": 35}]}, {"chapter_no": 11, "title": "Miscellaneous", "icon": "🧩", "items": [{"id": "11.01", "code": "11.01", "description": "Final cleaning (interior/exterior)", "unit": "st", "qty": 1.0, "planned_week_start": 36, "planned_week_end": 38}]}, {"chapter_no": 12, "title": "Swimming pool", "icon": "🏊", "items": [{"id": "12.01", "code": "12.01", "description": "Setting out and temporary works", "unit": "set", "qty": 1.0, "planned_week_start": 3, "planned_week_end": 4}, {"id": "12.02", "code": "12.02", "description": "Disconnect existing connections and drain/empty", "unit": "st", "qty": 1.0, "planned_week_start": 3, "planned_week_end": 4}, {"id": "12.03", "code": "12.03", "description": "Removal of prefabricated PVC pool with crane (lifting and loading)", "unit": "st", "qty": 1.0, "planned_week_start": 3, "planned_week_end": 4}, {"id": "12.04", "code": "12.04", "description": "Transport to licensed landfill + disposal fee", "unit": "st", "qty": 1.0, "planned_week_start": 3, "planned_week_end": 4}, {"id": "12.05", "code": "12.05", "description": "Trenches for pipes (0,30×0,40 m)", "unit": "ml", "qty": 12.0, "planned_week_start": 3, "planned_week_end": 4}, {"id": "12.06", "code": "12.06", "description": "Repair of bij kleine afschuivingen (voorziening)", "unit": "set", "qty": 1.0, "planned_week_start": 3, "planned_week_end": 4}, {"id": "12.07", "code": "12.07", "description": "Base slab HA-30 20 cm with double reinforcement mesh", "unit": "m2", "qty": 28.0, "planned_week_start": 3, "planned_week_end": 9}, {"id": "12.08", "code": "12.08", "description": "Pool shell walls HA-30 20 cm gewapend", "unit": "m3", "qty": 7.16, "planned_week_start": 3, "planned_week_end": 9}, {"id": "12.09", "code": "12.09", "description": "In-situ masonry steps, 4 treden, geïntegreerd", "unit": "st", "qty": 1.0, "planned_week_start": 3, "planned_week_end": 9}, {"id": "12.10", "code": "12.10", "description": "Waterproofing kuip (flexibele mortel + wapeningsnet)", "unit": "m2", "qty": 61.8, "planned_week_start": 3, "planned_week_end": 9}, {"id": "12.11", "code": "12.11", "description": "Mosaic finish (gresite) with C2TES2 adhesive + epoxy grout", "unit": "m2", "qty": 61.8, "planned_week_start": 23, "planned_week_end": 27}, {"id": "12.12", "code": "12.12", "description": "Coping / edge finish (coping) antislip 30 cm, rondom", "unit": "ml", "qty": 22.0, "planned_week_start": 23, "planned_week_end": 27}, {"id": "12.13", "code": "12.13", "description": "Hydraulic network PVC Ø50 + collector naar bestaande", "unit": "set", "qty": 1.0, "planned_week_start": 14, "planned_week_end": 18}, {"id": "12.14", "code": "12.14", "description": "Pool accessories: 2 skimmers + 3 inspuiters + 1", "unit": "set", "qty": 1.0, "planned_week_start": 14, "planned_week_end": 18}, {"id": "12.15", "code": "12.15", "description": "Underwater lighting LED 12V IP68 (incl. trafo en", "unit": "st", "qty": 2.0, "planned_week_start": 14, "planned_week_end": 18}, {"id": "12.16", "code": "12.16", "description": "Electrical panel voor verlichting en aansluiting op", "unit": "st", "qty": 1.0, "planned_week_start": 14, "planned_week_end": 18}, {"id": "12.17", "code": "12.17", "description": "Backfilling around with crushed stone (zahorra) and compaction", "unit": "m3", "qty": 10.42, "planned_week_start": 19, "planned_week_end": 22}, {"id": "12.18", "code": "12.18", "description": "Commissioning and leak tests", "unit": "set", "qty": 1.0, "planned_week_start": 32, "planned_week_end": 35}, {"id": "12.19", "code": "12.19", "description": "Starter chemical kit", "unit": "set", "qty": 1.0, "planned_week_start": 36, "planned_week_end": 38}, {"id": "12.20", "code": "12.20", "description": "Final cleaning", "unit": "set", "qty": 1.0, "planned_week_start": 36, "planned_week_end": 38}]}, {"chapter_no": 13, "title": "Quality control and testing", "icon": "✅", "items": [{"id": "13.01", "code": "13.01", "description": "Proeven en testen (bouw en laboratorium)", "unit": "st", "qty": 1.0, "planned_week_start": 39, "planned_week_end": 39}]}, {"chapter_no": 14, "title": "Waste management", "icon": "♻️", "items": [{"id": "14.02", "code": "14.02", "description": "Containers 9 m³ (loading + transport + landfill fee)", "unit": "st", "qty": 2.0, "planned_week_start": 1, "planned_week_end": 39}]}, {"chapter_no": 15, "title": "Safety and health", "icon": "🦺", "items": [{"id": "15.01", "code": "15.01", "description": "Plan en coördinatie Veiligheid en Gezondheid", "unit": "st", "qty": 1.0, "planned_week_start": 1, "planned_week_end": 39}]}]};
+const CHAPTER_PHOTOS = {"1": "./Demolition.png", "2": "./Fundations.png", "3": "./Structure.png", "4": "./Masonry and Claddings.png", "5": "./Roof and waterproofing.png", "6": "./Frame and doors.png", "7": "./Glazing.png", "8": "./Painting.png", "9": "./Installations.png", "10": "./Miscellaneous.png", "11": "./Swiming pool.png", "12": "./Quality control and testing.png", "13": "./Waste management.png", "14": "./Safety and health.png"};
+
+const LS_PIN = "copo23_admin_pin_v3";
+const LS_ADMIN_SESSION = "copo23_admin_session_v3";
+const LS_DRAFT = "copo23_state_draft_v3";
+const LS_START = "copo23_start_date_v3";
+
+const el = (id)=>document.getElementById(id);
+let SERVER_STATE = null;
+let STATE = null;
+let currentChapter = null;
+let isAdmin = false;
+let activeTab = "progress";
+
+function pct(v){ return Math.max(0, Math.min(100, Math.round(v ?? 0))); }
+function fmtStatus(s){ return ({pending:"Pending", in_progress:"In progress", done:"Done", blocked:"Blocked"})[s] || "Pending"; }
+function statusPillClass(s){ return s==="done" ? "statusDone" : (s==="blocked" ? "statusBlocked" : ""); }
+
+function toast(msg){
+  const t = el("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(()=>t.classList.remove("show"), 1200);
+}
+
+function loadDraft(){
+  try{
+    const raw = localStorage.getItem(LS_DRAFT);
+    if(!raw) return null;
+    return JSON.parse(raw);
+  }catch(_){ return null; }
+}
+
+function saveDraft(){
+  try{ localStorage.setItem(LS_DRAFT, JSON.stringify(STATE)); }catch(_){}
+  updateStatusLine();
+}
+
+function discardDraft(){
+  localStorage.removeItem(LS_DRAFT);
+  STATE = JSON.parse(JSON.stringify(SERVER_STATE));
+  updateStatusLine();
+  renderAll();
+  toast("Local draft discarded");
+}
+
+function updateStatusLine(){
+  const draft = loadDraft();
+  const publishedAt = SERVER_STATE?.updated_at || "—";
+  const localAt = draft?.updated_at || "—";
+  const usingDraft = !!draft;
+  const text = usingDraft
+    ? `Viewing LOCAL draft (not published). Published: ${publishedAt} · Local: ${localAt}`
+    : `Viewing PUBLISHED progress. Updated: ${publishedAt}`;
+  el("statusLine").textContent = text;
+  el("scheduleLine").textContent = text;
+}
+
+function getItemState(id){ return STATE?.items?.[id] || {status:"pending", progress:0, note:""}; }
+function getItemProgress(id){ return pct(getItemState(id).progress); }
+function getItemStatus(id){ return getItemState(id).status || "pending"; }
+
+function chapterProgress(ch){
+  if(!ch.items.length) return 0;
+  let sum=0;
+  for(const it of ch.items) sum += getItemProgress(it.id);
+  return Math.round(sum/ch.items.length);
+}
+
+function overallProgress(){
+  let sum=0, n=0;
+  for(const ch of DATA.chapters){
+    for(const it of ch.items){ sum += getItemProgress(it.id); n++; }
+  }
+  return n ? Math.round(sum/n) : 0;
+}
+
+function setTab(tab){
+  activeTab = tab;
+  el("tabProgress").classList.toggle("active", tab==="progress");
+  el("tabSchedule").classList.toggle("active", tab==="schedule");
+  el("viewProgress").classList.toggle("active", tab==="progress");
+  el("viewSchedule").classList.toggle("active", tab==="schedule");
+}
+
+function setAdmin(on){
+  isAdmin = on;
+  el("btnAdmin").textContent = "Edit mode: " + (on ? "ON" : "OFF");
+  el("adminTools").style.display = on ? "block" : "none";
+  if(currentChapter) renderModal(currentChapter);
+}
+
+function ensureAdminSessionValid(){
+  const until = parseInt(localStorage.getItem(LS_ADMIN_SESSION) || "0", 10);
+  return Date.now() < until;
+}
+
+function askPinAndEnable(){
+  if(isAdmin){ setAdmin(false); return; }
+  if(ensureAdminSessionValid()){ setAdmin(true); toast("Edit mode enabled"); return; }
+
+  const saved = localStorage.getItem(LS_PIN);
+  if(!saved){
+    const pin = prompt("Create an admin PIN (4–8 digits):");
+    if(!pin || pin.length < 4) return;
+    localStorage.setItem(LS_PIN, pin);
+    localStorage.setItem(LS_ADMIN_SESSION, String(Date.now() + 24*60*60*1000));
+    setAdmin(true);
+    toast("PIN saved. Edit mode enabled");
+    return;
+  }
+  const pin = prompt("Enter admin PIN:");
+  if(pin === saved){
+    localStorage.setItem(LS_ADMIN_SESSION, String(Date.now() + 24*60*60*1000));
+    setAdmin(true);
+    toast("Edit mode enabled");
+  }else{
+    alert("Incorrect PIN");
+  }
+}
+
+async function loadJSON(path){
+  const res = await fetch(path + "?t=" + Date.now(), {cache:"no-store"});
+  if(!res.ok) throw new Error(path + " " + res.status);
+  return await res.json();
+}
+
+function pickInitialState(){
+  const draft = loadDraft();
+  if(draft && draft.items){
+    STATE = draft;  // always prefer local draft on this device
+  }else{
+    STATE = JSON.parse(JSON.stringify(SERVER_STATE));
+  }
+}
+
+function openModal(ch){
+  currentChapter = ch;
+  el("modal").style.display = "flex";
+  renderModal(ch);
+}
+function closeModal(){
+  el("modal").style.display = "none";
+  currentChapter = null;
+}
+
+function renderGrid(){
+  const q = (el("search").value || "").trim().toLowerCase();
+  const grid = el("chaptersGrid");
+  grid.innerHTML = "";
+
+  for(const ch of DATA.chapters){
+    const matches = !q ? ch.items : ch.items.filter(it =>
+      (it.code||"").toLowerCase().includes(q) || (it.description||"").toLowerCase().includes(q)
+    );
+    if(q && !matches.length) continue;
+
+    const pctCh = chapterProgress(ch);
+    const card = document.createElement("div");
+    card.className = "card";
+    const imgRaw = CHAPTER_PHOTOS[String(ch.chapter_no)] || "";
+    const img = imgRaw ? encodeURI(imgRaw) : "";
+    card.innerHTML = `
+      <div class="cover" style="background-image:url('${img}')">
+        <div class="capno">Chapter ${String(ch.chapter_no).padStart(2,"0")}</div>
+        <div class="title">${ch.title}</div>
+      </div>
+      <div class="body">
+        <div class="row">
+          <span class="pill"><span class="badge">${pctCh}%</span> complete</span>
+          <span class="muted">${ch.items.length} items</span>
+        </div>
+        <div style="margin-top:10px" class="progress"><div style="width:${pctCh}%"></div></div>
+      </div>
+    `;
+    card.addEventListener("click", ()=>openModal(ch));
+    grid.appendChild(card);
+  }
+}
+
+function renderModal(ch){
+  el("mTitle").textContent = `Chapter ${String(ch.chapter_no).padStart(2,"0")} — ${ch.title}`;
+  el("mSub").textContent = isAdmin ? "Edit enabled on this device" : "Read-only view";
+  el("mCount").textContent = `${ch.items.length} items`;
+  el("mAvg").textContent = `Average: ${chapterProgress(ch)}%`;
+
+  const q = (el("search").value || "").trim().toLowerCase();
+  const f = el("filterStatus").value;
+
+  let its = ch.items.slice();
+  if(q) its = its.filter(it => (it.code||"").toLowerCase().includes(q) || (it.description||"").toLowerCase().includes(q));
+  if(f) its = its.filter(it => getItemStatus(it.id) === f);
+
+  const list = el("itemsList");
+  list.innerHTML = "";
+
+  for(const it of its){
+    const s = getItemState(it.id);
+    const prog = getItemProgress(it.id);
+    const status = getItemStatus(it.id);
+
+    const row = document.createElement("div");
+    row.className = "item";
+    row.innerHTML = `
+      <h4>${it.code} — ${it.description}</h4>
+      ${it.description_es ? `<div class="muted" style="margin-top:-6px;margin-bottom:6px">${it.description_es}</div>` : ""}
+      <div class="meta">
+        <span>${(it.qty ?? "")} ${(it.unit ?? "")}</span>
+        <span>Planned: week ${it.planned_week_start ?? "-"}–${it.planned_week_end ?? "-"}</span>
+        <span>Status: <b data-status-text>${fmtStatus(status)}</b></span>
+      </div>
+
+      <div style="margin-top:8px" class="progress"><div data-bar style="width:${prog}%"></div></div>
+      <div class="row" style="margin-top:6px">
+        <span class="muted"><span class="badge" data-prog-text>${prog}%</span> complete</span>
+        <span class="pill ${statusPillClass(status)}" data-status-pill>${fmtStatus(status)}</span>
+      </div>
+
+      <div class="controls">
+        <div class="range">
+          <span class="muted" style="min-width:78px">Progress</span>
+          <input data-prog type="range" min="0" max="100" value="${prog}" ${isAdmin ? "" : "disabled"} />
+          <span class="badge" data-prog-badge>${prog}%</span>
+        </div>
+
+        <select data-status ${isAdmin ? "" : "disabled"}>
+          <option value="pending">Pending</option>
+          <option value="in_progress">In progress</option>
+          <option value="done">Done</option>
+          <option value="blocked">Blocked</option>
+        </select>
+      </div>
+
+      <div style="margin-top:8px">
+        <textarea data-note placeholder="Notes..." ${isAdmin ? "" : "disabled"}>${(s.note||"").replaceAll("<","&lt;")}</textarea>
+      </div>
+    `;
+    list.appendChild(row);
+    row.querySelector('[data-status]').value = status;
+
+    if(!isAdmin) continue;
+
+    const progInput = row.querySelector('[data-prog]');
+    const statusSel = row.querySelector('[data-status]');
+    const noteInput = row.querySelector('[data-note]');
+
+    const applyPatch = (patch) => {
+      const id = it.id;
+      const prev = getItemState(id);
+      const next = Object.assign({}, prev, patch);
+      STATE.items[id] = next;
+      STATE.updated_at = new Date().toISOString();
+      saveDraft();
+
+      if(patch.progress !== undefined){
+        const p = pct(patch.progress);
+        row.querySelector('[data-bar]').style.width = p + "%";
+        row.querySelector('[data-prog-text]').textContent = p + "%";
+        row.querySelector('[data-prog-badge]').textContent = p + "%";
+      }
+      if(patch.status){
+        const st = patch.status;
+        row.querySelector('[data-status-text]').textContent = fmtStatus(st);
+        const pill = row.querySelector('[data-status-pill]');
+        pill.textContent = fmtStatus(st);
+        pill.className = "pill " + statusPillClass(st);
+      }
+
+      el("mAvg").textContent = `Average: ${chapterProgress(ch)}%`;
+      renderGrid();
+      renderSchedule();
+    };
+
+    progInput.addEventListener("input", ()=>applyPatch({progress: parseInt(progInput.value,10)}));
+    statusSel.addEventListener("change", ()=>applyPatch({status: statusSel.value}));
+    noteInput.addEventListener("input", ()=>applyPatch({note: noteInput.value}));
+  }
+}
+
+function weeksElapsed(startDateStr){
+  const start = new Date(startDateStr + "T00:00:00");
+  const now = new Date();
+  const ms = now - start;
+  const days = Math.max(0, Math.floor(ms / (1000*60*60*24)));
+  const wk = Math.floor(days / 7) + 1;
+  return {days, wk};
+}
+
+function plannedOverallAtWeek(wk){
+  let sum=0, n=0;
+  for(const ch of DATA.chapters){
+    for(const it of ch.items){
+      const a = it.planned_week_start ?? 1;
+      const b = it.planned_week_end ?? a;
+      let exp=0;
+      if(wk < a) exp=0;
+      else if(wk > b) exp=100;
+      else {
+        const dur = Math.max(1, (b - a + 1));
+        exp = ((wk - a + 1) / dur) * 100;
+      }
+      sum += exp; n++;
+    }
+  }
+  return n ? Math.round(sum/n) : 0;
+}
+
+function renderSchedule(){
+  const start = el("startDate").value || "2025-12-11";
+  const {days, wk} = weeksElapsed(start);
+  const planned = plannedOverallAtWeek(wk);
+  const actual = overallProgress();
+  const delta = actual - planned;
+
+  el("kWeek").textContent = "Week " + wk;
+  el("kDays").textContent = days + " days elapsed";
+  el("kPlanned").textContent = planned + "%";
+  el("kActual").textContent = actual + "%";
+
+  let status="On track";
+  if(delta > 5) status="Ahead";
+  if(delta < -5) status="Behind";
+  el("kStatus").textContent = status;
+  el("kDelta").textContent = (delta>=0?"+":"") + delta + "% vs plan";
+
+  const tbody = el("scheduleTable");
+  tbody.innerHTML = "";
+  for(const ch of DATA.chapters){
+    const a = Math.min(...ch.items.map(i => i.planned_week_start ?? 1));
+    const b = Math.max(...ch.items.map(i => i.planned_week_end ?? (i.planned_week_start ?? 1)));
+    let sum=0;
+    for(const it of ch.items){
+      const ia = it.planned_week_start ?? 1;
+      const ib = it.planned_week_end ?? ia;
+      let exp=0;
+      if(wk < ia) exp=0;
+      else if(wk > ib) exp=100;
+      else {
+        const dur=Math.max(1,(ib-ia+1));
+        exp=((wk-ia+1)/dur)*100;
+      }
+      sum += exp;
+    }
+    const plannedCh = Math.round(sum/ch.items.length);
+    const actualCh = chapterProgress(ch);
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>Chapter ${String(ch.chapter_no).padStart(2,"0")} — ${ch.title}</td>
+      <td>Week ${a}–${b}</td>
+      <td>${plannedCh}%</td>
+      <td>${actualCh}%</td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  updateStatusLine();
+}
+
+function exportState(){
+  const blob = new Blob([JSON.stringify(STATE, null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "state.json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importState(file){
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const s = JSON.parse(reader.result);
+      if(!s || typeof s!=="object" || !("items" in s)) throw new Error("Invalid state.json");
+      STATE = s;
+      STATE.updated_at = STATE.updated_at || new Date().toISOString();
+      saveDraft();
+      renderAll();
+      toast("State imported");
+    }catch(e){
+      alert("Could not import: " + e.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function renderAll(){
+  renderGrid();
+  if(currentChapter) renderModal(currentChapter);
+  renderSchedule();
+}
+
+async function boot(){
+  try{ SERVER_STATE = await loadJSON("./state.json"); }
+  catch(_e){ SERVER_STATE = {version:1, updated_at:null, items:{}}; }
+
+  pickInitialState();
+
+  const start = localStorage.getItem(LS_START) || "2025-12-11";
+  el("startDate").value = start;
+  el("startDate").addEventListener("change", ()=>{
+    localStorage.setItem(LS_START, el("startDate").value);
+    renderSchedule();
+  });
+
+  if(ensureAdminSessionValid()) setAdmin(true);
+
+  updateStatusLine();
+  renderAll();
+}
+
+el("tabProgress").addEventListener("click", ()=>setTab("progress"));
+el("tabSchedule").addEventListener("click", ()=>setTab("schedule"));
+el("btnAdmin").addEventListener("click", askPinAndEnable);
+
+el("search").addEventListener("input", ()=>{ renderGrid(); if(currentChapter) renderModal(currentChapter); });
+el("filterStatus").addEventListener("change", ()=>{ if(currentChapter) renderModal(currentChapter); });
+
+el("btnClose").addEventListener("click", closeModal);
+el("modal").addEventListener("click", (e)=>{ if(e.target.id==="modal") closeModal(); });
+
+el("btnExport").addEventListener("click", exportState);
+el("btnImport").addEventListener("click", ()=>el("importFile").click());
+el("importFile").addEventListener("change", (e)=>{ const f=e.target.files?.[0]; if(f) importState(f); e.target.value=""; });
+el("btnResetDraft").addEventListener("click", ()=>{ if(confirm("Discard local draft changes on this device?")) discardDraft(); });
+
+boot();
+</script>
+</body>
+</html>
