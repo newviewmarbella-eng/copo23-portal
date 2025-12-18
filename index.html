@@ -17,6 +17,7 @@ header{background:var(--ink);color:#fff;position:relative}
 .header-title{text-align:center;padding:6px 14px 0}
 .header-title h1{margin:0;font-size:18px;letter-spacing:.2px}
 .header-nav{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;padding:12px 14px 14px}
+.lang-left{position:absolute;top:12px;left:12px;z-index:50}
 .lang-toggle{position:absolute;top:12px;right:12px;display:flex;gap:6px;align-items:center}
 .langbtn{border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.10);color:#fff;border-radius:12px;padding:6px 10px;font-weight:700;cursor:pointer;font-size:12px}
 .langbtn.active{background:#fff;color:var(--ink);border-color:#fff}
@@ -90,8 +91,10 @@ code{background:#10182810;padding:2px 6px;border-radius:8px}
 </head>
 <body>
 <header>
-  <div class="lang-toggle">
+  <div class="lang-left">
     <button id="langNl" class="langbtn" type="button">🇳🇱 NL</button>
+  </div>
+  <div class="lang-toggle">
     <button id="langEn" class="langbtn" type="button">🇬🇧 EN</button>
     <button id="langEs" class="langbtn" type="button">🇪🇸 ES</button>
   </div>
