@@ -96,6 +96,7 @@ code{background:#10182810;padding:2px 6px;border-radius:8px}
   <div class="header-nav">
     <button id="tabProgress" class="navbtn active" type="button">Progress</button>
     <button id="tabSchedule" class="navbtn" type="button">Schedule</button>
+    <button id="tabPlans" class="navbtn" type="button">Plans</button>
     <button id="btnAdmin" class="navbtn ghost" type="button">Edit mode: OFF</button>
   </div>
 </header>
@@ -160,6 +161,32 @@ code{background:#10182810;padding:2px 6px;border-radius:8px}
         <button id="btnExport" class="smallbtn" type="button">Export state.json</button>
         <button id="btnImport" class="smallbtn" type="button">Import state.json</button>
         <button id="btnResetDraft" class="smallbtn" type="button">Discard local draft</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="viewPlans" class="view">
+    <div class="toolbar">
+      <div class="muted">Select a plan to preview. PDFs open in read-only mode.</div>
+    </div>
+    <div style="height:12px"></div>
+    <div class="grid" id="plansGrid"></div>
+    <div style="height:12px"></div>
+    <div class="card" id="planViewerCard" style="display:none">
+      <div class="body">
+        <div class="row" style="align-items:center;gap:10px">
+          <div>
+            <h3 id="planTitle" style="margin:0">Plan</h3>
+            <div class="muted" id="planFilename"></div>
+          </div>
+          <div class="row" style="gap:8px">
+            <a id="planOpen" class="smallbtn" target="_blank" rel="noopener">Open in new tab</a>
+            <a id="planDownload" class="smallbtn" download>Download</a>
+          </div>
+        </div>
+        <div style="margin-top:10px">
+          <iframe id="planFrame" title="Plan preview" style="width:100%;height:520px;border:1px solid var(--line);border-radius:14px"></iframe>
+        </div>
       </div>
     </div>
   </section>
@@ -1609,6 +1636,38 @@ const DATA = {
         }
       ]
     }
+  ],
+  "plans": [
+    {
+      "id": "plan1",
+      "title_en": "Look & Feel Plan",
+      "title_es": "Plan de look & feel",
+      "file": "Look&Feel Plan.pdf"
+    },
+    {
+      "id": "plan2",
+      "title_en": "Basic Plan – Copo 23",
+      "title_es": "Plano básico – Copo 23",
+      "file": "200_PL_PLANOS_P. BÁSICO_C DEL COPO 23_F.pdf"
+    },
+    {
+      "id": "plan3",
+      "title_en": "Construction Plans",
+      "title_es": "Planos de construcción",
+      "file": "Construction plans.pdf"
+    },
+    {
+      "id": "plan4",
+      "title_en": "Facilities Plans",
+      "title_es": "Planos de instalaciones",
+      "file": "Facilities plans.pdf"
+    },
+    {
+      "id": "plan5",
+      "title_en": "Structure Plan",
+      "title_es": "Plano de estructura",
+      "file": "Structure plan.pdf"
+    }
   ]
 };
 const CHAPTER_PHOTOS = {
@@ -1639,6 +1698,7 @@ let STATE = null;
 let currentChapter = null;
 let isAdmin = false;
 let activeTab = "progress";
+let currentPlan = (DATA.plans || [])[0] || null;
 
 function pct(v){ return Math.max(0, Math.min(100, Math.round(v ?? 0))); }
 function fmtStatus(s){ return ({pending:"Pending", in_progress:"In progress", done:"Done", blocked:"Blocked"})[s] || "Pending"; }
@@ -1708,8 +1768,25 @@ function setTab(tab){
   activeTab = tab;
   el("tabProgress").classList.toggle("active", tab==="progress");
   el("tabSchedule").classList.toggle("active", tab==="schedule");
+  el("tabPlans").classList.toggle("active", tab==="plans");
   el("viewProgress").classList.toggle("active", tab==="progress");
   el("viewSchedule").classList.toggle("active", tab==="schedule");
+  el("viewPlans").classList.toggle("active", tab==="plans");
+}
+
+function currentLanguage(){
+  return (DATA.project?.language || "en").toLowerCase();
+}
+
+function planTitle(plan){
+  const lang = currentLanguage();
+  return lang==="es"
+    ? (plan.title_es || plan.title_en || plan.file)
+    : (plan.title_en || plan.title_es || plan.file);
+}
+
+function planSrc(plan){
+  return "./plans/" + encodeURI(plan.file);
 }
 
 function setAdmin(on){
@@ -1905,6 +1982,70 @@ function renderModal(ch){
   }
 }
 
+function renderPlans(){
+  const plans = DATA.plans || [];
+  const grid = el("plansGrid");
+  if(!grid) return;
+  grid.innerHTML = "";
+
+  for(const p of plans){
+    const title = planTitle(p);
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <div class="body">
+        <div class="row">
+          <h4 style="margin:0">${title}</h4>
+          <span class="pill">PDF</span>
+        </div>
+        <div class="muted" style="margin-top:6px">${p.file}</div>
+      </div>
+    `;
+    card.addEventListener("click", ()=>selectPlan(p));
+    grid.appendChild(card);
+  }
+
+  renderPlanViewer();
+}
+
+function selectPlan(plan){
+  currentPlan = plan;
+  renderPlanViewer();
+}
+
+function renderPlanViewer(){
+  const viewer = el("planViewerCard");
+  if(!viewer) return;
+  if(!currentPlan){
+    viewer.style.display = "none";
+    return;
+  }
+
+  viewer.style.display = "block";
+  const src = planSrc(currentPlan);
+  el("planTitle").textContent = planTitle(currentPlan);
+  el("planFilename").textContent = currentPlan.file;
+
+  const frame = el("planFrame");
+  if(frame && frame.getAttribute("data-src") !== src){
+    frame.src = src;
+    frame.setAttribute("data-src", src);
+  }
+
+  const lang = currentLanguage();
+  const open = el("planOpen");
+  const download = el("planDownload");
+  if(open){
+    open.href = src;
+    open.textContent = lang==="es" ? "Abrir en nueva pestaña" : "Open in new tab";
+  }
+  if(download){
+    download.href = src;
+    download.download = currentPlan.file;
+    download.textContent = lang==="es" ? "Descargar" : "Download";
+  }
+}
+
 function weeksElapsed(startDateStr){
   const start = new Date(startDateStr + "T00:00:00");
   const now = new Date();
@@ -2010,6 +2151,7 @@ function renderAll(){
   renderGrid();
   if(currentChapter) renderModal(currentChapter);
   renderSchedule();
+  renderPlans();
 }
 
 async function boot(){
@@ -2017,6 +2159,7 @@ async function boot(){
   catch(_e){ SERVER_STATE = {version:1, updated_at:null, items:{}}; }
 
   pickInitialState();
+  el("tabPlans").textContent = currentLanguage()==="es" ? "Planos" : "Plans";
 
   const start = localStorage.getItem(LS_START) || "2025-12-11";
   el("startDate").value = start;
@@ -2033,6 +2176,7 @@ async function boot(){
 
 el("tabProgress").addEventListener("click", ()=>setTab("progress"));
 el("tabSchedule").addEventListener("click", ()=>setTab("schedule"));
+el("tabPlans").addEventListener("click", ()=>setTab("plans"));
 el("btnAdmin").addEventListener("click", askPinAndEnable);
 
 el("search").addEventListener("input", ()=>{ renderGrid(); if(currentChapter) renderModal(currentChapter); });
