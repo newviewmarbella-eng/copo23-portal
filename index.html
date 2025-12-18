@@ -11,12 +11,15 @@
 body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:#101828}
 a{color:inherit}
 /* Header */
-header{background:var(--ink);color:#fff}
+header{background:var(--ink);color:#fff;position:relative}
 .header-logo{height:86px;display:flex;align-items:center;justify-content:center;padding:10px 12px}
 .header-logo img{width:100%;height:100%;object-fit:contain}
 .header-title{text-align:center;padding:6px 14px 0}
 .header-title h1{margin:0;font-size:18px;letter-spacing:.2px}
 .header-nav{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;padding:12px 14px 14px}
+.lang-toggle{position:absolute;top:12px;right:12px;display:flex;gap:6px;align-items:center}
+.langbtn{border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.10);color:#fff;border-radius:12px;padding:6px 10px;font-weight:700;cursor:pointer;font-size:12px}
+.langbtn.active{background:#fff;color:var(--ink);border-color:#fff}
 .navbtn{border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.10);color:#fff;border-radius:14px;padding:10px 14px;font-weight:700;cursor:pointer;transition:transform .08s ease, background .2s ease, border-color .2s ease}
 .navbtn:hover{background:rgba(255,255,255,.14)}
 .navbtn:active{transform:scale(.98)}
@@ -87,6 +90,10 @@ code{background:#10182810;padding:2px 6px;border-radius:8px}
 </head>
 <body>
 <header>
+  <div class="lang-toggle">
+    <button id="langEn" class="langbtn" type="button">🇬🇧 EN</button>
+    <button id="langEs" class="langbtn" type="button">🇪🇸 ES</button>
+  </div>
   <div class="header-logo">
     <img id="brandLogo" src="NVM_logo_inverted_2.png" alt="NVM logo" onerror="this.onerror=null;this.src='NVM_logo.png';" />
   </div>
@@ -115,7 +122,7 @@ code{background:#10182810;padding:2px 6px;border-radius:8px}
     <div class="toolbar">
       <div class="row" style="justify-content:flex-start;gap:12px">
         <div>
-          <div class="muted">Project start date</div>
+          <div class="muted" id="startDateLabel">Project start date</div>
           <input id="startDate" type="date" style="max-width:220px"/>
         </div>
         <div class="muted" style="align-self:flex-end" id="scheduleLine"></div>
@@ -124,17 +131,17 @@ code{background:#10182810;padding:2px 6px;border-radius:8px}
 
     <div class="kpis">
       <div class="kpi">
-        <div class="muted">Week now</div>
+        <div class="muted" id="labelWeekNow">Week now</div>
         <div class="big" id="kWeek">—</div>
         <div class="muted" id="kDays">—</div>
       </div>
       <div class="kpi">
-        <div class="muted">Planned vs actual</div>
+        <div class="muted" id="labelPlannedActual">Planned vs actual</div>
         <div class="big"><span id="kPlanned">—</span> / <span id="kActual">—</span></div>
-        <div class="muted">Planned % / Actual %</div>
+        <div class="muted" id="labelPlannedActualSub">Planned % / Actual %</div>
       </div>
       <div class="kpi">
-        <div class="muted">Status</div>
+        <div class="muted" id="labelStatus">Status</div>
         <div class="big" id="kStatus">—</div>
         <div class="muted" id="kDelta">—</div>
       </div>
@@ -144,10 +151,10 @@ code{background:#10182810;padding:2px 6px;border-radius:8px}
       <table>
         <thead>
           <tr>
-            <th>Chapter</th>
-            <th>Planned weeks</th>
-            <th>Planned % (now)</th>
-            <th>Actual %</th>
+            <th id="thChapter">Chapter</th>
+            <th id="thPlannedWeeks">Planned weeks</th>
+            <th id="thPlannedNow">Planned % (now)</th>
+            <th id="thActual">Actual %</th>
           </tr>
         </thead>
         <tbody id="scheduleTable"></tbody>
@@ -155,8 +162,8 @@ code{background:#10182810;padding:2px 6px;border-radius:8px}
     </div>
 
     <div class="notice" id="adminTools" style="display:none">
-      <strong>Admin tools</strong>
-      <div class="muted" style="margin-top:6px">To publish updates to clients, export <code>state.json</code> and upload it to your GitHub repo (replace the existing <code>state.json</code>).</div>
+      <strong id="adminToolsTitle">Admin tools</strong>
+      <div class="muted" style="margin-top:6px" id="adminToolsHint">To publish updates to clients, export <code>state.json</code> and upload it to your GitHub repo (replace the existing <code>state.json</code>).</div>
       <div class="row" style="justify-content:flex-start;margin-top:10px">
         <button id="btnExport" class="smallbtn" type="button">Export state.json</button>
         <button id="btnImport" class="smallbtn" type="button">Import state.json</button>
@@ -167,7 +174,7 @@ code{background:#10182810;padding:2px 6px;border-radius:8px}
 
   <section id="viewPlans" class="view">
     <div class="toolbar">
-      <div class="muted">Select a plan to preview. PDFs open in read-only mode.</div>
+      <div class="muted" id="plansHint">Select a plan to preview. PDFs open in read-only mode.</div>
     </div>
     <div style="height:12px"></div>
     <div class="grid" id="plansGrid"></div>
@@ -223,7 +230,135 @@ code{background:#10182810;padding:2px 6px;border-radius:8px}
 <div class="toast" id="toast">Saved</div>
 
 <script>
-const DATA = {
+const I18N = {
+  en: {
+    project_title: "Copo 23 (El Saladillo) – Progress Portal",
+    progress: "Progress",
+    schedule: "Schedule",
+    plans: "Plans",
+    edit_mode_on: "Edit mode: ON",
+    edit_mode_off: "Edit mode: OFF",
+    search_placeholder: "Search items (code or description)...",
+    status_line_draft: "Viewing LOCAL draft (not published). Published: {published} · Local: {local}",
+    status_line_published: "Viewing PUBLISHED progress. Updated: {published}",
+    project_start_date: "Project start date",
+    week_now: "Week now",
+    planned_vs_actual: "Planned vs actual",
+    planned_actual_sub: "Planned % / Actual %",
+    status: "Status",
+    chapter: "Chapter",
+    planned_weeks: "Planned weeks",
+    planned_now: "Planned % (now)",
+    actual: "Actual %",
+    admin_tools: "Admin tools",
+    admin_hint: "To publish updates to clients, export state.json and upload it to your GitHub repo (replace the existing state.json).",
+    export_state: "Export state.json",
+    import_state: "Import state.json",
+    discard_draft: "Discard local draft",
+    plans_hint: "Select a plan to preview. PDFs open in read-only mode.",
+    pdf: "PDF",
+    plan_label: "Plan",
+    open_new_tab: "Open in new tab",
+    download: "Download",
+    close: "Close",
+    all: "All",
+    pending: "Pending",
+    in_progress: "In progress",
+    done: "Completed",
+    blocked: "Blocked",
+    read_only_view: "Read-only view",
+    edit_enabled_device: "Edit enabled on this device",
+    items: "items",
+    average: "Average",
+    planned_label: "Planned",
+    week_label: "Week",
+    status_label: "Status",
+    complete: "complete",
+    progress_label: "Progress",
+    notes_placeholder: "Notes...",
+    saved: "Saved",
+    draft_discarded: "Local draft discarded",
+    state_imported: "State imported",
+    edit_mode_enabled: "Edit mode enabled",
+    pin_saved_enabled: "PIN saved. Edit mode enabled",
+    incorrect_pin: "Incorrect PIN",
+    create_pin_prompt: "Create an admin PIN (4–8 digits):",
+    enter_pin_prompt: "Enter admin PIN:",
+    discard_confirm: "Discard local draft changes on this device?",
+    import_invalid: "Invalid state.json",
+    import_error_prefix: "Could not import: ",
+    days_elapsed: "days elapsed",
+    on_track: "On track",
+    ahead: "Ahead",
+    behind: "Behind",
+    vs_plan: "vs plan"
+  },
+  es: {
+    project_title: "Copo 23 (El Saladillo) – Portal de progreso",
+    progress: "Progreso",
+    schedule: "Planificación",
+    plans: "Planos",
+    edit_mode_on: "Modo edición: ON",
+    edit_mode_off: "Modo edición: OFF",
+    search_placeholder: "Buscar partidas (código o descripción)...",
+    status_line_draft: "Viendo BORRADOR LOCAL (no publicado). Publicado: {published} · Local: {local}",
+    status_line_published: "Viendo avance PUBLICADO. Actualizado: {published}",
+    project_start_date: "Fecha de inicio",
+    week_now: "Semana actual",
+    planned_vs_actual: "Planificado vs real",
+    planned_actual_sub: "% planificado / % real",
+    status: "Estado",
+    chapter: "Capítulo",
+    planned_weeks: "Semanas planificadas",
+    planned_now: "% planificado (hoy)",
+    actual: "% real",
+    admin_tools: "Herramientas de administración",
+    admin_hint: "Para publicar actualizaciones al cliente, exporta state.json y súbelo a tu repositorio de GitHub (sustituye el state.json existente).",
+    export_state: "Exportar state.json",
+    import_state: "Importar state.json",
+    discard_draft: "Descartar borrador local",
+    plans_hint: "Selecciona un plano para previsualizar. Los PDF se abren en modo solo lectura.",
+    pdf: "PDF",
+    plan_label: "Plano",
+    open_new_tab: "Abrir en nueva pestaña",
+    download: "Descargar",
+    close: "Cerrar",
+    all: "Todos",
+    pending: "No iniciado",
+    in_progress: "En curso",
+    done: "Completado",
+    blocked: "Bloqueado",
+    read_only_view: "Vista solo lectura",
+    edit_enabled_device: "Edición habilitada en este dispositivo",
+    items: "elementos",
+    average: "Promedio",
+    planned_label: "Planificado",
+    week_label: "Semana",
+    status_label: "Estado",
+    complete: "completado",
+    progress_label: "Progreso",
+    notes_placeholder: "Notas...",
+    saved: "Guardado",
+    draft_discarded: "Borrador local descartado",
+    state_imported: "Estado importado",
+    edit_mode_enabled: "Modo edición activado",
+    pin_saved_enabled: "PIN guardado. Modo edición activado",
+    incorrect_pin: "PIN incorrecto",
+    create_pin_prompt: "Crea un PIN de administrador (4–8 dígitos):",
+    enter_pin_prompt: "Introduce el PIN de administrador:",
+    discard_confirm: "¿Descartar los cambios locales en este dispositivo?",
+    import_invalid: "state.json no válido",
+    import_error_prefix: "No se pudo importar: ",
+    days_elapsed: "días transcurridos",
+    on_track: "En plazo",
+    ahead: "Adelantado",
+    behind: "Retrasado",
+    vs_plan: "vs plan"
+  }
+};
+
+const LS_LANG = "portal_lang";
+let DATA = {
   "project": {
     "name": "Copo 23 (El Saladillo) – Progress Portal",
     "duration_weeks": 39,
@@ -1691,6 +1826,7 @@ const LS_PIN = "copo23_admin_pin_v3";
 const LS_ADMIN_SESSION = "copo23_admin_session_v3";
 const LS_DRAFT = "copo23_state_draft_v3";
 const LS_START = "copo23_start_date_v3";
+let currentLang = (localStorage.getItem(LS_LANG) || "en").toLowerCase();
 
 const el = (id)=>document.getElementById(id);
 let SERVER_STATE = null;
@@ -1700,8 +1836,21 @@ let isAdmin = false;
 let activeTab = "progress";
 let currentPlan = (DATA.plans || [])[0] || null;
 
+function t(key){
+  const dict = I18N[currentLanguage()] || I18N.en;
+  return dict[key] ?? I18N.en[key] ?? key;
+}
+
+function fmt(str, vars){
+  let out = str;
+  for(const [k,v] of Object.entries(vars || {})){
+    out = out.replaceAll(`{${k}}`, v);
+  }
+  return out;
+}
+
 function pct(v){ return Math.max(0, Math.min(100, Math.round(v ?? 0))); }
-function fmtStatus(s){ return ({pending:"Pending", in_progress:"In progress", done:"Done", blocked:"Blocked"})[s] || "Pending"; }
+function fmtStatus(s){ return ({pending:t("pending"), in_progress:t("in_progress"), done:t("done"), blocked:t("blocked")})[s] || t("pending"); }
 function statusPillClass(s){ return s==="done" ? "statusDone" : (s==="blocked" ? "statusBlocked" : ""); }
 
 function toast(msg){
@@ -1730,7 +1879,7 @@ function discardDraft(){
   STATE = JSON.parse(JSON.stringify(SERVER_STATE));
   updateStatusLine();
   renderAll();
-  toast("Local draft discarded");
+  toast(t("draft_discarded"));
 }
 
 function updateStatusLine(){
@@ -1739,8 +1888,8 @@ function updateStatusLine(){
   const localAt = draft?.updated_at || "—";
   const usingDraft = !!draft;
   const text = usingDraft
-    ? `Viewing LOCAL draft (not published). Published: ${publishedAt} · Local: ${localAt}`
-    : `Viewing PUBLISHED progress. Updated: ${publishedAt}`;
+    ? fmt(t("status_line_draft"), {published: publishedAt, local: localAt})
+    : fmt(t("status_line_published"), {published: publishedAt});
   el("statusLine").textContent = text;
   el("scheduleLine").textContent = text;
 }
@@ -1775,7 +1924,44 @@ function setTab(tab){
 }
 
 function currentLanguage(){
-  return (DATA.project?.language || "en").toLowerCase();
+  return currentLang === "es" ? "es" : "en";
+}
+
+function setLanguage(lang){
+  currentLang = lang === "es" ? "es" : "en";
+  localStorage.setItem(LS_LANG, currentLang);
+  if(DATA?.project) DATA.project.language = currentLang;
+  document.documentElement.lang = currentLanguage();
+  updateLanguageToggle();
+  applyLanguageStatic();
+  renderAll();
+}
+
+function normalizeData(){
+  for(const ch of DATA?.chapters || []){
+    ch.title_en = ch.title_en || ch.title || "";
+    ch.title_es = ch.title_es || "";
+    for(const it of ch.items || []){
+      it.description_en = it.description_en || it.description || "";
+      it.description_es = it.description_es || "";
+    }
+  }
+}
+
+function chapterTitle(ch){
+  const en = ch.title_en || ch.title || "";
+  const es = ch.title_es || "";
+  return currentLanguage()==="es" ? (es || en) : (en || es);
+}
+
+function itemDescription(it){
+  const en = it.description_en || it.description || "";
+  const es = it.description_es || "";
+  return currentLanguage()==="es" ? (es || en) : (en || es);
+}
+
+function chapterLabel(ch){
+  return `${t("chapter")} ${String(ch.chapter_no).padStart(2,"0")}`;
 }
 
 function planTitle(plan){
@@ -1791,7 +1977,7 @@ function planSrc(plan){
 
 function setAdmin(on){
   isAdmin = on;
-  el("btnAdmin").textContent = "Edit mode: " + (on ? "ON" : "OFF");
+  el("btnAdmin").textContent = on ? t("edit_mode_on") : t("edit_mode_off");
   el("adminTools").style.display = on ? "block" : "none";
   if(currentChapter) renderModal(currentChapter);
 }
@@ -1801,27 +1987,75 @@ function ensureAdminSessionValid(){
   return Date.now() < until;
 }
 
+function updateLanguageToggle(){
+  const lang = currentLanguage();
+  const en = el("langEn");
+  const es = el("langEs");
+  if(en) en.classList.toggle("active", lang==="en");
+  if(es) es.classList.toggle("active", lang==="es");
+}
+
+function applyLanguageStatic(){
+  document.documentElement.lang = currentLanguage();
+  document.title = t("project_title");
+  el("projectTitle").textContent = t("project_title");
+  el("tabProgress").textContent = t("progress");
+  el("tabSchedule").textContent = t("schedule");
+  el("tabPlans").textContent = t("plans");
+  el("search").placeholder = t("search_placeholder");
+  el("btnAdmin").textContent = isAdmin ? t("edit_mode_on") : t("edit_mode_off");
+  el("startDateLabel").textContent = t("project_start_date");
+  el("labelWeekNow").textContent = t("week_now");
+  el("labelPlannedActual").textContent = t("planned_vs_actual");
+  el("labelPlannedActualSub").textContent = t("planned_actual_sub");
+  el("labelStatus").textContent = t("status");
+  el("thChapter").textContent = t("chapter");
+  el("thPlannedWeeks").textContent = t("planned_weeks");
+  el("thPlannedNow").textContent = t("planned_now");
+  el("thActual").textContent = t("actual");
+  el("adminToolsTitle").textContent = t("admin_tools");
+  el("adminToolsHint").innerHTML = t("admin_hint").replaceAll("state.json", "<code>state.json</code>");
+  el("btnExport").textContent = t("export_state");
+  el("btnImport").textContent = t("import_state");
+  el("btnResetDraft").textContent = t("discard_draft");
+  el("plansHint").textContent = t("plans_hint");
+  el("btnClose").textContent = t("close");
+  el("toast").textContent = t("saved");
+
+  const filter = el("filterStatus");
+  if(filter){
+    const opts = filter.options;
+    if(opts[0]) opts[0].text = t("all");
+    if(opts[1]) opts[1].text = t("pending");
+    if(opts[2]) opts[2].text = t("in_progress");
+    if(opts[3]) opts[3].text = t("done");
+    if(opts[4]) opts[4].text = t("blocked");
+  }
+
+  updateLanguageToggle();
+}
+
 function askPinAndEnable(){
   if(isAdmin){ setAdmin(false); return; }
-  if(ensureAdminSessionValid()){ setAdmin(true); toast("Edit mode enabled"); return; }
+  if(ensureAdminSessionValid()){ setAdmin(true); toast(t("edit_mode_enabled")); return; }
 
   const saved = localStorage.getItem(LS_PIN);
   if(!saved){
-    const pin = prompt("Create an admin PIN (4–8 digits):");
+    const pin = prompt(t("create_pin_prompt"));
     if(!pin || pin.length < 4) return;
     localStorage.setItem(LS_PIN, pin);
     localStorage.setItem(LS_ADMIN_SESSION, String(Date.now() + 24*60*60*1000));
     setAdmin(true);
-    toast("PIN saved. Edit mode enabled");
+    toast(t("pin_saved_enabled"));
     return;
   }
-  const pin = prompt("Enter admin PIN:");
+  const pin = prompt(t("enter_pin_prompt"));
   if(pin === saved){
     localStorage.setItem(LS_ADMIN_SESSION, String(Date.now() + 24*60*60*1000));
     setAdmin(true);
-    toast("Edit mode enabled");
+    toast(t("edit_mode_enabled"));
   }else{
-    alert("Incorrect PIN");
+    alert(t("incorrect_pin"));
   }
 }
 
@@ -1857,7 +2091,7 @@ function renderGrid(){
 
   for(const ch of DATA.chapters){
     const matches = !q ? ch.items : ch.items.filter(it =>
-      (it.code||"").toLowerCase().includes(q) || (it.description||"").toLowerCase().includes(q)
+      (it.code||"").toLowerCase().includes(q) || itemDescription(it).toLowerCase().includes(q)
     );
     if(q && !matches.length) continue;
 
@@ -1868,13 +2102,13 @@ function renderGrid(){
     const img = imgRaw ? encodeURI(imgRaw) : "";
     card.innerHTML = `
       <div class="cover" style="background-image:url('${img}')">
-        <div class="capno">Chapter ${String(ch.chapter_no).padStart(2,"0")}</div>
-        <div class="title">${ch.title}</div>
+        <div class="capno">${chapterLabel(ch)}</div>
+        <div class="title">${chapterTitle(ch)}</div>
       </div>
       <div class="body">
         <div class="row">
-          <span class="pill"><span class="badge">${pctCh}%</span> complete</span>
-          <span class="muted">${ch.items.length} items</span>
+          <span class="pill"><span class="badge">${pctCh}%</span> ${t("complete")}</span>
+          <span class="muted">${ch.items.length} ${t("items")}</span>
         </div>
         <div style="margin-top:10px" class="progress"><div style="width:${pctCh}%"></div></div>
       </div>
@@ -1885,16 +2119,16 @@ function renderGrid(){
 }
 
 function renderModal(ch){
-  el("mTitle").textContent = `Chapter ${String(ch.chapter_no).padStart(2,"0")} — ${ch.title}`;
-  el("mSub").textContent = isAdmin ? "Edit enabled on this device" : "Read-only view";
-  el("mCount").textContent = `${ch.items.length} items`;
-  el("mAvg").textContent = `Average: ${chapterProgress(ch)}%`;
+  el("mTitle").textContent = `${chapterLabel(ch)} — ${chapterTitle(ch)}`;
+  el("mSub").textContent = isAdmin ? t("edit_enabled_device") : t("read_only_view");
+  el("mCount").textContent = `${ch.items.length} ${t("items")}`;
+  el("mAvg").textContent = `${t("average")}: ${chapterProgress(ch)}%`;
 
   const q = (el("search").value || "").trim().toLowerCase();
   const f = el("filterStatus").value;
 
   let its = ch.items.slice();
-  if(q) its = its.filter(it => (it.code||"").toLowerCase().includes(q) || (it.description||"").toLowerCase().includes(q));
+  if(q) its = its.filter(it => (it.code||"").toLowerCase().includes(q) || itemDescription(it).toLowerCase().includes(q));
   if(f) its = its.filter(it => getItemStatus(it.id) === f);
 
   const list = el("itemsList");
@@ -1908,36 +2142,36 @@ function renderModal(ch){
     const row = document.createElement("div");
     row.className = "item";
     row.innerHTML = `
-      <h4>${it.code} — ${it.description}</h4>
+      <h4>${it.code} — ${itemDescription(it)}</h4>
       <div class="meta">
         <span>${(it.qty ?? "")} ${(it.unit ?? "")}</span>
-        <span>Planned: week ${it.planned_week_start ?? "-"}–${it.planned_week_end ?? "-"}</span>
-        <span>Status: <b data-status-text>${fmtStatus(status)}</b></span>
+        <span>${t("planned_label")}: ${t("week_label")} ${it.planned_week_start ?? "-"}–${it.planned_week_end ?? "-"}</span>
+        <span>${t("status_label")}: <b data-status-text>${fmtStatus(status)}</b></span>
       </div>
 
       <div style="margin-top:8px" class="progress"><div data-bar style="width:${prog}%"></div></div>
       <div class="row" style="margin-top:6px">
-        <span class="muted"><span class="badge" data-prog-text>${prog}%</span> complete</span>
+        <span class="muted"><span class="badge" data-prog-text>${prog}%</span> ${t("complete")}</span>
         <span class="pill ${statusPillClass(status)}" data-status-pill>${fmtStatus(status)}</span>
       </div>
 
       <div class="controls">
         <div class="range">
-          <span class="muted" style="min-width:78px">Progress</span>
+          <span class="muted" style="min-width:78px">${t("progress_label")}</span>
           <input data-prog type="range" min="0" max="100" value="${prog}" ${isAdmin ? "" : "disabled"} />
           <span class="badge" data-prog-badge>${prog}%</span>
         </div>
 
         <select data-status ${isAdmin ? "" : "disabled"}>
-          <option value="pending">Pending</option>
-          <option value="in_progress">In progress</option>
-          <option value="done">Done</option>
-          <option value="blocked">Blocked</option>
+          <option value="pending">${t("pending")}</option>
+          <option value="in_progress">${t("in_progress")}</option>
+          <option value="done">${t("done")}</option>
+          <option value="blocked">${t("blocked")}</option>
         </select>
       </div>
 
       <div style="margin-top:8px">
-        <textarea data-note placeholder="Notes..." ${isAdmin ? "" : "disabled"}>${(s.note||"").replaceAll("<","&lt;")}</textarea>
+        <textarea data-note placeholder="${t("notes_placeholder")}" ${isAdmin ? "" : "disabled"}>${(s.note||"").replaceAll("<","&lt;")}</textarea>
       </div>
     `;
     list.appendChild(row);
@@ -1971,7 +2205,7 @@ function renderModal(ch){
         pill.className = "pill " + statusPillClass(st);
       }
 
-      el("mAvg").textContent = `Average: ${chapterProgress(ch)}%`;
+      el("mAvg").textContent = `${t("average")}: ${chapterProgress(ch)}%`;
       renderGrid();
       renderSchedule();
     };
@@ -1996,7 +2230,7 @@ function renderPlans(){
       <div class="body">
         <div class="row">
           <h4 style="margin:0">${title}</h4>
-          <span class="pill">PDF</span>
+          <span class="pill">${t("pdf")}</span>
         </div>
         <div class="muted" style="margin-top:6px">${p.file}</div>
       </div>
@@ -2017,6 +2251,7 @@ function renderPlanViewer(){
   const viewer = el("planViewerCard");
   if(!viewer) return;
   if(!currentPlan){
+    el("planTitle").textContent = t("plan_label");
     viewer.style.display = "none";
     return;
   }
@@ -2032,17 +2267,16 @@ function renderPlanViewer(){
     frame.setAttribute("data-src", src);
   }
 
-  const lang = currentLanguage();
   const open = el("planOpen");
   const download = el("planDownload");
   if(open){
     open.href = src;
-    open.textContent = lang==="es" ? "Abrir en nueva pestaña" : "Open in new tab";
+    open.textContent = t("open_new_tab");
   }
   if(download){
     download.href = src;
     download.download = currentPlan.file;
-    download.textContent = lang==="es" ? "Descargar" : "Download";
+    download.textContent = t("download");
   }
 }
 
@@ -2084,16 +2318,16 @@ function renderSchedule(){
   const actual = overallProgress();
   const delta = actual - planned;
 
-  el("kWeek").textContent = "Week " + wk;
-  el("kDays").textContent = days + " days elapsed";
+  el("kWeek").textContent = t("week_label") + " " + wk;
+  el("kDays").textContent = days + " " + t("days_elapsed");
   el("kPlanned").textContent = planned + "%";
   el("kActual").textContent = actual + "%";
 
-  let status="On track";
-  if(delta > 5) status="Ahead";
-  if(delta < -5) status="Behind";
-  el("kStatus").textContent = status;
-  el("kDelta").textContent = (delta>=0?"+":"") + delta + "% vs plan";
+  let status="on_track";
+  if(delta > 5) status="ahead";
+  if(delta < -5) status="behind";
+  el("kStatus").textContent = t(status);
+  el("kDelta").textContent = (delta>=0?"+":"") + delta + "% " + t("vs_plan");
 
   const tbody = el("scheduleTable");
   tbody.innerHTML = "";
@@ -2109,8 +2343,8 @@ function renderSchedule(){
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>Chapter ${String(ch.chapter_no).padStart(2,"0")} — ${ch.title}</td>
-      <td>Week ${a}–${b}</td>
+      <td>${chapterLabel(ch)} — ${chapterTitle(ch)}</td>
+      <td>${t("week_label")} ${a}–${b}</td>
       <td>${plannedCh}%</td>
       <td>${actualCh}%</td>
     `;
@@ -2134,14 +2368,14 @@ function importState(file){
   reader.onload = () => {
     try{
       const s = JSON.parse(reader.result);
-      if(!s || typeof s!=="object" || !("items" in s)) throw new Error("Invalid state.json");
+      if(!s || typeof s!=="object" || !("items" in s)) throw new Error(t("import_invalid"));
       STATE = s;
       STATE.updated_at = STATE.updated_at || new Date().toISOString();
       saveDraft();
       renderAll();
-      toast("State imported");
+      toast(t("state_imported"));
     }catch(e){
-      alert("Could not import: " + e.message);
+      alert(t("import_error_prefix") + e.message);
     }
   };
   reader.readAsText(file);
@@ -2155,13 +2389,20 @@ function renderAll(){
 }
 
 async function boot(){
+  try{ DATA = await loadJSON("./data.json"); }
+  catch(_e){ /* keep inline data */ }
+  normalizeData();
+  DATA.project = DATA.project || {};
+  DATA.project.language = currentLanguage();
+  currentPlan = (DATA.plans || [])[0] || null;
+
   try{ SERVER_STATE = await loadJSON("./state.json"); }
   catch(_e){ SERVER_STATE = {version:1, updated_at:null, items:{}}; }
 
   pickInitialState();
-  el("tabPlans").textContent = currentLanguage()==="es" ? "Planos" : "Plans";
+  applyLanguageStatic();
 
-  const start = localStorage.getItem(LS_START) || "2025-12-11";
+  const start = localStorage.getItem(LS_START) || DATA.project.start_date || "2025-12-11";
   el("startDate").value = start;
   el("startDate").addEventListener("change", ()=>{
     localStorage.setItem(LS_START, el("startDate").value);
@@ -2178,6 +2419,8 @@ el("tabProgress").addEventListener("click", ()=>setTab("progress"));
 el("tabSchedule").addEventListener("click", ()=>setTab("schedule"));
 el("tabPlans").addEventListener("click", ()=>setTab("plans"));
 el("btnAdmin").addEventListener("click", askPinAndEnable);
+el("langEn").addEventListener("click", ()=>setLanguage("en"));
+el("langEs").addEventListener("click", ()=>setLanguage("es"));
 
 el("search").addEventListener("input", ()=>{ renderGrid(); if(currentChapter) renderModal(currentChapter); });
 el("filterStatus").addEventListener("change", ()=>{ if(currentChapter) renderModal(currentChapter); });
@@ -2188,7 +2431,7 @@ el("modal").addEventListener("click", (e)=>{ if(e.target.id==="modal") closeModa
 el("btnExport").addEventListener("click", exportState);
 el("btnImport").addEventListener("click", ()=>el("importFile").click());
 el("importFile").addEventListener("change", (e)=>{ const f=e.target.files?.[0]; if(f) importState(f); e.target.value=""; });
-el("btnResetDraft").addEventListener("click", ()=>{ if(confirm("Discard local draft changes on this device?")) discardDraft(); });
+el("btnResetDraft").addEventListener("click", ()=>{ if(confirm(t("discard_confirm"))) discardDraft(); });
 
 boot();
 </script>
