@@ -124,6 +124,7 @@ code{background:#10182810;padding:2px 6px;border-radius:8px}
     <button id="tabSchedule" class="navbtn" type="button">Schedule</button>
     <button id="tabPlans" class="navbtn" type="button">Plans</button>
     <button id="btnAdmin" class="navbtn ghost" type="button">Access: VIEWER</button>
+    <button id="btnLogout" class="navbtn ghost" type="button" style="display:none">Logout</button>
   </div>
 </header>
 
@@ -1971,26 +1972,22 @@ const CHAPTER_PHOTOS = {
   "15": "./Safety and health.png"
 };
 
-const LS_ROLE_SESSION = "copo23_role_session_v1";
+const LS_ROLE_SESSION = "copo23_role_session_v2";
 const LS_DRAFT = "copo23_state_draft_v3";
 const LS_START = "copo23_start_date_v3";
 const ROLE_VIEWER = "viewer";
 const ROLE_CLIENT = "client";
 const ROLE_MANAGER = "manager";
 const ROLE_JESUS = "jesus";
-
-const ROLE_LABEL = {
-  [ROLE_VIEWER]: () => t("role_viewer"),
-  [ROLE_CLIENT]: () => t("role_client"),
-  [ROLE_MANAGER]: () => t("role_manager"),
-  [ROLE_JESUS]: () => t("role_jesus")
-};
+const CLIENT_NAMES = {robbert:"Robbert", michael:"Michael", nic:"Nic"};
 
 const el = (id)=>document.getElementById(id);
 let SERVER_STATE = null;
 let STATE = null;
 let currentChapter = null;
 let currentRole = ROLE_VIEWER;
+let currentClientId = null;
+let currentDisplayName = null;
 let activeTab = "progress";
 let currentPlan = (DATA.plans || [])[0] || null;
 let noteDraftImage = null;
@@ -2029,7 +2026,14 @@ function migrateItemState(s){
   const next = Object.assign({}, base, s);
   if(!Array.isArray(next.notes)){
     const text = (next.note || "").trim();
-    next.notes = text ? [{id: "n_"+Date.now(), ts: new Date().toISOString(), authorRole: ROLE_VIEWER, text, image: null}] : [];
+    next.notes = text ? [{id: "n_"+Date.now(), ts: new Date().toISOString(), authorRole: ROLE_JESUS, authorName: "Jesus", text, image: null}] : [];
+  }else{
+    next.notes = next.notes.map(n => {
+      const role = [ROLE_JESUS, ROLE_MANAGER, ROLE_CLIENT].includes(n.authorRole) ? n.authorRole : ROLE_JESUS;
+      const ts = n.ts || new Date().toISOString();
+      const authorName = n.authorName || displayNameFor(role, n.clientId);
+      return Object.assign({}, n, {authorRole: role, authorName, ts});
+    });
   }
   return next;
 }
@@ -2163,36 +2167,67 @@ function planSrc(plan){
   return "./plans/" + encodeURI(plan.file);
 }
 
-function roleLabel(){ return (ROLE_LABEL[currentRole] || (()=>currentRole.toUpperCase()))(); }
+function displayNameFor(role, clientId, custom){
+  if(custom) return custom;
+  if(role===ROLE_JESUS) return "Jesus";
+  if(role===ROLE_MANAGER) return "Encargado";
+  if(role===ROLE_CLIENT) return CLIENT_NAMES[clientId] || CLIENT_NAMES[role] || t("role_client");
+  return t("role_viewer");
+}
+
+function accessRoleLabel(){
+  const name = roleLabel();
+  return (name || "").toUpperCase();
+}
+
+function roleLabel(){
+  return displayNameFor(currentRole, currentClientId, currentDisplayName);
+}
 const canEditProgress = ()=> currentRole===ROLE_JESUS || currentRole===ROLE_MANAGER;
 const canEditNotes = ()=> currentRole===ROLE_JESUS || currentRole===ROLE_MANAGER || currentRole===ROLE_CLIENT;
 const canUseAdminTools = ()=> currentRole===ROLE_JESUS;
 
-function setRole(role, ttlMs){
-  currentRole = role || ROLE_VIEWER;
-  if(ttlMs){
-    localStorage.setItem(LS_ROLE_SESSION, JSON.stringify({role: currentRole, exp: Date.now()+ttlMs}));
-  }else{
-    localStorage.removeItem(LS_ROLE_SESSION);
-  }
-  el("btnAdmin").textContent = fmt(t("access_label"), {role: roleLabel()});
+function applySession(session){
+  const sess = session || {role: ROLE_VIEWER};
+  currentRole = sess.role || ROLE_VIEWER;
+  currentClientId = sess.clientId || null;
+  currentDisplayName = displayNameFor(currentRole, currentClientId, sess.displayName);
+  el("btnAdmin").textContent = fmt(t("access_label"), {role: accessRoleLabel()});
+  el("btnLogout").style.display = currentRole===ROLE_VIEWER ? "none" : "inline-flex";
   el("adminTools").style.display = canUseAdminTools() ? "block" : "none";
   updateStatusLine();
   if(currentChapter) renderModal(currentChapter);
 }
 
+function setRole(role, ttlMs, clientId, displayName){
+  const session = {role: role || ROLE_VIEWER, clientId: clientId || null, displayName: displayName || undefined};
+  if(ttlMs){
+    session.expiresAt = Date.now() + ttlMs;
+    localStorage.setItem(LS_ROLE_SESSION, JSON.stringify(session));
+  }else{
+    localStorage.removeItem(LS_ROLE_SESSION);
+  }
+  applySession(session);
+}
+
+function clearSession(){
+  localStorage.removeItem(LS_ROLE_SESSION);
+  applySession({role: ROLE_VIEWER});
+}
+
 function restoreRole(){
   try{
     const raw = localStorage.getItem(LS_ROLE_SESSION);
-    if(!raw) return;
-    const obj = JSON.parse(raw);
-    if(obj && obj.role && obj.exp && Date.now() < obj.exp){
-      currentRole = obj.role;
-      setRole(currentRole, obj.exp - Date.now());
-      return;
+    if(raw){
+      const obj = JSON.parse(raw);
+      const exp = obj.expiresAt ?? obj.exp;
+      if(obj.role && exp && Date.now() < exp){
+        applySession({role: obj.role, clientId: obj.clientId, displayName: obj.displayName, expiresAt: exp});
+        return;
+      }
     }
-  }catch(_){ currentRole = ROLE_VIEWER; }
-  setRole(currentRole, null);
+  }catch(_){ clearSession(); return; }
+  clearSession();
 }
 
 function updateLanguageToggle(){
@@ -2213,7 +2248,8 @@ function applyLanguageStatic(){
   el("tabSchedule").textContent = t("schedule");
   el("tabPlans").textContent = t("plans");
   el("search").placeholder = t("search_placeholder");
-  el("btnAdmin").textContent = fmt(t("access_label"), {role: roleLabel()});
+  el("btnAdmin").textContent = fmt(t("access_label"), {role: accessRoleLabel()});
+  el("btnLogout").textContent = t("logout");
   el("startDateLabel").textContent = t("project_start_date");
   el("labelWeekNow").textContent = t("week_now");
   el("labelPlannedActual").textContent = t("planned_vs_actual");
@@ -2249,15 +2285,8 @@ function applyLanguageStatic(){
 }
 
 function askPinAndEnable(){
-  if(currentRole!==ROLE_VIEWER){
-    setRole(ROLE_VIEWER, null);
-    toast(t("logout"));
-    return;
-  }
-
   const pins = SERVER_STATE?.pins || STATE?.pins || null;
   if(!pins){
-    setRole(ROLE_VIEWER, null);
     return;
   }
 
@@ -2265,12 +2294,27 @@ function askPinAndEnable(){
   if(!pin) return;
   const entered = pin.trim();
   let role = ROLE_VIEWER;
-  if(entered === pins.jesus) role = ROLE_JESUS;
-  else if(entered === pins.manager) role = ROLE_MANAGER;
-  else if(entered === pins.client) role = ROLE_CLIENT;
+  let clientId = null;
+  let displayName = "";
+  if(entered === pins.jesus){
+    role = ROLE_JESUS;
+    displayName = "Jesus";
+  }else if(entered === pins.manager){
+    role = ROLE_MANAGER;
+    displayName = "Encargado";
+  }else{
+    for(const [cid,p] of Object.entries(pins.clients || {})){
+      if(entered === p){
+        role = ROLE_CLIENT;
+        clientId = cid;
+        displayName = CLIENT_NAMES[cid] || cid;
+        break;
+      }
+    }
+  }
   if(role === ROLE_VIEWER){ alert(t("incorrect_pin")); return; }
   const ttl = role===ROLE_CLIENT ? 7*24*60*60*1000 : 24*60*60*1000;
-  setRole(role, ttl);
+  setRole(role, ttl, clientId, displayName);
   toast(t("edit_mode_enabled"));
 }
 
@@ -2452,6 +2496,10 @@ function fmtDate(ts){
   catch(_){ return ts; }
 }
 
+function noteAuthorName(note){
+  return displayNameFor(note.authorRole || ROLE_VIEWER, note.clientId, note.authorName);
+}
+
 function renderNotesFeed(state){
   const feed = el("notesFeed");
   feed.innerHTML = "";
@@ -2473,7 +2521,7 @@ function renderNotesFeed(state){
     }
     const meta = document.createElement("div");
     meta.className = "note-meta";
-    meta.textContent = `${(ROLE_LABEL[n.authorRole]?.() || n.authorRole || "-")}`;
+    meta.textContent = noteAuthorName(n) || "-";
     const ts = document.createElement("span");
     ts.textContent = fmtDate(n.ts);
     meta.appendChild(ts);
@@ -2499,18 +2547,26 @@ async function compressImage(file){
   });
   await new Promise((res,rej)=>{ img.onload=res; img.onerror=rej; img.src=dataUrl; });
   const canvas = document.createElement("canvas");
-  const max = 1280;
-  let {width, height} = img;
-  if(width>height && width>max){ height = Math.round(height*max/width); width = max; }
-  else if(height>max){ width = Math.round(width*max/height); height = max; }
-  canvas.width = width; canvas.height = height;
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(img,0,0,width,height);
-  let quality = 0.7;
-  let out = canvas.toDataURL("image/jpeg", quality);
+  const drawCompressed = (max)=>{
+    let {width, height} = img;
+    if(width>height && width>max){ height = Math.round(height*max/width); width = max; }
+    else if(height>max){ width = Math.round(width*max/height); height = max; }
+    canvas.width = width; canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img,0,0,width,height);
+    return canvas.toDataURL("image/jpeg", 0.7);
+  };
+  let out = drawCompressed(1280);
   if(out.length > 600*1024){
-    quality = 0.6;
-    out = canvas.toDataURL("image/jpeg", quality);
+    const canvasCtx = canvas.getContext("2d");
+    out = canvas.toDataURL("image/jpeg", 0.6);
+    if(out.length > 600*1024){
+      canvasCtx.clearRect(0,0,canvas.width,canvas.height);
+      out = drawCompressed(1024);
+      if(out.length > 600*1024){
+        out = canvas.toDataURL("image/jpeg", 0.6);
+      }
+    }
   }
   return out;
 }
@@ -2565,6 +2621,7 @@ async function sendNote(){
     id: `n_${Date.now()}_${Math.random().toString(16).slice(2,6)}`,
     ts: new Date().toISOString(),
     authorRole: currentRole,
+    authorName: roleLabel(),
     text,
     image: noteDraftImage
   };
@@ -2780,6 +2837,7 @@ el("tabProgress").addEventListener("click", ()=>setTab("progress"));
 el("tabSchedule").addEventListener("click", ()=>setTab("schedule"));
 el("tabPlans").addEventListener("click", ()=>setTab("plans"));
 el("btnAdmin").addEventListener("click", askPinAndEnable);
+el("btnLogout").addEventListener("click", ()=>{ clearSession(); toast(t("logout")); });
 el("langNl").addEventListener("click", ()=>setLanguage("nl"));
 el("langEn").addEventListener("click", ()=>setLanguage("en"));
 el("langEs").addEventListener("click", ()=>setLanguage("es"));
