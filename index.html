@@ -53,6 +53,7 @@ header{background:var(--ink);color:#fff;position:relative}
 .sheet header{background:#fff;color:#101828;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:12px 14px}
 .sheet header h2{margin:0;font-size:16px}
 .sheet .content{padding:12px;overflow:auto;max-height:calc(92vh - 56px)}
+.sheet .content.notes{display:flex;flex-direction:column;gap:10px;max-height:calc(94vh - 108px)}
 .list{display:flex;flex-direction:column;gap:10px}
 .item{border:1px solid var(--line);border-radius:14px;padding:10px}
 .item h4{margin:0 0 6px 0;font-size:14px}
@@ -69,6 +70,20 @@ textarea{width:100%;min-height:56px;border-radius:14px;border:1px solid var(--li
 .statusDone{border-color:#abefc6;background:#ecfdf3}
 .statusBlocked{border-color:#fda29b;background:#fff5f5}
 .badge{font-weight:900}
+.note-preview{border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;align-items:center;gap:10px;background:#fbfcfd;cursor:pointer}
+.note-preview img{width:38px;height:38px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
+.note-preview .muted{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.notes-feed{flex:1;overflow:auto;display:flex;flex-direction:column;gap:12px;padding:4px 2px}
+.bubble{background:#f6f7f9;border:1px solid var(--line);border-radius:14px;padding:10px;max-width:520px}
+.bubble img{max-width:240px;border-radius:12px;display:block;margin-bottom:6px;border:1px solid var(--line);cursor:pointer}
+.note-meta{font-size:12px;color:var(--muted);margin-top:4px;display:flex;gap:8px;align-items:center}
+.notes-input{border-top:1px solid var(--line);padding:8px;display:flex;flex-direction:column;gap:8px;background:#fff;position:sticky;bottom:0}
+.notes-input textarea{min-height:64px;max-height:120px}
+.note-actions{display:flex;gap:8px;justify-content:space-between;align-items:center}
+.iconbtn{border:1px solid var(--line);background:#fbfcfd;border-radius:12px;padding:8px;cursor:pointer}
+.iconbtn:active{transform:scale(.98)}
+.notes-preview-img{max-width:120px;border-radius:10px;border:1px solid var(--line)}
+.pill-warning{color:#b54708;border-color:#fed7aa;background:#fffbeb}
 /* Views */
 .view{display:none}
 .view.active{display:block}
@@ -108,7 +123,7 @@ code{background:#10182810;padding:2px 6px;border-radius:8px}
     <button id="tabProgress" class="navbtn active" type="button">Progress</button>
     <button id="tabSchedule" class="navbtn" type="button">Schedule</button>
     <button id="tabPlans" class="navbtn" type="button">Plans</button>
-    <button id="btnAdmin" class="navbtn ghost" type="button">Edit mode: OFF</button>
+    <button id="btnAdmin" class="navbtn ghost" type="button">Access: VIEWER</button>
   </div>
 </header>
 
@@ -230,7 +245,31 @@ code{background:#10182810;padding:2px 6px;border-radius:8px}
   </div>
 </div>
 
+<div class="modal" id="notesModal">
+  <div class="sheet">
+    <header>
+      <div>
+        <h2 id="notesTitle">Notes</h2>
+        <div class="muted" id="notesMeta"></div>
+      </div>
+      <button id="btnCloseNotes" class="smallbtn" type="button">Close</button>
+    </header>
+    <div class="content notes">
+      <div class="notes-feed" id="notesFeed"></div>
+      <div class="notes-input" id="notesInputPanel" style="display:none">
+        <div class="note-actions">
+          <button id="btnAttach" class="iconbtn" type="button">📷</button>
+          <div id="photoPreview" class="muted" style="flex:1"></div>
+          <button id="btnSendNote" class="smallbtn" type="button">Send</button>
+        </div>
+        <textarea id="noteText" placeholder="Write a note..."></textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
 <input type="file" id="importFile" accept="application/json" style="display:none"/>
+<input type="file" id="photoPicker" accept="image/*" style="display:none"/>
 <div class="toast" id="toast">Saved</div>
 
 <script>
@@ -295,7 +334,21 @@ const I18N = {
     on_track: "On track",
     ahead: "Ahead",
     behind: "Behind",
-    vs_plan: "vs plan"
+    vs_plan: "vs plan",
+    access_label: "Access: {role}",
+    role_viewer: "VIEWER",
+    role_client: "CLIENT",
+    role_manager: "MANAGER",
+    role_jesus: "JESUS",
+    enter_pin_prompt: "Enter PIN:",
+    pins_missing: "Pins not configured",
+    logout: "Logout",
+    notes_title: "Notes",
+    notes_meta: "{count} messages",
+    write_note: "Write a note...",
+    send: "Send",
+    attach: "Attach photo",
+    pins_warning: "Pins not configured"
   },
   es: {
     project_title: "Copo 23 (El Saladillo) – Portal de progreso",
@@ -357,7 +410,21 @@ const I18N = {
     on_track: "En plazo",
     ahead: "Adelantado",
     behind: "Retrasado",
-    vs_plan: "vs plan"
+    vs_plan: "vs plan",
+    access_label: "Acceso: {role}",
+    role_viewer: "VIEWER",
+    role_client: "CLIENTE",
+    role_manager: "ENCARGADO",
+    role_jesus: "JESUS",
+    enter_pin_prompt: "Introduce el PIN:",
+    pins_missing: "Pins no configurados",
+    logout: "Cerrar sesión",
+    notes_title: "Notas",
+    notes_meta: "{count} mensajes",
+    write_note: "Escribe una nota...",
+    send: "Enviar",
+    attach: "Adjuntar foto",
+    pins_warning: "Pins no configurados"
   },
   nl: {
     project_title: "Copo 23 (El Saladillo) – Voortgangsportaal",
@@ -419,7 +486,21 @@ const I18N = {
     on_track: "Op schema",
     ahead: "Voor op schema",
     behind: "Achter op schema",
-    vs_plan: "vs plan"
+    vs_plan: "vs plan",
+    access_label: "Toegang: {role}",
+    role_viewer: "VIEWER",
+    role_client: "KLANT",
+    role_manager: "MANAGER",
+    role_jesus: "JESUS",
+    enter_pin_prompt: "Voer pincode in:",
+    pins_missing: "Pincodes niet geconfigureerd",
+    logout: "Uitloggen",
+    notes_title: "Notities",
+    notes_meta: "{count} berichten",
+    write_note: "Schrijf een notitie...",
+    send: "Versturen",
+    attach: "Foto toevoegen",
+    pins_warning: "Pincodes niet geconfigureerd"
   }
 };
 
@@ -1890,18 +1971,29 @@ const CHAPTER_PHOTOS = {
   "15": "./Safety and health.png"
 };
 
-const LS_PIN = "copo23_admin_pin_v3";
-const LS_ADMIN_SESSION = "copo23_admin_session_v3";
+const LS_ROLE_SESSION = "copo23_role_session_v1";
 const LS_DRAFT = "copo23_state_draft_v3";
 const LS_START = "copo23_start_date_v3";
+const ROLE_VIEWER = "viewer";
+const ROLE_CLIENT = "client";
+const ROLE_MANAGER = "manager";
+const ROLE_JESUS = "jesus";
+
+const ROLE_LABEL = {
+  [ROLE_VIEWER]: () => t("role_viewer"),
+  [ROLE_CLIENT]: () => t("role_client"),
+  [ROLE_MANAGER]: () => t("role_manager"),
+  [ROLE_JESUS]: () => t("role_jesus")
+};
 
 const el = (id)=>document.getElementById(id);
 let SERVER_STATE = null;
 let STATE = null;
 let currentChapter = null;
-let isAdmin = false;
+let currentRole = ROLE_VIEWER;
 let activeTab = "progress";
 let currentPlan = (DATA.plans || [])[0] || null;
+let noteDraftImage = null;
 
 function t(key){
   const dict = I18N[currentLanguage()] || I18N.en;
@@ -1915,6 +2007,9 @@ function fmt(str, vars){
   }
   return out;
 }
+function esc(str){
+  return (str ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
 
 function pct(v){ return Math.max(0, Math.min(100, Math.round(v ?? 0))); }
 function fmtStatus(s){ return ({pending:t("pending"), in_progress:t("in_progress"), done:t("done"), blocked:t("blocked")})[s] || t("pending"); }
@@ -1926,6 +2021,17 @@ function toast(msg){
   t.classList.add("show");
   clearTimeout(window.__toastTimer);
   window.__toastTimer = setTimeout(()=>t.classList.remove("show"), 1200);
+}
+
+function migrateItemState(s){
+  const base = {status:"pending", progress:0, notes:[]};
+  if(!s) return base;
+  const next = Object.assign({}, base, s);
+  if(!Array.isArray(next.notes)){
+    const text = (next.note || "").trim();
+    next.notes = text ? [{id: "n_"+Date.now(), ts: new Date().toISOString(), authorRole: ROLE_VIEWER, text, image: null}] : [];
+  }
+  return next;
 }
 
 function loadDraft(){
@@ -1943,7 +2049,7 @@ function saveDraft(){
 
 function discardDraft(){
   localStorage.removeItem(LS_DRAFT);
-  STATE = JSON.parse(JSON.stringify(SERVER_STATE));
+  STATE = migrateState(JSON.parse(JSON.stringify(SERVER_STATE)));
   updateStatusLine();
   renderAll();
   toast(t("draft_discarded"));
@@ -1954,14 +2060,15 @@ function updateStatusLine(){
   const publishedAt = SERVER_STATE?.updated_at || "—";
   const localAt = draft?.updated_at || "—";
   const usingDraft = !!draft;
-  const text = usingDraft
+  let text = usingDraft
     ? fmt(t("status_line_draft"), {published: publishedAt, local: localAt})
     : fmt(t("status_line_published"), {published: publishedAt});
+  if(!SERVER_STATE?.pins) text += ` · ${t("pins_warning")}`;
   el("statusLine").textContent = text;
   el("scheduleLine").textContent = text;
 }
 
-function getItemState(id){ return STATE?.items?.[id] || {status:"pending", progress:0, note:""}; }
+function getItemState(id){ return migrateItemState(STATE?.items?.[id]); }
 function getItemProgress(id){ return pct(getItemState(id).progress); }
 function getItemStatus(id){ return getItemState(id).status || "pending"; }
 
@@ -2057,16 +2164,36 @@ function planSrc(plan){
   return "./plans/" + encodeURI(plan.file);
 }
 
-function setAdmin(on){
-  isAdmin = on;
-  el("btnAdmin").textContent = on ? t("edit_mode_on") : t("edit_mode_off");
-  el("adminTools").style.display = on ? "block" : "none";
+function roleLabel(){ return (ROLE_LABEL[currentRole] || (()=>currentRole.toUpperCase()))(); }
+const canEditProgress = ()=> currentRole===ROLE_JESUS || currentRole===ROLE_MANAGER;
+const canEditNotes = ()=> currentRole===ROLE_JESUS || currentRole===ROLE_MANAGER || currentRole===ROLE_CLIENT;
+const canUseAdminTools = ()=> currentRole===ROLE_JESUS;
+
+function setRole(role, ttlMs){
+  currentRole = role || ROLE_VIEWER;
+  if(ttlMs){
+    localStorage.setItem(LS_ROLE_SESSION, JSON.stringify({role: currentRole, exp: Date.now()+ttlMs}));
+  }else{
+    localStorage.removeItem(LS_ROLE_SESSION);
+  }
+  el("btnAdmin").textContent = fmt(t("access_label"), {role: roleLabel()});
+  el("adminTools").style.display = canUseAdminTools() ? "block" : "none";
+  updateStatusLine();
   if(currentChapter) renderModal(currentChapter);
 }
 
-function ensureAdminSessionValid(){
-  const until = parseInt(localStorage.getItem(LS_ADMIN_SESSION) || "0", 10);
-  return Date.now() < until;
+function restoreRole(){
+  try{
+    const raw = localStorage.getItem(LS_ROLE_SESSION);
+    if(!raw) return;
+    const obj = JSON.parse(raw);
+    if(obj && obj.role && obj.exp && Date.now() < obj.exp){
+      currentRole = obj.role;
+      setRole(currentRole, obj.exp - Date.now());
+      return;
+    }
+  }catch(_){ currentRole = ROLE_VIEWER; }
+  setRole(currentRole, null);
 }
 
 function updateLanguageToggle(){
@@ -2087,7 +2214,7 @@ function applyLanguageStatic(){
   el("tabSchedule").textContent = t("schedule");
   el("tabPlans").textContent = t("plans");
   el("search").placeholder = t("search_placeholder");
-  el("btnAdmin").textContent = isAdmin ? t("edit_mode_on") : t("edit_mode_off");
+  el("btnAdmin").textContent = fmt(t("access_label"), {role: roleLabel()});
   el("startDateLabel").textContent = t("project_start_date");
   el("labelWeekNow").textContent = t("week_now");
   el("labelPlannedActual").textContent = t("planned_vs_actual");
@@ -2105,6 +2232,9 @@ function applyLanguageStatic(){
   el("plansHint").textContent = t("plans_hint");
   el("btnClose").textContent = t("close");
   el("toast").textContent = t("saved");
+  el("notesTitle").textContent = t("notes_title");
+  el("noteText").placeholder = t("write_note");
+  el("btnSendNote").textContent = t("send");
 
   const filter = el("filterStatus");
   if(filter){
@@ -2119,28 +2249,27 @@ function applyLanguageStatic(){
   updateLanguageToggle();
 }
 
-function askPinAndEnable(){
-  if(isAdmin){ setAdmin(false); return; }
-  if(ensureAdminSessionValid()){ setAdmin(true); toast(t("edit_mode_enabled")); return; }
+async function sha256(str){
+  const enc = new TextEncoder().encode(str);
+  const buf = await crypto.subtle.digest("SHA-256", enc);
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
 
-  const saved = localStorage.getItem(LS_PIN);
-  if(!saved){
-    const pin = prompt(t("create_pin_prompt"));
-    if(!pin || pin.length < 4) return;
-    localStorage.setItem(LS_PIN, pin);
-    localStorage.setItem(LS_ADMIN_SESSION, String(Date.now() + 24*60*60*1000));
-    setAdmin(true);
-    toast(t("pin_saved_enabled"));
-    return;
-  }
+async function askPinAndEnable(){
+  if(currentRole!==ROLE_VIEWER){ setRole(ROLE_VIEWER, null); return; }
+  if(!SERVER_STATE?.pins){ alert(t("pins_missing")); return; }
   const pin = prompt(t("enter_pin_prompt"));
-  if(pin === saved){
-    localStorage.setItem(LS_ADMIN_SESSION, String(Date.now() + 24*60*60*1000));
-    setAdmin(true);
-    toast(t("edit_mode_enabled"));
-  }else{
-    alert(t("incorrect_pin"));
-  }
+  if(!pin) return;
+  const hash = await sha256(pin.trim());
+  const pins = SERVER_STATE.pins || STATE?.pins || {};
+  let role = ROLE_VIEWER;
+  if(hash === pins.jesus) role = ROLE_JESUS;
+  else if(hash === pins.manager) role = ROLE_MANAGER;
+  else if(hash === pins.client) role = ROLE_CLIENT;
+  if(role === ROLE_VIEWER){ alert(t("incorrect_pin")); return; }
+  const ttl = role===ROLE_CLIENT ? 7*24*60*60*1000 : 24*60*60*1000;
+  setRole(role, ttl);
+  toast(t("edit_mode_enabled"));
 }
 
 async function loadJSON(path){
@@ -2149,12 +2278,21 @@ async function loadJSON(path){
   return await res.json();
 }
 
+function migrateState(state){
+  const s = state || {items:{}};
+  s.items = s.items || {};
+  for(const [id,val] of Object.entries(s.items)){
+    s.items[id] = migrateItemState(val);
+  }
+  return s;
+}
+
 function pickInitialState(){
   const draft = loadDraft();
   if(draft && draft.items){
-    STATE = draft;  // always prefer local draft on this device
+    STATE = migrateState(draft);  // always prefer local draft on this device
   }else{
-    STATE = JSON.parse(JSON.stringify(SERVER_STATE));
+    STATE = migrateState(JSON.parse(JSON.stringify(SERVER_STATE)));
   }
 }
 
@@ -2204,7 +2342,7 @@ function renderGrid(){
 
 function renderModal(ch){
   el("mTitle").textContent = `${chapterLabel(ch)} — ${chapterTitle(ch)}`;
-  el("mSub").textContent = isAdmin ? t("edit_enabled_device") : t("read_only_view");
+  el("mSub").textContent = `${roleLabel()} · ${canEditNotes()||canEditProgress() ? t("edit_enabled_device") : t("read_only_view")}`;
   el("mCount").textContent = `${ch.items.length} ${t("items")}`;
   el("mAvg").textContent = `${t("average")}: ${chapterProgress(ch)}%`;
 
@@ -2225,6 +2363,9 @@ function renderModal(ch){
 
     const row = document.createElement("div");
     row.className = "item";
+    const latest = s.notes?.[s.notes.length-1];
+    const thumb = latest?.image || "";
+    const previewText = latest?.text ? esc(latest.text).slice(0,80) : "";
     row.innerHTML = `
       <h4>${it.code} — ${itemDescription(it)}</h4>
       <div class="meta">
@@ -2242,11 +2383,11 @@ function renderModal(ch){
       <div class="controls">
         <div class="range">
           <span class="muted" style="min-width:78px">${t("progress_label")}</span>
-          <input data-prog type="range" min="0" max="100" value="${prog}" ${isAdmin ? "" : "disabled"} />
+          <input data-prog type="range" min="0" max="100" value="${prog}" ${canEditProgress() ? "" : "disabled"} />
           <span class="badge" data-prog-badge>${prog}%</span>
         </div>
 
-        <select data-status ${isAdmin ? "" : "disabled"}>
+        <select data-status ${canEditProgress() ? "" : "disabled"}>
           <option value="pending">${t("pending")}</option>
           <option value="in_progress">${t("in_progress")}</option>
           <option value="done">${t("done")}</option>
@@ -2255,22 +2396,24 @@ function renderModal(ch){
       </div>
 
       <div style="margin-top:8px">
-        <textarea data-note placeholder="${t("notes_placeholder")}" ${isAdmin ? "" : "disabled"}>${(s.note||"").replaceAll("<","&lt;")}</textarea>
+        <div class="note-preview" data-notes>
+          <span class="badge">${t("notes_title")} (${s.notes?.length || 0})</span>
+          ${thumb ? `<img src="${thumb}" alt="thumb"/>` : ""}
+          <span class="muted">${previewText || t("notes_placeholder")}</span>
+        </div>
       </div>
     `;
     list.appendChild(row);
     row.querySelector('[data-status]').value = status;
-
-    if(!isAdmin) continue;
-
     const progInput = row.querySelector('[data-prog]');
     const statusSel = row.querySelector('[data-status]');
-    const noteInput = row.querySelector('[data-note]');
+    const notesBtn = row.querySelector('[data-notes]');
 
     const applyPatch = (patch) => {
       const id = it.id;
       const prev = getItemState(id);
       const next = Object.assign({}, prev, patch);
+      STATE.items = STATE.items || {};
       STATE.items[id] = next;
       STATE.updated_at = new Date().toISOString();
       saveDraft();
@@ -2294,10 +2437,142 @@ function renderModal(ch){
       renderSchedule();
     };
 
-    progInput.addEventListener("input", ()=>applyPatch({progress: parseInt(progInput.value,10)}));
-    statusSel.addEventListener("change", ()=>applyPatch({status: statusSel.value}));
-    noteInput.addEventListener("input", ()=>applyPatch({note: noteInput.value}));
+    if(canEditProgress()){
+      progInput.addEventListener("input", ()=>applyPatch({progress: parseInt(progInput.value,10)}));
+      statusSel.addEventListener("change", ()=>applyPatch({status: statusSel.value}));
+    }
+    notesBtn.addEventListener("click", ()=>openNotesModal(it));
   }
+}
+
+function fmtDate(ts){
+  try{ return new Date(ts).toLocaleString(currentLanguage() || "en"); }
+  catch(_){ return ts; }
+}
+
+function renderNotesFeed(state){
+  const feed = el("notesFeed");
+  feed.innerHTML = "";
+  const notes = state.notes || [];
+  for(const n of notes){
+    const wrap = document.createElement("div");
+    wrap.className = "bubble";
+    if(n.image){
+      const img = document.createElement("img");
+      img.src = n.image;
+      img.alt = "note photo";
+      img.addEventListener("click", ()=>window.open(n.image, "_blank"));
+      wrap.appendChild(img);
+    }
+    if(n.text){
+      const p = document.createElement("div");
+      p.textContent = n.text;
+      wrap.appendChild(p);
+    }
+    const meta = document.createElement("div");
+    meta.className = "note-meta";
+    meta.textContent = `${(ROLE_LABEL[n.authorRole]?.() || n.authorRole || "-")}`;
+    const ts = document.createElement("span");
+    ts.textContent = fmtDate(n.ts);
+    meta.appendChild(ts);
+    wrap.appendChild(meta);
+    feed.appendChild(wrap);
+  }
+  feed.scrollTop = feed.scrollHeight;
+}
+
+function resetNoteComposer(){
+  noteDraftImage = null;
+  el("photoPreview").innerHTML = "";
+  el("noteText").value = "";
+}
+
+async function compressImage(file){
+  const img = new Image();
+  const dataUrl = await new Promise((resolve,reject)=>{
+    const fr = new FileReader();
+    fr.onload = ()=>resolve(fr.result);
+    fr.onerror = reject;
+    fr.readAsDataURL(file);
+  });
+  await new Promise((res,rej)=>{ img.onload=res; img.onerror=rej; img.src=dataUrl; });
+  const canvas = document.createElement("canvas");
+  const max = 1280;
+  let {width, height} = img;
+  if(width>height && width>max){ height = Math.round(height*max/width); width = max; }
+  else if(height>max){ width = Math.round(width*max/height); height = max; }
+  canvas.width = width; canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img,0,0,width,height);
+  let quality = 0.7;
+  let out = canvas.toDataURL("image/jpeg", quality);
+  if(out.length > 600*1024){
+    quality = 0.6;
+    out = canvas.toDataURL("image/jpeg", quality);
+  }
+  return out;
+}
+
+function openNotesModal(item){
+  const state = getItemState(item.id);
+  el("notesTitle").textContent = `${item.code} — ${itemDescription(item)}`;
+  el("notesMeta").textContent = fmt(t("notes_meta"), {count: state.notes?.length || 0});
+  renderNotesFeed(state);
+  el("notesInputPanel").style.display = canEditNotes() ? "flex" : "none";
+  el("notesModal").dataset.itemId = item.id;
+  el("notesModal").style.display = "flex";
+  resetNoteComposer();
+  if(canEditNotes()) el("noteText").focus();
+}
+
+function closeNotesModal(){
+  el("notesModal").style.display = "none";
+  el("notesModal").dataset.itemId = "";
+}
+
+async function pickPhoto(){
+  el("photoPicker").click();
+}
+
+function setPhotoPreview(url){
+  const box = el("photoPreview");
+  box.innerHTML = "";
+  if(!url) return;
+  const img = document.createElement("img");
+  img.src = url;
+  img.className = "notes-preview-img";
+  box.appendChild(img);
+}
+
+function addNoteToState(itemId, note){
+  const prev = getItemState(itemId);
+  const nextNotes = (prev.notes || []).concat([note]);
+  STATE.items = STATE.items || {};
+  STATE.items[itemId] = Object.assign({}, prev, {notes: nextNotes});
+  STATE.updated_at = new Date().toISOString();
+  saveDraft();
+}
+
+async function sendNote(){
+  if(!canEditNotes()) return;
+  const itemId = el("notesModal").dataset.itemId;
+  if(!itemId) return;
+  const text = el("noteText").value.trim();
+  if(!text && !noteDraftImage) return;
+  const note = {
+    id: `n_${Date.now()}_${Math.random().toString(16).slice(2,6)}`,
+    ts: new Date().toISOString(),
+    authorRole: currentRole,
+    text,
+    image: noteDraftImage
+  };
+  addNoteToState(itemId, note);
+  const state = getItemState(itemId);
+  el("notesMeta").textContent = fmt(t("notes_meta"), {count: state.notes?.length || 0});
+  renderNotesFeed(state);
+  resetNoteComposer();
+  renderGrid();
+  if(currentChapter) renderModal(currentChapter);
 }
 
 function renderPlans(){
@@ -2453,7 +2728,7 @@ function importState(file){
     try{
       const s = JSON.parse(reader.result);
       if(!s || typeof s!=="object" || !("items" in s)) throw new Error(t("import_invalid"));
-      STATE = s;
+      STATE = migrateState(s);
       STATE.updated_at = STATE.updated_at || new Date().toISOString();
       saveDraft();
       renderAll();
@@ -2493,7 +2768,7 @@ async function boot(){
     renderSchedule();
   });
 
-  if(ensureAdminSessionValid()) setAdmin(true);
+  restoreRole();
 
   updateStatusLine();
   renderAll();
@@ -2512,6 +2787,18 @@ el("filterStatus").addEventListener("change", ()=>{ if(currentChapter) renderMod
 
 el("btnClose").addEventListener("click", closeModal);
 el("modal").addEventListener("click", (e)=>{ if(e.target.id==="modal") closeModal(); });
+el("btnCloseNotes").addEventListener("click", closeNotesModal);
+el("notesModal").addEventListener("click", (e)=>{ if(e.target.id==="notesModal") closeNotesModal(); });
+el("btnAttach").addEventListener("click", pickPhoto);
+el("photoPicker").addEventListener("change", async(e)=>{
+  const f=e.target.files?.[0];
+  if(f){
+    noteDraftImage = await compressImage(f);
+    setPhotoPreview(noteDraftImage);
+  }
+  e.target.value="";
+});
+el("btnSendNote").addEventListener("click", sendNote);
 
 el("btnExport").addEventListener("click", exportState);
 el("btnImport").addEventListener("click", ()=>el("importFile").click());
