@@ -337,8 +337,8 @@ const I18N = {
     vs_plan: "vs plan",
     access_label: "Access: {role}",
     role_viewer: "VIEWER",
-    role_client: "CLIENT",
-    role_manager: "MANAGER",
+    role_client: "CLIENTE",
+    role_manager: "ENCARGADO",
     role_jesus: "JESUS",
     enter_pin_prompt: "Enter PIN:",
     pins_missing: "Pins not configured",
@@ -489,8 +489,8 @@ const I18N = {
     vs_plan: "vs plan",
     access_label: "Toegang: {role}",
     role_viewer: "VIEWER",
-    role_client: "KLANT",
-    role_manager: "MANAGER",
+    role_client: "CLIENTE",
+    role_manager: "ENCARGADO",
     role_jesus: "JESUS",
     enter_pin_prompt: "Voer pincode in:",
     pins_missing: "Pincodes niet geconfigureerd",
@@ -2063,7 +2063,6 @@ function updateStatusLine(){
   let text = usingDraft
     ? fmt(t("status_line_draft"), {published: publishedAt, local: localAt})
     : fmt(t("status_line_published"), {published: publishedAt});
-  if(!SERVER_STATE?.pins) text += ` · ${t("pins_warning")}`;
   el("statusLine").textContent = text;
   el("scheduleLine").textContent = text;
 }
@@ -2249,23 +2248,26 @@ function applyLanguageStatic(){
   updateLanguageToggle();
 }
 
-async function sha256(str){
-  const enc = new TextEncoder().encode(str);
-  const buf = await crypto.subtle.digest("SHA-256", enc);
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
-}
+function askPinAndEnable(){
+  if(currentRole!==ROLE_VIEWER){
+    setRole(ROLE_VIEWER, null);
+    toast(t("logout"));
+    return;
+  }
 
-async function askPinAndEnable(){
-  if(currentRole!==ROLE_VIEWER){ setRole(ROLE_VIEWER, null); return; }
-  if(!SERVER_STATE?.pins){ alert(t("pins_missing")); return; }
+  const pins = SERVER_STATE?.pins || STATE?.pins || null;
+  if(!pins){
+    setRole(ROLE_VIEWER, null);
+    return;
+  }
+
   const pin = prompt(t("enter_pin_prompt"));
   if(!pin) return;
-  const hash = await sha256(pin.trim());
-  const pins = SERVER_STATE.pins || STATE?.pins || {};
+  const entered = pin.trim();
   let role = ROLE_VIEWER;
-  if(hash === pins.jesus) role = ROLE_JESUS;
-  else if(hash === pins.manager) role = ROLE_MANAGER;
-  else if(hash === pins.client) role = ROLE_CLIENT;
+  if(entered === pins.jesus) role = ROLE_JESUS;
+  else if(entered === pins.manager) role = ROLE_MANAGER;
+  else if(entered === pins.client) role = ROLE_CLIENT;
   if(role === ROLE_VIEWER){ alert(t("incorrect_pin")); return; }
   const ttl = role===ROLE_CLIENT ? 7*24*60*60*1000 : 24*60*60*1000;
   setRole(role, ttl);

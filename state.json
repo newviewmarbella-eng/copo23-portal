@@ -1,6 +1,11 @@
 {
   "version": 1,
   "updated_at": "2025-12-18T09:35:31.449Z",
+  "pins": {
+    "jesus": "3573",
+    "manager": "2486",
+    "client": "1357"
+  },
   "items": {
     "1.01": {
       "status": "pending",
