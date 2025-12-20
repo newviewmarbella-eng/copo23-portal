@@ -4,7 +4,11 @@
   "pins": {
     "jesus": "3573",
     "manager": "2486",
-    "client": "1357"
+    "clients": {
+      "robbert": "1111",
+      "michael": "2222",
+      "nic": "3333"
+    }
   },
   "items": {
     "1.01": {
