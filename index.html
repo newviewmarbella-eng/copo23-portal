@@ -2845,7 +2845,7 @@ function toggleNotesInputVisibility(){
 
 function setNotesMetaText(itemId){
   const metaObj = noteMeta[itemId] || {};
-  const count = metaObj.count ?? (notesCache[itemId]?.notes?.length || 0) || 0;
+  const count = metaObj.count ?? (notesCache[itemId]?.notes?.length ?? 0);
   el("notesMeta").textContent = fmt(t("notes_meta"), {count});
 }
 
