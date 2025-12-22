@@ -103,6 +103,7 @@ textarea{width:100%;min-height:56px;border-radius:14px;border:1px solid var(--li
 .toast.show{opacity:1}
 code{background:#10182810;padding:2px 6px;border-radius:8px}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 </head>
 <body>
 <header>
@@ -253,7 +254,10 @@ code{background:#10182810;padding:2px 6px;border-radius:8px}
         <h2 id="notesTitle">Notes</h2>
         <div class="muted" id="notesMeta"></div>
       </div>
-      <button id="btnCloseNotes" class="smallbtn" type="button">Close</button>
+      <div class="row" style="gap:8px;align-items:center">
+        <button id="btnSound" class="iconbtn" type="button" title="Toggle sound">🔊</button>
+        <button id="btnCloseNotes" class="smallbtn" type="button">Close</button>
+      </div>
     </header>
     <div class="content notes">
       <div class="notes-feed" id="notesFeed"></div>
@@ -1971,26 +1975,36 @@ const CHAPTER_PHOTOS = {
   "14": "./Waste management.png",
   "15": "./Safety and health.png"
 };
-
-const LS_ROLE_SESSION = "copo23_role_session_v2";
-const LS_DRAFT = "copo23_state_draft_v3";
-const LS_START = "copo23_start_date_v3";
+const PROJECT_SLUG = "copo23";
+const LS_ROLE_SESSION = "copo23_role_session_v4";
+const LS_QUEUE = "copo23_pending_actions_v1";
+const LS_START = "copo23_start_date_v4";
+const LS_SOUND = "copo23_sound_enabled";
 const ROLE_VIEWER = "viewer";
 const ROLE_CLIENT = "client";
 const ROLE_MANAGER = "manager";
-const ROLE_JESUS = "jesus";
-const CLIENT_NAMES = {robbert:"Robbert", michael:"Michael", nic:"Nic"};
+const ROLE_ADMIN = "admin";
 
 const el = (id)=>document.getElementById(id);
-let SERVER_STATE = null;
-let STATE = null;
+let sb = null;
+let STATE = {items:{}};
 let currentChapter = null;
 let currentRole = ROLE_VIEWER;
-let currentClientId = null;
-let currentDisplayName = null;
+let currentAuthor = "Viewer";
 let activeTab = "progress";
 let currentPlan = (DATA.plans || [])[0] || null;
 let noteDraftImage = null;
+let notesCache = {};
+let noteMeta = {};
+let pendingActions = [];
+let processingQueue = false;
+let lastSyncedAt = null;
+let soundEnabled = localStorage.getItem(LS_SOUND) === "1";
+let currentSession = {role: ROLE_VIEWER, author: "Viewer", pin: null, expiresAt: 0};
+let currentNotesItemId = null;
+let progressSaveTimers = {};
+let realtimeChannel = null;
+let audioCtx = null;
 
 function t(key){
   const dict = I18N[currentLanguage()] || I18N.en;
@@ -2021,59 +2035,130 @@ function toast(msg){
 }
 
 function migrateItemState(s){
-  const base = {status:"pending", progress:0, notes:[]};
+  const base = {status:"pending", progress:0};
   if(!s) return base;
   const next = Object.assign({}, base, s);
-  if(!Array.isArray(next.notes)){
-    const text = (next.note || "").trim();
-    next.notes = text ? [{id: "n_"+Date.now(), ts: new Date().toISOString(), authorRole: ROLE_JESUS, authorName: "Jesus", text, image: null}] : [];
-  }else{
-    next.notes = next.notes.map(n => {
-      const role = [ROLE_JESUS, ROLE_MANAGER, ROLE_CLIENT].includes(n.authorRole) ? n.authorRole : ROLE_JESUS;
-      const ts = n.ts || new Date().toISOString();
-      const authorName = n.authorName || displayNameFor(role, n.clientId);
-      return Object.assign({}, n, {authorRole: role, authorName, ts});
-    });
-  }
   return next;
 }
 
-function loadDraft(){
-  try{
-    const raw = localStorage.getItem(LS_DRAFT);
-    if(!raw) return null;
-    return JSON.parse(raw);
-  }catch(_){ return null; }
-}
+function loadDraft(){ return null; }
 
-function saveDraft(){
-  try{ localStorage.setItem(LS_DRAFT, JSON.stringify(STATE)); }catch(_){}
-  updateStatusLine();
-}
+function saveDraft(){ updateStatusLine(); }
 
-function discardDraft(){
-  localStorage.removeItem(LS_DRAFT);
-  STATE = migrateState(JSON.parse(JSON.stringify(SERVER_STATE)));
-  updateStatusLine();
-  renderAll();
-  toast(t("draft_discarded"));
-}
+function discardDraft(){ toast(t("draft_discarded")); }
 
 function updateStatusLine(){
-  const draft = loadDraft();
-  const publishedAt = SERVER_STATE?.updated_at || "—";
-  const localAt = draft?.updated_at || "—";
-  const usingDraft = !!draft;
-  let text = usingDraft
-    ? fmt(t("status_line_draft"), {published: publishedAt, local: localAt})
-    : fmt(t("status_line_published"), {published: publishedAt});
+  const syncText = lastSyncedAt ? fmtDate(lastSyncedAt) : "—";
+  const pending = pendingActions.length ? ` · Pending actions: ${pendingActions.length}` : "";
+  const base = sb ? `Supabase live sync: ${syncText}` : "Supabase not configured";
+  const text = base + pending;
   el("statusLine").textContent = text;
   el("scheduleLine").textContent = text;
+}
+
+function loadPendingQueue(){
+  try{
+    const raw = localStorage.getItem(LS_QUEUE);
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  }catch(_){ return []; }
+}
+
+function saveQueue(){
+  try{ localStorage.setItem(LS_QUEUE, JSON.stringify(pendingActions)); }catch(_){ }
+}
+
+function enqueueAction(action){
+  pendingActions.push(action);
+  saveQueue();
+  processQueue();
+  updateStatusLine();
+}
+
+function isNetworkError(err){
+  if(!navigator.onLine) return true;
+  const msg = (err?.message || "").toLowerCase();
+  return msg.includes("fetch") || msg.includes("network");
+}
+
+function ensureAudioContext(){
+  if(!soundEnabled) return null;
+  if(!audioCtx){
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if(!Ctx) return null;
+    audioCtx = new Ctx();
+  }
+  if(audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function updateSoundButton(){
+  const btn = el("btnSound");
+  if(btn){
+    btn.textContent = soundEnabled ? "🔊" : "🔈";
+    btn.classList.toggle("active", soundEnabled);
+  }
+}
+
+function toggleSound(){
+  soundEnabled = !soundEnabled;
+  localStorage.setItem(LS_SOUND, soundEnabled ? "1" : "0");
+  const ctx = ensureAudioContext();
+  if(soundEnabled && ctx){
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    gain.gain.value = 0.05;
+    osc.frequency.value = 880;
+    osc.connect(gain).connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.12);
+  }
+  updateSoundButton();
+}
+
+function maybePlayPing(author){
+  if(!soundEnabled) return;
+  const ctx = ensureAudioContext();
+  if(!ctx) return;
+  if(author && currentAuthor && author.toUpperCase() === currentAuthor.toUpperCase()) return;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  gain.gain.value = 0.04;
+  osc.frequency.value = 1200;
+  osc.connect(gain).connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime + 0.1);
 }
 
 function getItemState(id){ return migrateItemState(STATE?.items?.[id]); }
 function getItemProgress(id){ return pct(getItemState(id).progress); }
 function getItemStatus(id){ return getItemState(id).status || "pending"; }
+
+function applyLocalProgress(id, patch){
+  const prev = getItemState(id);
+  const next = Object.assign({}, prev, patch);
+  STATE.items = STATE.items || {};
+  STATE.items[id] = next;
+}
+
+function enqueueProgressAction(itemId){
+  if(!currentSession.pin){ alert(t("enter_pin_prompt")); return; }
+  const state = getItemState(itemId);
+  const action = {
+    type: 'progress',
+    itemId,
+    progress: pct(state.progress),
+    status: state.status || 'pending',
+    pin: currentSession.pin,
+    createdAt: Date.now()
+  };
+  enqueueAction(action);
+}
+
+function requestProgressSave(itemId){
+  if(progressSaveTimers[itemId]) clearTimeout(progressSaveTimers[itemId]);
+  progressSaveTimers[itemId] = setTimeout(()=>enqueueProgressAction(itemId), 350);
+}
 
 function chapterProgress(ch){
   if(!ch.items.length) return 0;
@@ -2088,6 +2173,153 @@ function overallProgress(){
     for(const it of ch.items){ sum += getItemProgress(it.id); n++; }
   }
   return n ? Math.round(sum/n) : 0;
+}
+
+function dataUrlToFile(dataUrl, filename){
+  const arr = dataUrl.split(',');
+  const mimeMatch = arr[0].match(/:(.*?);/);
+  const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while(n--){ u8arr[n] = bstr.charCodeAt(n); }
+  return new File([u8arr], filename, {type: mime});
+}
+
+async function performProgressAction(action){
+  if(!sb) return false;
+  if(!action?.pin) return 'drop';
+  try{
+    const {error} = await sb.rpc('rpc_update_progress_item', {
+      p_pin: action.pin,
+      p_project_slug: PROJECT_SLUG,
+      p_item_id: action.itemId,
+      p_progress: action.progress,
+      p_status: action.status
+    });
+    if(error){
+      console.error(error);
+      return isNetworkError(error) ? false : 'drop';
+    }
+    applyLocalProgress(action.itemId, {progress: action.progress, status: action.status});
+    lastSyncedAt = new Date().toISOString();
+    renderAll();
+    return true;
+  }catch(e){
+    console.error(e);
+    return isNetworkError(e) ? false : 'drop';
+  }
+}
+
+async function performNoteAction(action){
+  if(!sb) return false;
+  if(!action?.pin) return 'drop';
+  const imagePaths = [];
+  for(const img of action.images || []){
+    const fname = `${Date.now()}_${Math.random().toString(16).slice(2,6)}.jpg`;
+    const path = `${PROJECT_SLUG}/${action.itemId}/${fname}`;
+    try{
+      const file = dataUrlToFile(img, fname);
+      const {error} = await sb.storage.from('notes').upload(path, file, {contentType:'image/jpeg', upsert:false});
+      if(error) throw error;
+      imagePaths.push(path);
+    }catch(e){
+      console.error(e);
+      return isNetworkError(e) ? false : 'drop';
+    }
+  }
+
+  try{
+    const {error} = await sb.rpc('rpc_add_item_note', {
+      p_pin: action.pin,
+      p_project_slug: PROJECT_SLUG,
+      p_item_id: action.itemId,
+      p_message: action.message || "",
+      p_image_paths: imagePaths
+    });
+    if(error){
+      console.error(error);
+      return isNetworkError(error) ? false : 'drop';
+    }
+    await loadNotesForItem(action.itemId, true);
+    lastSyncedAt = new Date().toISOString();
+    return true;
+  }catch(e){
+    console.error(e);
+    return isNetworkError(e) ? false : 'drop';
+  }
+}
+
+async function processQueue(){
+  if(processingQueue || !sb) return;
+  processingQueue = true;
+  try{
+    while(pendingActions.length){
+      const action = pendingActions[0];
+      let ok = false;
+      if(action.type === 'progress') ok = await performProgressAction(action);
+      else if(action.type === 'note') ok = await performNoteAction(action);
+      if(ok === true || ok === 'drop'){
+        pendingActions.shift();
+        saveQueue();
+        if(ok === true) continue;
+      }
+      if(ok !== true){ break; }
+    }
+  }finally{
+    processingQueue = false;
+    updateStatusLine();
+  }
+}
+
+async function loadProgressFromSupabase(){
+  if(!sb) return;
+  try{
+    const {data, error} = await sb.from('progress_items').select('*').eq('project_slug', PROJECT_SLUG);
+    if(error){ console.error(error); return; }
+    for(const row of data || []) applyProgressRecord(row);
+    lastSyncedAt = new Date().toISOString();
+    renderAll();
+    updateStatusLine();
+  }catch(e){ console.error(e); }
+}
+
+function handleRealtimeProgress(payload){
+  const rec = payload?.new || payload?.record || payload;
+  if(!rec || rec.project_slug !== PROJECT_SLUG) return;
+  applyProgressRecord(rec);
+  lastSyncedAt = new Date().toISOString();
+  renderAll();
+  updateStatusLine();
+}
+
+function handleRealtimeNote(payload){
+  const row = payload?.new;
+  if(!row || row.project_slug !== PROJECT_SLUG) return;
+  const note = mapNoteRow(row);
+  if(notesCache[note.itemId]){
+    notesCache[note.itemId].notes.push(note);
+    updateNoteMetaFromList(note.itemId, notesCache[note.itemId].notes);
+  }else{
+    updateNoteMetaFromNote(note);
+  }
+  if(currentNotesItemId === note.itemId){
+    renderNotesFeed(notesCache[note.itemId]?.notes || [note]);
+    setNotesMetaText(note.itemId);
+  }
+  renderGrid();
+  if(currentChapter) renderModal(currentChapter);
+  if(note.author && currentAuthor && note.author.toUpperCase() !== currentAuthor.toUpperCase()){
+    maybePlayPing(note.author);
+  }
+}
+
+function subscribeRealtime(){
+  if(!sb) return;
+  realtimeChannel = sb.channel('copo23_live')
+    .on('postgres_changes', {event:'*', schema:'public', table:'progress_items', filter:`project_slug=eq.${PROJECT_SLUG}`}, handleRealtimeProgress)
+    .on('postgres_changes', {event:'INSERT', schema:'public', table:'item_notes', filter:`project_slug=eq.${PROJECT_SLUG}`}, handleRealtimeNote)
+    .subscribe();
 }
 
 function setTab(tab){
@@ -2167,11 +2399,12 @@ function planSrc(plan){
   return "./plans/" + encodeURI(plan.file);
 }
 
-function displayNameFor(role, clientId, custom){
-  if(custom) return custom;
-  if(role===ROLE_JESUS) return "Jesus";
+function displayNameFor(role, author){
+  if(role===ROLE_CLIENT && author) return (author || "").toUpperCase();
+  if(author) return author;
+  if(role===ROLE_ADMIN) return "Jesus";
   if(role===ROLE_MANAGER) return "Encargado";
-  if(role===ROLE_CLIENT) return CLIENT_NAMES[clientId] || CLIENT_NAMES[role] || t("role_client");
+  if(role===ROLE_CLIENT) return t("role_client");
   return t("role_viewer");
 }
 
@@ -2181,52 +2414,45 @@ function accessRoleLabel(){
 }
 
 function roleLabel(){
-  return displayNameFor(currentRole, currentClientId, currentDisplayName);
+  return displayNameFor(currentRole, currentAuthor);
 }
-const canEditProgress = ()=> currentRole===ROLE_JESUS || currentRole===ROLE_MANAGER;
-const canEditNotes = ()=> currentRole===ROLE_JESUS || currentRole===ROLE_MANAGER || currentRole===ROLE_CLIENT;
-const canUseAdminTools = ()=> currentRole===ROLE_JESUS;
+const canEditProgress = ()=> currentRole===ROLE_ADMIN || currentRole===ROLE_MANAGER;
+const canEditNotes = ()=> currentRole===ROLE_ADMIN || currentRole===ROLE_MANAGER || currentRole===ROLE_CLIENT;
+const canUseAdminTools = ()=> currentRole===ROLE_ADMIN;
 
 function applySession(session){
   const sess = session || {role: ROLE_VIEWER};
-  currentRole = sess.role || ROLE_VIEWER;
-  currentClientId = sess.clientId || null;
-  currentDisplayName = displayNameFor(currentRole, currentClientId, sess.displayName);
+  currentSession = Object.assign({pin:null, expiresAt:0, author:"Viewer"}, sess);
+  currentRole = currentSession.role || ROLE_VIEWER;
+  currentAuthor = displayNameFor(currentRole, currentSession.author);
   el("btnAdmin").textContent = fmt(t("access_label"), {role: accessRoleLabel()});
   el("btnLogout").style.display = currentRole===ROLE_VIEWER ? "none" : "inline-flex";
   el("adminTools").style.display = canUseAdminTools() ? "block" : "none";
+  toggleNotesInputVisibility();
   updateStatusLine();
   if(currentChapter) renderModal(currentChapter);
 }
 
-function setRole(role, ttlMs, clientId, displayName){
-  const session = {role: role || ROLE_VIEWER, clientId: clientId || null, displayName: displayName || undefined};
-  if(ttlMs){
-    session.expiresAt = Date.now() + ttlMs;
-    localStorage.setItem(LS_ROLE_SESSION, JSON.stringify(session));
-  }else{
-    localStorage.removeItem(LS_ROLE_SESSION);
-  }
-  applySession(session);
+function persistSession(session){
+  try{ localStorage.setItem(LS_ROLE_SESSION, JSON.stringify(session)); }catch(_){ }
 }
 
 function clearSession(){
   localStorage.removeItem(LS_ROLE_SESSION);
-  applySession({role: ROLE_VIEWER});
+  applySession({role: ROLE_VIEWER, author: "Viewer", pin: null, expiresAt: 0});
 }
 
-function restoreRole(){
+function restoreSession(){
   try{
     const raw = localStorage.getItem(LS_ROLE_SESSION);
     if(raw){
       const obj = JSON.parse(raw);
-      const exp = obj.expiresAt ?? obj.exp;
-      if(obj.role && exp && Date.now() < exp){
-        applySession({role: obj.role, clientId: obj.clientId, displayName: obj.displayName, expiresAt: exp});
+      if(obj.role && obj.expiresAt && Date.now() < obj.expiresAt){
+        applySession(obj);
         return;
       }
     }
-  }catch(_){ clearSession(); return; }
+  }catch(_){ }
   clearSession();
 }
 
@@ -2284,38 +2510,27 @@ function applyLanguageStatic(){
   updateLanguageToggle();
 }
 
-function askPinAndEnable(){
-  const pins = SERVER_STATE?.pins || STATE?.pins || null;
-  if(!pins){
-    return;
-  }
-
+async function askPinAndEnable(){
+  if(!sb){ alert("Supabase not configured"); return; }
   const pin = prompt(t("enter_pin_prompt"));
   if(!pin) return;
-  const entered = pin.trim();
-  let role = ROLE_VIEWER;
-  let clientId = null;
-  let displayName = "";
-  if(entered === pins.jesus){
-    role = ROLE_JESUS;
-    displayName = "Jesus";
-  }else if(entered === pins.manager){
-    role = ROLE_MANAGER;
-    displayName = "Encargado";
-  }else{
-    for(const [cid,p] of Object.entries(pins.clients || {})){
-      if(entered === p){
-        role = ROLE_CLIENT;
-        clientId = cid;
-        displayName = CLIENT_NAMES[cid] || cid;
-        break;
-      }
-    }
+  try{
+    const {data, error} = await sb.rpc('rpc_pin_login', {p_pin: pin.trim()});
+    if(error || !data){ alert(t("incorrect_pin")); return; }
+    const role = (data.role || ROLE_VIEWER).toLowerCase();
+    const authorRaw = data.author || displayNameFor(role);
+    const author = role === ROLE_CLIENT ? (authorRaw || "").toUpperCase() : authorRaw;
+    if(role === ROLE_VIEWER){ alert(t("incorrect_pin")); return; }
+    const ttl = role === ROLE_CLIENT ? 7*24*60*60*1000 : 24*60*60*1000;
+    const session = {role, author, pin: pin.trim(), expiresAt: Date.now() + ttl};
+    persistSession(session);
+    applySession(session);
+    toast(t("edit_mode_enabled"));
+    processQueue();
+  }catch(e){
+    console.error(e);
+    alert(t("incorrect_pin"));
   }
-  if(role === ROLE_VIEWER){ alert(t("incorrect_pin")); return; }
-  const ttl = role===ROLE_CLIENT ? 7*24*60*60*1000 : 24*60*60*1000;
-  setRole(role, ttl, clientId, displayName);
-  toast(t("edit_mode_enabled"));
 }
 
 async function loadJSON(path){
@@ -2334,12 +2549,7 @@ function migrateState(state){
 }
 
 function pickInitialState(){
-  const draft = loadDraft();
-  if(draft && draft.items){
-    STATE = migrateState(draft);  // always prefer local draft on this device
-  }else{
-    STATE = migrateState(JSON.parse(JSON.stringify(SERVER_STATE)));
-  }
+  STATE = migrateState({items:{}});
 }
 
 function openModal(ch){
@@ -2406,12 +2616,10 @@ function renderModal(ch){
     const s = getItemState(it.id);
     const prog = getItemProgress(it.id);
     const status = getItemStatus(it.id);
+    const meta = noteMeta[it.id] || {count: 0, previewText: "", thumb: null};
 
     const row = document.createElement("div");
     row.className = "item";
-    const latest = s.notes?.[s.notes.length-1];
-    const thumb = latest?.image || "";
-    const previewText = latest?.text ? esc(latest.text).slice(0,80) : "";
     row.innerHTML = `
       <h4>${it.code} — ${itemDescription(it)}</h4>
       <div class="meta">
@@ -2443,9 +2651,9 @@ function renderModal(ch){
 
       <div style="margin-top:8px">
         <div class="note-preview" data-notes>
-          <span class="badge">${t("notes_title")} (${s.notes?.length || 0})</span>
-          ${thumb ? `<img src="${thumb}" alt="thumb"/>` : ""}
-          <span class="muted">${previewText || t("notes_placeholder")}</span>
+          <span class="badge">${t("notes_title")} (${meta.count || 0})</span>
+          ${meta.thumb ? `<img src="${meta.thumb}" alt="thumb"/>` : ""}
+          <span class="muted">${meta.previewText ? esc(meta.previewText).slice(0,80) : t("notes_placeholder")}</span>
         </div>
       </div>
     `;
@@ -2455,14 +2663,9 @@ function renderModal(ch){
     const statusSel = row.querySelector('[data-status]');
     const notesBtn = row.querySelector('[data-notes]');
 
-    const applyPatch = (patch) => {
+    const applyPatch = (patch, queue=true) => {
       const id = it.id;
-      const prev = getItemState(id);
-      const next = Object.assign({}, prev, patch);
-      STATE.items = STATE.items || {};
-      STATE.items[id] = next;
-      STATE.updated_at = new Date().toISOString();
-      saveDraft();
+      applyLocalProgress(id, patch);
 
       if(patch.progress !== undefined){
         const p = pct(patch.progress);
@@ -2481,11 +2684,16 @@ function renderModal(ch){
       el("mAvg").textContent = `${t("average")}: ${chapterProgress(ch)}%`;
       renderGrid();
       renderSchedule();
+
+      if(queue && canEditProgress()){
+        if(patch.status) enqueueProgressAction(id);
+        if(patch.progress !== undefined) requestProgressSave(id);
+      }
     };
 
     if(canEditProgress()){
-      progInput.addEventListener("input", ()=>applyPatch({progress: parseInt(progInput.value,10)}));
-      statusSel.addEventListener("change", ()=>applyPatch({status: statusSel.value}));
+      progInput.addEventListener("input", ()=>applyPatch({progress: parseInt(progInput.value,10)}, true));
+      statusSel.addEventListener("change", ()=>applyPatch({status: statusSel.value}, true));
     }
     notesBtn.addEventListener("click", ()=>openNotesModal(it));
   }
@@ -2497,34 +2705,93 @@ function fmtDate(ts){
 }
 
 function noteAuthorName(note){
-  return displayNameFor(note.authorRole || ROLE_VIEWER, note.clientId, note.authorName);
+  return displayNameFor(note.role || ROLE_VIEWER, note.author);
 }
 
-function renderNotesFeed(state){
+function createSupabaseClient(){
+  const url = window.SUPABASE_URL || window.__SUPABASE_URL__ || window.SUPABASE_URL_PUBLIC || (window.env && window.env.SUPABASE_URL) || "";
+  const key = window.SUPABASE_KEY || window.SUPABASE_ANON_KEY || window.__SUPABASE_ANON_KEY__ || (window.env && window.env.SUPABASE_ANON_KEY) || "";
+  if(!url || !key || !window.supabase) return null;
+  return supabase.createClient(url, key, {auth:{autoRefreshToken:false, persistSession:false}});
+}
+
+function publicUrlFor(path){
+  if(!sb || !path) return "";
+  const {data} = sb.storage.from("notes").getPublicUrl(path);
+  return data?.publicUrl || "";
+}
+
+function mapNoteRow(row){
+  return {
+    id: row.id,
+    itemId: row.item_id,
+    author: row.author || "—",
+    role: (row.role || ROLE_VIEWER).toLowerCase(),
+    message: row.message || "",
+    images: (row.image_paths || []).map(publicUrlFor),
+    created_at: row.created_at
+  };
+}
+
+function updateNoteMetaFromList(itemId, notes){
+  const list = notes || [];
+  if(!list.length){
+    noteMeta[itemId] = {count:0, previewText:"", thumb:null};
+    return;
+  }
+  const last = list[list.length-1];
+  noteMeta[itemId] = {
+    count: list.length,
+    previewText: last.message || "",
+    thumb: (last.images && last.images[0]) || null,
+    lastAuthor: last.author || ""
+  };
+}
+
+function updateNoteMetaFromNote(note){
+  const meta = noteMeta[note.itemId] || {count:0, previewText:"", thumb:null};
+  meta.count = (meta.count || 0) + 1;
+  meta.previewText = note.message || meta.previewText;
+  meta.thumb = (note.images && note.images[0]) || meta.thumb;
+  meta.lastAuthor = note.author || meta.lastAuthor;
+  noteMeta[note.itemId] = meta;
+}
+
+function applyProgressRecord(rec){
+  if(!rec?.item_id) return;
+  applyLocalProgress(rec.item_id, {progress: rec.progress ?? 0, status: rec.status || 'pending'});
+}
+
+function renderNotesFeed(notes){
   const feed = el("notesFeed");
   feed.innerHTML = "";
-  const notes = state.notes || [];
-  for(const n of notes){
+  for(const n of (notes || [])){
     const wrap = document.createElement("div");
     wrap.className = "bubble";
-    if(n.image){
+    for(const src of (n.images || [])){
+      if(!src) continue;
       const img = document.createElement("img");
-      img.src = n.image;
+      img.src = src;
       img.alt = "note photo";
-      img.addEventListener("click", ()=>window.open(n.image, "_blank"));
+      img.addEventListener("click", ()=>window.open(src, "_blank"));
       wrap.appendChild(img);
     }
-    if(n.text){
+    if(n.message){
       const p = document.createElement("div");
-      p.textContent = n.text;
+      p.textContent = n.message;
       wrap.appendChild(p);
     }
     const meta = document.createElement("div");
     meta.className = "note-meta";
     meta.textContent = noteAuthorName(n) || "-";
     const ts = document.createElement("span");
-    ts.textContent = fmtDate(n.ts);
+    ts.textContent = fmtDate(n.created_at || n.ts || new Date());
     meta.appendChild(ts);
+    if(n.pending){
+      const pending = document.createElement("span");
+      pending.textContent = " • pending";
+      meta.appendChild(pending);
+    }
     wrap.appendChild(meta);
     feed.appendChild(wrap);
   }
@@ -2571,21 +2838,39 @@ async function compressImage(file){
   return out;
 }
 
-function openNotesModal(item){
-  const state = getItemState(item.id);
+function toggleNotesInputVisibility(){
+  const panel = el("notesInputPanel");
+  if(panel) panel.style.display = canEditNotes() ? "flex" : "none";
+}
+
+function setNotesMetaText(itemId){
+  const metaObj = noteMeta[itemId] || {};
+  const count = metaObj.count ?? (notesCache[itemId]?.notes?.length || 0) || 0;
+  el("notesMeta").textContent = fmt(t("notes_meta"), {count});
+}
+
+async function openNotesModal(item){
+  currentNotesItemId = item.id;
   el("notesTitle").textContent = `${item.code} — ${itemDescription(item)}`;
-  el("notesMeta").textContent = fmt(t("notes_meta"), {count: state.notes?.length || 0});
-  renderNotesFeed(state);
-  el("notesInputPanel").style.display = canEditNotes() ? "flex" : "none";
   el("notesModal").dataset.itemId = item.id;
+  toggleNotesInputVisibility();
+  const cache = notesCache[item.id] || {notes:[]};
+  setNotesMetaText(item.id);
+  renderNotesFeed(cache.notes);
   el("notesModal").style.display = "flex";
   resetNoteComposer();
   if(canEditNotes()) el("noteText").focus();
+  await loadNotesForItem(item.id);
+  setNotesMetaText(item.id);
+  if(currentNotesItemId === item.id){
+    renderNotesFeed(notesCache[item.id]?.notes || []);
+  }
 }
 
 function closeNotesModal(){
   el("notesModal").style.display = "none";
   el("notesModal").dataset.itemId = "";
+  currentNotesItemId = null;
 }
 
 async function pickPhoto(){
@@ -2602,36 +2887,65 @@ function setPhotoPreview(url){
   box.appendChild(img);
 }
 
-function addNoteToState(itemId, note){
-  const prev = getItemState(itemId);
-  const nextNotes = (prev.notes || []).concat([note]);
-  STATE.items = STATE.items || {};
-  STATE.items[itemId] = Object.assign({}, prev, {notes: nextNotes});
-  STATE.updated_at = new Date().toISOString();
-  saveDraft();
+function addNoteToCache(itemId, note){
+  const bucket = notesCache[itemId] || {notes:[], loaded:false};
+  bucket.notes.push(note);
+  notesCache[itemId] = bucket;
+  updateNoteMetaFromList(itemId, bucket.notes);
 }
 
 async function sendNote(){
   if(!canEditNotes()) return;
+  if(!currentSession.pin){ alert(t("enter_pin_prompt")); return; }
   const itemId = el("notesModal").dataset.itemId;
   if(!itemId) return;
   const text = el("noteText").value.trim();
   if(!text && !noteDraftImage) return;
-  const note = {
-    id: `n_${Date.now()}_${Math.random().toString(16).slice(2,6)}`,
-    ts: new Date().toISOString(),
-    authorRole: currentRole,
-    authorName: roleLabel(),
-    text,
-    image: noteDraftImage
+  const imagesToSend = noteDraftImage ? [noteDraftImage] : [];
+  const optimistic = {
+    id: `local_${Date.now()}_${Math.random().toString(16).slice(2,6)}`,
+    itemId,
+    author: currentAuthor,
+    role: currentRole,
+    message: text,
+    images: imagesToSend,
+    created_at: new Date().toISOString(),
+    pending: true
   };
-  addNoteToState(itemId, note);
-  const state = getItemState(itemId);
-  el("notesMeta").textContent = fmt(t("notes_meta"), {count: state.notes?.length || 0});
-  renderNotesFeed(state);
+  addNoteToCache(itemId, optimistic);
+  renderNotesFeed(notesCache[itemId].notes);
   resetNoteComposer();
-  renderGrid();
-  if(currentChapter) renderModal(currentChapter);
+  const action = {
+    type: 'note',
+    itemId,
+    message: text,
+    images: imagesToSend,
+    pin: currentSession.pin,
+    createdAt: Date.now()
+  };
+  enqueueAction(action);
+  setNotesMetaText(itemId);
+}
+
+async function loadNotesForItem(itemId, force){
+  if(!sb) return;
+  const cache = notesCache[itemId];
+  if(cache?.loading) return;
+  if(cache?.loaded && !force) return;
+  notesCache[itemId] = Object.assign({}, cache, {loading:true});
+  try{
+    const {data, error} = await sb.from('item_notes').select('*').eq('project_slug', PROJECT_SLUG).eq('item_id', itemId).order('created_at');
+    if(error){ console.error(error); return; }
+    const mapped = (data || []).map(mapNoteRow);
+    notesCache[itemId] = {notes: mapped, loaded:true, loading:false};
+    updateNoteMetaFromList(itemId, mapped);
+    if(currentNotesItemId === itemId){
+      renderNotesFeed(mapped);
+      setNotesMetaText(itemId);
+    }
+    renderGrid();
+    if(currentChapter) renderModal(currentChapter);
+  }catch(e){ console.error(e); }
 }
 
 function renderPlans(){
@@ -2807,6 +3121,7 @@ function renderAll(){
 }
 
 async function boot(){
+  pendingActions = loadPendingQueue();
   try{ DATA = await loadJSON("./data.json"); }
   catch(_e){ /* keep inline data */ }
   normalizeData();
@@ -2814,10 +3129,8 @@ async function boot(){
   DATA.project.language = currentLanguage();
   currentPlan = (DATA.plans || [])[0] || null;
 
-  try{ SERVER_STATE = await loadJSON("./state.json"); }
-  catch(_e){ SERVER_STATE = {version:1, updated_at:null, items:{}}; }
-
   pickInitialState();
+  sb = createSupabaseClient();
   applyLanguageStatic();
 
   const start = localStorage.getItem(LS_START) || DATA.project.start_date || "2025-12-11";
@@ -2827,10 +3140,15 @@ async function boot(){
     renderSchedule();
   });
 
-  restoreRole();
-
+  restoreSession();
+  updateSoundButton();
   updateStatusLine();
   renderAll();
+  if(sb){
+    await loadProgressFromSupabase();
+    subscribeRealtime();
+    processQueue();
+  }
 }
 
 el("tabProgress").addEventListener("click", ()=>setTab("progress"));
@@ -2849,6 +3167,7 @@ el("btnClose").addEventListener("click", closeModal);
 el("modal").addEventListener("click", (e)=>{ if(e.target.id==="modal") closeModal(); });
 el("btnCloseNotes").addEventListener("click", closeNotesModal);
 el("notesModal").addEventListener("click", (e)=>{ if(e.target.id==="notesModal") closeNotesModal(); });
+el("btnSound").addEventListener("click", toggleSound);
 el("btnAttach").addEventListener("click", pickPhoto);
 el("photoPicker").addEventListener("change", async(e)=>{
   const f=e.target.files?.[0];
@@ -2864,6 +3183,7 @@ el("btnExport").addEventListener("click", exportState);
 el("btnImport").addEventListener("click", ()=>el("importFile").click());
 el("importFile").addEventListener("change", (e)=>{ const f=e.target.files?.[0]; if(f) importState(f); e.target.value=""; });
 el("btnResetDraft").addEventListener("click", ()=>{ if(confirm(t("discard_confirm"))) discardDraft(); });
+window.addEventListener("online", ()=>processQueue());
 
 boot();
 </script>
