@@ -48,6 +48,8 @@ header{background:var(--ink);color:#fff;position:relative}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
 .muted{color:var(--muted);font-size:13px}
 .pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);padding:4px 10px;border-radius:999px;font-size:12px;background:#fbfcfd}
+.pill-unread{border-color:#fcbf49;background:#fff7d6;color:#8b5b00;box-shadow:0 0 0 1px #ffe8a3 inset}
+.pill-unread-badge{display:inline-flex;align-items:center;justify-content:center;min-width:30px;padding:2px 8px;border-radius:12px;background:#b54708;color:#fff;font-weight:900;font-size:11px}
 .progress{height:9px;background:#eef2f6;border-radius:999px;overflow:hidden}
 .progress>div{height:100%;background:var(--ink);width:0%}
 /* Toolbar */
@@ -69,6 +71,11 @@ header{background:var(--ink);color:#fff;position:relative}
 .controls{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .range{display:flex;gap:10px;align-items:center;border:1px solid var(--line);background:#fbfcfd;border-radius:14px;padding:6px 10px}
 .range input{width:200px}
+.item-unread{border-color:#fcbf49;box-shadow:0 0 0 1px #ffe8a3 inset, 0 10px 30px rgba(251,191,36,.2)}
+.inbox-list{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.inbox-item{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);border-radius:12px;background:#fbfcfd;cursor:pointer}
+.inbox-item:hover{background:#fff}
+.inbox-title{margin:0}
 select, textarea, button{font:inherit}
 select{padding:10px;border-radius:14px;border:1px solid var(--line)}
 textarea{width:100%;min-height:56px;border-radius:14px;border:1px solid var(--line);padding:10px}
@@ -78,6 +85,7 @@ textarea{width:100%;min-height:56px;border-radius:14px;border:1px solid var(--li
 .statusBlocked{border-color:#fda29b;background:#fff5f5}
 .badge{font-weight:900}
 .note-preview{border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;align-items:center;gap:10px;background:#fbfcfd;cursor:pointer}
+.note-preview.unread{border-color:#fcbf49;background:#fff7d6}
 .note-preview img{width:38px;height:38px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
 .note-preview .muted{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .notes-feed{flex:1;overflow:auto;display:flex;flex-direction:column;gap:12px;padding:4px 2px}
@@ -146,6 +154,16 @@ code{background:#10182810;padding:2px 6px;border-radius:8px}
     <div class="toolbar">
       <input id="search" placeholder="Search items (code or description)..." />
       <div class="muted hint" id="statusLine"></div>
+    </div>
+    <div style="height:12px"></div>
+    <div class="card" id="inboxCard" style="display:none">
+      <div class="body">
+        <div class="row" style="justify-content:flex-start;gap:10px">
+          <h3 class="inbox-title" id="inboxTitle">Inbox</h3>
+          <span class="pill pill-unread" id="inboxCount"></span>
+        </div>
+        <div class="inbox-list" id="inboxList"></div>
+      </div>
     </div>
     <div style="height:12px"></div>
     <div class="grid" id="chaptersGrid"></div>
@@ -245,6 +263,8 @@ code{background:#10182810;padding:2px 6px;border-radius:8px}
       <div class="row" style="justify-content:flex-start;gap:10px">
         <span class="pill" id="mCount"></span>
         <span class="pill" id="mAvg"></span>
+        <span class="pill pill-unread" id="mUnread"></span>
+        <button id="toggleUnread" class="smallbtn" type="button">Solo nuevas</button>
         <select id="filterStatus">
           <option value="">All</option>
           <option value="pending">Pending</option>
@@ -368,7 +388,10 @@ const I18N = {
     write_note: "Write a note...",
     send: "Send",
     attach: "Attach photo",
-    pins_warning: "Pins not configured"
+    pins_warning: "Pins not configured",
+    inbox: "Inbox",
+    new_label: "New",
+    new_only: "Only new"
   },
   es: {
     project_title: "Copo 23 (El Saladillo) – Portal de progreso",
@@ -444,7 +467,10 @@ const I18N = {
     write_note: "Escribe una nota...",
     send: "Enviar",
     attach: "Adjuntar foto",
-    pins_warning: "Pins no configurados"
+    pins_warning: "Pins no configurados",
+    inbox: "Buzón",
+    new_label: "Nuevas",
+    new_only: "Solo nuevas"
   },
   nl: {
     project_title: "Copo 23 (El Saladillo) – Voortgangsportaal",
@@ -520,7 +546,10 @@ const I18N = {
     write_note: "Schrijf een notitie...",
     send: "Versturen",
     attach: "Foto toevoegen",
-    pins_warning: "Pincodes niet geconfigureerd"
+    pins_warning: "Pincodes niet geconfigureerd",
+    inbox: "Inbox",
+    new_label: "Nieuw",
+    new_only: "Alleen nieuw"
   }
 };
 
@@ -2012,6 +2041,10 @@ let noteDraftImage = null;
 let notesCache = {};
 let noteMeta = {};
 let countsByItemId = {};
+let unreadByItemId = {};
+let lastAtByItemId = {};
+let itemIndexById = {};
+let showOnlyUnread = false;
 let pendingActions = [];
 let processingQueue = false;
 let lastSyncedAt = null;
@@ -2064,6 +2097,22 @@ function setNoteCount(itemId, count){
   }
 }
 
+function setUnreadCount(itemId, count){
+  unreadByItemId[itemId] = Math.max(0, count || 0);
+}
+
+function getUnreadCount(itemId){
+  return Math.max(0, unreadByItemId[itemId] || 0);
+}
+
+function setLastAt(itemId, ts){
+  if(ts) lastAtByItemId[itemId] = ts;
+}
+
+function getLastAt(itemId){
+  return lastAtByItemId[itemId] || null;
+}
+
 function getNoteCount(itemId){
   if(noteMeta[itemId]?.count !== undefined) return noteMeta[itemId].count;
   if(countsByItemId[itemId] !== undefined) return countsByItemId[itemId];
@@ -2073,8 +2122,13 @@ function getNoteCount(itemId){
 
 function noteMetaFor(itemId){
   const baseCount = getNoteCount(itemId);
+  const baseUnread = getUnreadCount(itemId);
   const meta = noteMeta[itemId] || {};
-  return Object.assign({count: baseCount, previewText:"", thumb:null}, meta, {count: meta.count ?? baseCount});
+  return Object.assign({count: baseCount, unread: baseUnread, previewText:"", thumb:null, lastAt: getLastAt(itemId)}, meta, {
+    count: meta.count ?? baseCount,
+    unread: meta.unread ?? baseUnread,
+    lastAt: meta.lastAt ?? getLastAt(itemId)
+  });
 }
 
 function loadDraft(){ return null; }
@@ -2210,6 +2264,12 @@ function chapterProgress(ch){
   return Math.round(sum/ch.items.length);
 }
 
+function chapterUnreadCount(ch){
+  let sum = 0;
+  for(const it of ch.items || []) sum += getUnreadCount(it.id);
+  return sum;
+}
+
 function overallProgress(){
   let sum=0, n=0;
   for(const ch of DATA.chapters){
@@ -2329,16 +2389,41 @@ async function loadProgressFromSupabase(){
 async function loadNoteCountsFromSupabase(){
   if(!sb) return;
   try{
-    const { data, error } = await sb
-      .from('item_note_counts')
-      .select('item_id, note_count')
-      .eq('project_slug', PROJECT_SLUG);
-    if(error){ console.error(error); return; }
-    countsByItemId = {};
-    for(const row of data || []){
-      setNoteCount(row.item_id, row.note_count ?? 0);
+    if(currentSession.pin){
+      const {data, error} = await sb.rpc('rpc_get_item_note_meta', {p_pin: currentSession.pin, p_project_slug: PROJECT_SLUG});
+      if(error){ console.error(error); return; }
+      countsByItemId = {};
+      unreadByItemId = {};
+      lastAtByItemId = {};
+      for(const row of data || []){
+        setNoteCount(row.item_id, row.note_count ?? 0);
+        setUnreadCount(row.item_id, row.unread_count ?? 0);
+        setLastAt(row.item_id, row.last_at || null);
+        if(noteMeta[row.item_id]){
+          noteMeta[row.item_id].unread = getUnreadCount(row.item_id);
+          noteMeta[row.item_id].lastAt = getLastAt(row.item_id);
+        }
+      }
+    }else{
+      const { data, error } = await sb
+        .from('item_note_counts')
+        .select('item_id, note_count')
+        .eq('project_slug', PROJECT_SLUG);
+      if(error){ console.error(error); return; }
+      countsByItemId = {};
+      unreadByItemId = {};
+      lastAtByItemId = {};
+      for(const row of data || []){
+        setNoteCount(row.item_id, row.note_count ?? 0);
+        setUnreadCount(row.item_id, 0);
+      }
+    }
+    for(const key of Object.keys(noteMeta)){
+      noteMeta[key].unread = getUnreadCount(key);
+      noteMeta[key].lastAt = noteMeta[key].lastAt || getLastAt(key);
     }
     if(currentNotesItemId) setNotesMetaText(currentNotesItemId);
+    renderInbox();
     renderGrid();
     if(currentChapter) renderModal(currentChapter);
   }catch(e){ console.error(e); }
@@ -2357,18 +2442,26 @@ function handleRealtimeNote(payload){
   const row = payload?.new;
   if(!row || row.project_slug !== PROJECT_SLUG) return;
   const note = mapNoteRow(row);
+  setLastAt(note.itemId, note.created_at);
+  const isOwnNote = note.author && currentAuthor && note.author.toUpperCase() === currentAuthor.toUpperCase();
   if(notesCache[note.itemId]){
     notesCache[note.itemId].notes.push(note);
     updateNoteMetaFromList(note.itemId, notesCache[note.itemId].notes);
   }else{
     updateNoteMetaFromNote(note);
   }
+  if(currentSession.pin && !isOwnNote && currentNotesItemId !== note.itemId){
+    setUnreadCount(note.itemId, getUnreadCount(note.itemId) + 1);
+    if(noteMeta[note.itemId]) noteMeta[note.itemId].unread = getUnreadCount(note.itemId);
+  }
   if(currentNotesItemId === note.itemId){
     renderNotesFeed(notesCache[note.itemId]?.notes || [note]);
     setNotesMetaText(note.itemId);
+    if(currentSession.pin) markItemNotesRead(note.itemId);
   }
   renderGrid();
   if(currentChapter) renderModal(currentChapter);
+  renderInbox();
   if(note.author && currentAuthor && note.author.toUpperCase() !== currentAuthor.toUpperCase()){
     maybePlayPing(note.author);
   }
@@ -2421,6 +2514,15 @@ function normalizeData(){
     p.title_en = p.title_en || p.title || p.file;
     p.title_es = p.title_es || "";
     p.title_nl = p.title_nl || p.title_en || "";
+  }
+}
+
+function buildItemIndex(){
+  itemIndexById = {};
+  for(const ch of DATA?.chapters || []){
+    for(const it of ch.items || []){
+      itemIndexById[it.id] = {item: it, chapter: ch};
+    }
   }
 }
 
@@ -2491,6 +2593,8 @@ function applySession(session){
   toggleNotesInputVisibility();
   updateStatusLine();
   if(currentChapter) renderModal(currentChapter);
+  loadNoteCountsFromSupabase();
+  renderInbox();
 }
 
 function persistSession(session){
@@ -2556,6 +2660,8 @@ function applyLanguageStatic(){
   el("notesTitle").textContent = t("notes_title");
   el("noteText").placeholder = t("write_note");
   el("btnSendNote").textContent = t("send");
+  el("inboxTitle").textContent = t("inbox");
+  el("toggleUnread").textContent = t("new_only");
 
   const filter = el("filterStatus");
   if(filter){
@@ -2621,6 +2727,52 @@ function closeModal(){
   currentChapter = null;
 }
 
+function renderInbox(){
+  const card = el("inboxCard");
+  const list = el("inboxList");
+  const count = el("inboxCount");
+  if(!card || !list || !count) return;
+
+  const unreadItems = [];
+  for(const [id, entry] of Object.entries(itemIndexById || {})){
+    const unread = getUnreadCount(id);
+    if(unread > 0 && entry?.item && entry?.chapter){
+      unreadItems.push({unread, item: entry.item, chapter: entry.chapter, lastAt: getLastAt(id)});
+    }
+  }
+
+  unreadItems.sort((a,b)=>{
+    const aDate = a.lastAt ? new Date(a.lastAt).getTime() : 0;
+    const bDate = b.lastAt ? new Date(b.lastAt).getTime() : 0;
+    return bDate - aDate;
+  });
+
+  if(!unreadItems.length){
+    card.style.display = "none";
+    list.innerHTML = "";
+    return;
+  }
+
+  card.style.display = "block";
+  const totalUnread = unreadItems.reduce((sum, it)=>sum + (it.unread || 0), 0);
+  count.textContent = `${t("new_label")}: ${totalUnread}`;
+
+  list.innerHTML = "";
+  for(const entry of unreadItems){
+    const row = document.createElement("div");
+    row.className = "inbox-item";
+    row.innerHTML = `
+      <span class="pill-unread-badge">+${entry.unread}</span>
+      <div style="flex:1">
+        <div><strong>${entry.item.code}</strong> — ${itemDescription(entry.item)}</div>
+        <div class="muted">${chapterLabel(entry.chapter)} · ${fmtDate(entry.lastAt || new Date())}</div>
+      </div>
+    `;
+    row.addEventListener("click", ()=>{ openModal(entry.chapter); openNotesModal(entry.item); });
+    list.appendChild(row);
+  }
+}
+
 function renderGrid(){
   const q = (el("search").value || "").trim().toLowerCase();
   const grid = el("chaptersGrid");
@@ -2660,6 +2812,15 @@ function renderModal(ch){
   el("mSub").textContent = `${roleLabel()} · ${canEditNotes()||canEditProgress() ? t("edit_enabled_device") : t("read_only_view")}`;
   el("mCount").textContent = `${ch.items.length} ${t("items")}`;
   el("mAvg").textContent = `${t("average")}: ${chapterProgress(ch)}%`;
+  const unreadCh = chapterUnreadCount(ch);
+  el("mUnread").textContent = `${t("new_label")}: ${unreadCh}`;
+  el("mUnread").style.display = "inline-flex";
+
+  const unreadBtn = el("toggleUnread");
+  if(unreadBtn){
+    unreadBtn.classList.toggle("active", showOnlyUnread);
+    unreadBtn.textContent = t("new_only");
+  }
 
   const q = (el("search").value || "").trim().toLowerCase();
   const f = el("filterStatus").value;
@@ -2667,6 +2828,7 @@ function renderModal(ch){
   let its = ch.items.slice();
   if(q) its = its.filter(it => (it.code||"").toLowerCase().includes(q) || itemDescription(it).toLowerCase().includes(q));
   if(f) its = its.filter(it => getItemStatus(it.id) === f);
+  if(showOnlyUnread) its = its.filter(it => getUnreadCount(it.id) > 0);
 
   const list = el("itemsList");
   list.innerHTML = "";
@@ -2676,9 +2838,11 @@ function renderModal(ch){
     const prog = getItemProgress(it.id);
     const status = getItemStatus(it.id);
     const meta = noteMetaFor(it.id);
+    const unread = meta.unread ?? 0;
+    const notePreviewClass = unread>0 ? "note-preview unread" : "note-preview";
 
     const row = document.createElement("div");
-    row.className = "item";
+    row.className = "item" + (unread>0 ? " item-unread" : "");
     row.innerHTML = `
       <h4>${it.code} — ${itemDescription(it)}</h4>
       <div class="meta">
@@ -2709,8 +2873,9 @@ function renderModal(ch){
       </div>
 
       <div style="margin-top:8px">
-        <div class="note-preview" data-notes>
+        <div class="${notePreviewClass}" data-notes>
           <span class="badge">${t("notes_title")} (${meta.count || 0})</span>
+          ${unread>0 ? `<span class="pill-unread-badge">+${unread}</span>` : ""}
           ${meta.thumb ? `<img src="${meta.thumb}" alt="thumb"/>` : ""}
           <span class="muted">${meta.previewText ? esc(meta.previewText).slice(0,80) : t("notes_placeholder")}</span>
         </div>
@@ -2796,7 +2961,8 @@ function updateNoteMetaFromList(itemId, notes){
   const list = notes || [];
   if(!list.length){
     setNoteCount(itemId, 0);
-    noteMeta[itemId] = {count:0, previewText:"", thumb:null};
+    setUnreadCount(itemId, getUnreadCount(itemId));
+    noteMeta[itemId] = {count:0, previewText:"", thumb:null, lastAt:null, unread:getUnreadCount(itemId)};
     return;
   }
   const last = list[list.length-1];
@@ -2805,8 +2971,11 @@ function updateNoteMetaFromList(itemId, notes){
     count: list.length,
     previewText: last.message || "",
     thumb: (last.images && last.images[0]) || null,
-    lastAuthor: last.author || ""
+    lastAuthor: last.author || "",
+    lastAt: last.created_at || last.ts || null,
+    unread: getUnreadCount(itemId)
   };
+  setLastAt(itemId, noteMeta[itemId].lastAt);
 }
 
 function updateNoteMetaFromNote(note){
@@ -2817,6 +2986,9 @@ function updateNoteMetaFromNote(note){
   meta.previewText = note.message || meta.previewText;
   meta.thumb = (note.images && note.images[0]) || meta.thumb;
   meta.lastAuthor = note.author || meta.lastAuthor;
+  meta.lastAt = note.created_at || meta.lastAt || null;
+  meta.unread = getUnreadCount(note.itemId);
+  setLastAt(note.itemId, meta.lastAt);
   noteMeta[note.itemId] = meta;
 }
 
@@ -2920,6 +3092,7 @@ async function openNotesModal(item){
   if(canEditNotes()) el("noteText").focus();
   await loadNotesForItem(item.id);
   setNotesMetaText(item.id);
+  markItemNotesRead(item.id);
   if(currentNotesItemId === item.id){
     renderNotesFeed(notesCache[item.id]?.notes || []);
   }
@@ -2950,6 +3123,18 @@ function addNoteToCache(itemId, note){
   bucket.notes.push(note);
   notesCache[itemId] = bucket;
   updateNoteMetaFromList(itemId, bucket.notes);
+}
+
+async function markItemNotesRead(itemId){
+  setUnreadCount(itemId, 0);
+  if(noteMeta[itemId]) noteMeta[itemId].unread = 0;
+  renderInbox();
+  renderGrid();
+  if(currentChapter) renderModal(currentChapter);
+  if(!sb || !currentSession.pin) return;
+  try{
+    await sb.rpc('rpc_mark_item_read', {p_pin: currentSession.pin, p_project_slug: PROJECT_SLUG, p_item_id: itemId});
+  }catch(e){ console.error(e); }
 }
 
 async function sendNote(){
@@ -3174,6 +3359,7 @@ function importState(file){
 
 function renderAll(){
   renderGrid();
+  renderInbox();
   if(currentChapter) renderModal(currentChapter);
   renderSchedule();
   renderPlans();
@@ -3184,6 +3370,7 @@ async function boot(){
   try{ DATA = await loadJSON("./data.json"); }
   catch(_e){ /* keep inline data */ }
   normalizeData();
+  buildItemIndex();
   DATA.project = DATA.project || {};
   DATA.project.language = currentLanguage();
   currentPlan = (DATA.plans || [])[0] || null;
@@ -3222,6 +3409,7 @@ el("langEs").addEventListener("click", ()=>setLanguage("es"));
 
 el("search").addEventListener("input", ()=>{ renderGrid(); if(currentChapter) renderModal(currentChapter); });
 el("filterStatus").addEventListener("change", ()=>{ if(currentChapter) renderModal(currentChapter); });
+el("toggleUnread").addEventListener("click", ()=>{ showOnlyUnread = !showOnlyUnread; if(currentChapter) renderModal(currentChapter); });
 
 el("btnClose").addEventListener("click", closeModal);
 el("modal").addEventListener("click", (e)=>{ if(e.target.id==="modal") closeModal(); });
