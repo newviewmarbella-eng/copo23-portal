@@ -2011,6 +2011,7 @@ let currentPlan = (DATA.plans || [])[0] || null;
 let noteDraftImage = null;
 let notesCache = {};
 let noteMeta = {};
+let countsByItemId = {};
 let pendingActions = [];
 let processingQueue = false;
 let lastSyncedAt = null;
@@ -2054,6 +2055,26 @@ function migrateItemState(s){
   if(!s) return base;
   const next = Object.assign({}, base, s);
   return next;
+}
+
+function setNoteCount(itemId, count){
+  countsByItemId[itemId] = count;
+  if(noteMeta[itemId]){
+    noteMeta[itemId].count = count;
+  }
+}
+
+function getNoteCount(itemId){
+  if(noteMeta[itemId]?.count !== undefined) return noteMeta[itemId].count;
+  if(countsByItemId[itemId] !== undefined) return countsByItemId[itemId];
+  if(notesCache[itemId]?.notes) return notesCache[itemId].notes.length;
+  return 0;
+}
+
+function noteMetaFor(itemId){
+  const baseCount = getNoteCount(itemId);
+  const meta = noteMeta[itemId] || {};
+  return Object.assign({count: baseCount, previewText:"", thumb:null}, meta, {count: meta.count ?? baseCount});
 }
 
 function loadDraft(){ return null; }
@@ -2302,6 +2323,24 @@ async function loadProgressFromSupabase(){
     lastSyncedAt = new Date().toISOString();
     renderAll();
     updateStatusLine();
+  }catch(e){ console.error(e); }
+}
+
+async function loadNoteCountsFromSupabase(){
+  if(!sb) return;
+  try{
+    const { data, error } = await sb
+      .from('item_note_counts')
+      .select('item_id, note_count')
+      .eq('project_slug', PROJECT_SLUG);
+    if(error){ console.error(error); return; }
+    countsByItemId = {};
+    for(const row of data || []){
+      setNoteCount(row.item_id, row.note_count ?? 0);
+    }
+    if(currentNotesItemId) setNotesMetaText(currentNotesItemId);
+    renderGrid();
+    if(currentChapter) renderModal(currentChapter);
   }catch(e){ console.error(e); }
 }
 
@@ -2636,7 +2675,7 @@ function renderModal(ch){
     const s = getItemState(it.id);
     const prog = getItemProgress(it.id);
     const status = getItemStatus(it.id);
-    const meta = noteMeta[it.id] || {count: 0, previewText: "", thumb: null};
+    const meta = noteMetaFor(it.id);
 
     const row = document.createElement("div");
     row.className = "item";
@@ -2756,10 +2795,12 @@ function mapNoteRow(row){
 function updateNoteMetaFromList(itemId, notes){
   const list = notes || [];
   if(!list.length){
+    setNoteCount(itemId, 0);
     noteMeta[itemId] = {count:0, previewText:"", thumb:null};
     return;
   }
   const last = list[list.length-1];
+  setNoteCount(itemId, list.length);
   noteMeta[itemId] = {
     count: list.length,
     previewText: last.message || "",
@@ -2769,8 +2810,10 @@ function updateNoteMetaFromList(itemId, notes){
 }
 
 function updateNoteMetaFromNote(note){
-  const meta = noteMeta[note.itemId] || {count:0, previewText:"", thumb:null};
-  meta.count = (meta.count || 0) + 1;
+  const meta = noteMeta[note.itemId] || {count: getNoteCount(note.itemId), previewText:"", thumb:null};
+  const nextCount = (countsByItemId[note.itemId] ?? meta.count ?? 0) + 1;
+  meta.count = nextCount;
+  setNoteCount(note.itemId, nextCount);
   meta.previewText = note.message || meta.previewText;
   meta.thumb = (note.images && note.images[0]) || meta.thumb;
   meta.lastAuthor = note.author || meta.lastAuthor;
@@ -2860,7 +2903,7 @@ function toggleNotesInputVisibility(){
 
 function setNotesMetaText(itemId){
   const metaObj = noteMeta[itemId] || {};
-  const count = metaObj.count ?? (notesCache[itemId]?.notes?.length ?? 0);
+  const count = metaObj.count ?? getNoteCount(itemId);
   el("notesMeta").textContent = fmt(t("notes_meta"), {count});
 }
 
@@ -3159,6 +3202,7 @@ async function boot(){
   restoreSession();
   updateSoundButton();
   updateStatusLine();
+  await loadNoteCountsFromSupabase();
   renderAll();
   if(sb){
     await loadProgressFromSupabase();
