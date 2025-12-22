@@ -2534,17 +2534,16 @@ function applyLanguageStatic(){
 
 async function askPinAndEnable(){
   if(!sb){ toggleSupabaseBanner(true); return; }
-  const pin = prompt(t("enter_pin_prompt"));
-  if(!pin) return;
+  const pinInput = prompt(t("enter_pin_prompt"));
+  if(!pinInput) return;
   try{
-    const {data, error} = await sb.rpc('rpc_pin_login', {p_pin: pin.trim()});
-    if(error || !data){ alert(t("incorrect_pin")); return; }
-    const role = (data.role || ROLE_VIEWER).toLowerCase();
-    const authorRaw = data.author || displayNameFor(role);
-    const author = role === ROLE_CLIENT ? (authorRaw || "").toUpperCase() : authorRaw;
-    if(role === ROLE_VIEWER){ alert(t("incorrect_pin")); return; }
-    const ttl = role === ROLE_CLIENT ? 7*24*60*60*1000 : 24*60*60*1000;
-    const session = {role, author, pin: pin.trim(), expiresAt: Date.now() + ttl};
+    const p = String(pinInput || '').trim();
+    const { data, error } = await sb.rpc('rpc_pin_login', { p_pin: p });
+    if (error) { console.error(error); alert("PIN login error: " + error.message); return; }
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row?.author || !row?.role) { alert("Invalid PIN"); return; }
+
+    const session = {pin: p, author: row.author, role: row.role};
     persistSession(session);
     applySession(session);
     toast(t("edit_mode_enabled"));
