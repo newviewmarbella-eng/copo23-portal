@@ -2238,12 +2238,11 @@ async function performNoteAction(action){
   if(!action?.pin) return 'drop';
   const imagePaths = [];
   for(const img of action.images || []){
-    const fname = `${Date.now()}_${Math.random().toString(16).slice(2,6)}.jpg`;
-    const path = `${PROJECT_SLUG}/${action.itemId}/${fname}`;
+    const path = `${PROJECT_SLUG}/${action.itemId}/${Date.now()}_${Math.random().toString(16).slice(2)}.jpg`;
     try{
-      const file = dataUrlToFile(img, fname);
-      const {error} = await sb.storage.from('notes').upload(path, file, {contentType:'image/jpeg', upsert:false});
-      if(error) throw error;
+      const jpegBlob = await (await fetch(img)).blob();
+      const {error: upErr} = await sb.storage.from('notes').upload(path, jpegBlob, {contentType:'image/jpeg', upsert:false});
+      if(upErr) throw upErr;
       imagePaths.push(path);
     }catch(e){
       console.error(e);
@@ -2808,11 +2807,6 @@ function renderNotesFeed(notes){
     const ts = document.createElement("span");
     ts.textContent = fmtDate(n.created_at || n.ts || new Date());
     meta.appendChild(ts);
-    if(n.pending){
-      const pending = document.createElement("span");
-      pending.textContent = " • pending";
-      meta.appendChild(pending);
-    }
     wrap.appendChild(meta);
     feed.appendChild(wrap);
   }
@@ -2918,34 +2912,35 @@ function addNoteToCache(itemId, note){
 async function sendNote(){
   if(!canEditNotes()) return;
   if(!currentSession.pin){ alert(t("enter_pin_prompt")); return; }
+  if(!sb){ alert("Supabase not configured"); return; }
   const itemId = el("notesModal").dataset.itemId;
   if(!itemId) return;
   const text = el("noteText").value.trim();
   if(!text && !noteDraftImage) return;
-  const imagesToSend = noteDraftImage ? [noteDraftImage] : [];
-  const optimistic = {
-    id: `local_${Date.now()}_${Math.random().toString(16).slice(2,6)}`,
-    itemId,
-    author: currentAuthor,
-    role: currentRole,
-    message: text,
-    images: imagesToSend,
-    created_at: new Date().toISOString(),
-    pending: true
-  };
-  addNoteToCache(itemId, optimistic);
-  renderNotesFeed(notesCache[itemId].notes);
-  resetNoteComposer();
-  const action = {
-    type: 'note',
-    itemId,
-    message: text,
-    images: imagesToSend,
-    pin: currentSession.pin,
-    createdAt: Date.now()
-  };
-  enqueueAction(action);
+  const imagePaths = [];
+  if(noteDraftImage){
+    const path = `${PROJECT_SLUG}/${itemId}/${Date.now()}_${Math.random().toString(16).slice(2)}.jpg`;
+    const jpegBlob = await (await fetch(noteDraftImage)).blob();
+    const {error: upErr} = await sb.storage.from('notes').upload(path, jpegBlob, {
+      contentType: 'image/jpeg',
+      upsert: false
+    });
+    if(upErr){ alert("Upload failed: " + upErr.message); return; }
+    imagePaths.push(path);
+  }
+
+  const {error} = await sb.rpc('rpc_add_item_note', {
+    p_pin: currentSession.pin,
+    p_project_slug: PROJECT_SLUG,
+    p_item_id: itemId,
+    p_message: text,
+    p_image_paths: imagePaths
+  });
+  if(error){ alert(error.message || "Failed to add note"); return; }
+
+  await loadNotesForItem(itemId, true);
   setNotesMetaText(itemId);
+  resetNoteComposer();
 }
 
 async function loadNotesForItem(itemId, force){
