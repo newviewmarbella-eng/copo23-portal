@@ -100,6 +100,17 @@ textarea{width:100%;min-height:56px;border-radius:14px;border:1px solid var(--li
 .notes-preview-img{max-width:120px;border-radius:10px;border:1px solid var(--line)}
 .pill-warning{color:#b54708;border-color:#fed7aa;background:#fffbeb}
 .warning-banner{background:#fffbeb;border:1px solid #fed7aa;color:#b54708;border-radius:12px;padding:10px;margin:12px 0;display:none;font-size:13px}
+.subtabs{display:flex;gap:8px;flex-wrap:wrap}
+.form-grid{display:grid;grid-template-columns:1fr;gap:10px;margin-top:12px}
+.form-grid .field{display:flex;flex-direction:column;gap:6px}
+.form-grid input{padding:10px 12px;border-radius:12px;border:1px solid var(--line)}
+.member-table{width:100%;border-collapse:collapse}
+.member-table th,.member-table td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px}
+.member-table th{background:#fbfcfd;font-weight:900}
+.member-status{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;border:1px solid var(--line);font-size:12px}
+.member-status.active{border-color:#abefc6;background:#ecfdf3}
+.member-status.revoked{border-color:#fda29b;background:#fff5f5}
+@media(min-width:760px){.form-grid{grid-template-columns:2fr 1fr auto}}
 /* Views */
 .view{display:none}
 .view.active{display:block}
@@ -140,6 +151,7 @@ code{background:#10182810;padding:2px 6px;border-radius:8px}
     <button id="tabProgress" class="navbtn active" type="button">Progress</button>
     <button id="tabSchedule" class="navbtn" type="button">Schedule</button>
     <button id="tabPlans" class="navbtn" type="button">Plans</button>
+    <button id="tabAccounting" class="navbtn" type="button" style="display:none">Accounting</button>
     <button id="btnAdmin" class="navbtn ghost" type="button">Access: VIEWER</button>
     <button id="btnLogout" class="navbtn ghost" type="button" style="display:none">Logout</button>
   </div>
@@ -248,6 +260,79 @@ code{background:#10182810;padding:2px 6px;border-radius:8px}
       </div>
     </div>
   </section>
+
+  <section id="viewAccounting" class="view">
+    <div class="toolbar">
+      <div class="row" style="justify-content:space-between;gap:12px;align-items:center">
+        <div>
+          <div class="muted" id="accountingHint">Manage Accounting access for your team.</div>
+        </div>
+        <div class="subtabs">
+          <button id="accountingTabAccess" class="smallbtn active" type="button">Access</button>
+        </div>
+      </div>
+    </div>
+    <div style="height:12px"></div>
+    <div class="card" id="accountingAccessPanel">
+      <div class="body">
+        <div id="accountingAuthPanel">
+          <div class="muted" id="accountingLoginHint">Sign in with a magic link to manage Accounting access.</div>
+          <div class="form-grid">
+            <div class="field">
+              <label for="accountingLoginEmail" class="muted" id="accountingLoginEmailLabel">Email</label>
+              <input id="accountingLoginEmail" type="email" placeholder="name@email.com" />
+            </div>
+            <div></div>
+            <button id="accountingLoginBtn" class="smallbtn" type="button">Send magic link</button>
+          </div>
+        </div>
+        <div id="accountingSignedInPanel" style="display:none">
+          <div class="row" style="justify-content:space-between;align-items:center">
+            <div class="muted" id="accountingSignedInAs">Signed in.</div>
+            <button id="accountingLogoutBtn" class="smallbtn" type="button">Sign out</button>
+          </div>
+        </div>
+        <div id="accountingAccessDenied" class="notice" style="display:none">
+          <strong id="accountingDeniedTitle">Access limited</strong>
+          <div class="muted" id="accountingDeniedHint" style="margin-top:6px">Only owners/admins can manage Accounting access.</div>
+        </div>
+        <div id="accountingAccessAdmin" style="display:none">
+          <div class="notice" style="margin-top:12px">
+            <strong id="accountingInviteTitle">Invite team member</strong>
+            <div class="form-grid">
+              <div class="field">
+                <label for="accountingInviteEmail" class="muted" id="accountingInviteEmailLabel">Email</label>
+                <input id="accountingInviteEmail" type="email" placeholder="name@email.com" />
+              </div>
+              <div class="field">
+                <label for="accountingInviteRole" class="muted" id="accountingInviteRoleLabel">Role</label>
+                <select id="accountingInviteRole">
+                  <option value="accounting">Accounting</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <button id="accountingInviteBtn" class="smallbtn" type="button">Invite</button>
+            </div>
+          </div>
+          <div style="height:12px"></div>
+          <div class="table">
+            <table class="member-table">
+              <thead>
+                <tr>
+                  <th id="accountingMembersEmail">Email</th>
+                  <th id="accountingMembersRole">Role</th>
+                  <th id="accountingMembersStatus">Status</th>
+                  <th id="accountingMembersActions">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="accountingMembersList"></tbody>
+            </table>
+            <div class="muted" id="accountingMembersEmpty" style="padding:12px;display:none">No members yet.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 </div>
 
 <div class="modal" id="modal">
@@ -319,6 +404,31 @@ const I18N = {
     progress: "Progress",
     schedule: "Schedule",
     plans: "Plans",
+    accounting: "Accounting",
+    accounting_hint: "Manage Accounting access for your team.",
+    accounting_access: "Access",
+    accounting_login_hint: "Sign in with a magic link to manage Accounting access.",
+    accounting_login_email: "Email",
+    accounting_send_magic_link: "Send magic link",
+    accounting_signed_in_as: "Signed in as {email}.",
+    accounting_sign_out: "Sign out",
+    accounting_access_denied_title: "Access limited",
+    accounting_access_denied_hint: "Only owners/admins can manage Accounting access.",
+    accounting_invite_title: "Invite team member",
+    accounting_invite_email: "Email",
+    accounting_invite_role: "Role",
+    accounting_invite_button: "Invite",
+    accounting_members_email: "Email",
+    accounting_members_role: "Role",
+    accounting_members_status: "Status",
+    accounting_members_actions: "Actions",
+    accounting_members_empty: "No members yet.",
+    accounting_status_active: "Active",
+    accounting_status_revoked: "Revoked",
+    accounting_action_revoke: "Revoke",
+    accounting_action_activate: "Activate",
+    accounting_invite_sent: "Invite sent",
+    accounting_magic_link_sent: "Magic link sent",
     edit_mode_on: "Edit mode: ON",
     edit_mode_off: "Edit mode: OFF",
     search_placeholder: "Search items (code or description)...",
@@ -398,6 +508,31 @@ const I18N = {
     progress: "Progreso",
     schedule: "Planificación",
     plans: "Planos",
+    accounting: "Contabilidad",
+    accounting_hint: "Gestiona el acceso de contabilidad para tu equipo.",
+    accounting_access: "Acceso",
+    accounting_login_hint: "Inicia sesión con un enlace mágico para gestionar el acceso.",
+    accounting_login_email: "Email",
+    accounting_send_magic_link: "Enviar enlace mágico",
+    accounting_signed_in_as: "Sesión iniciada como {email}.",
+    accounting_sign_out: "Cerrar sesión",
+    accounting_access_denied_title: "Acceso limitado",
+    accounting_access_denied_hint: "Solo propietarios/administradores pueden gestionar el acceso.",
+    accounting_invite_title: "Invitar miembro del equipo",
+    accounting_invite_email: "Email",
+    accounting_invite_role: "Rol",
+    accounting_invite_button: "Invitar",
+    accounting_members_email: "Email",
+    accounting_members_role: "Rol",
+    accounting_members_status: "Estado",
+    accounting_members_actions: "Acciones",
+    accounting_members_empty: "Aún no hay miembros.",
+    accounting_status_active: "Activo",
+    accounting_status_revoked: "Revocado",
+    accounting_action_revoke: "Revocar",
+    accounting_action_activate: "Activar",
+    accounting_invite_sent: "Invitación enviada",
+    accounting_magic_link_sent: "Enlace mágico enviado",
     edit_mode_on: "Modo edición: ON",
     edit_mode_off: "Modo edición: OFF",
     search_placeholder: "Buscar partidas (código o descripción)...",
@@ -477,6 +612,31 @@ const I18N = {
     progress: "Voortgang",
     schedule: "Planning",
     plans: "Plannen",
+    accounting: "Boekhouding",
+    accounting_hint: "Beheer de toegang tot boekhouding voor je team.",
+    accounting_access: "Toegang",
+    accounting_login_hint: "Log in met een magische link om toegang te beheren.",
+    accounting_login_email: "E-mail",
+    accounting_send_magic_link: "Magische link versturen",
+    accounting_signed_in_as: "Ingelogd als {email}.",
+    accounting_sign_out: "Uitloggen",
+    accounting_access_denied_title: "Toegang beperkt",
+    accounting_access_denied_hint: "Alleen eigenaren/beheerders kunnen toegang beheren.",
+    accounting_invite_title: "Teamlid uitnodigen",
+    accounting_invite_email: "E-mail",
+    accounting_invite_role: "Rol",
+    accounting_invite_button: "Uitnodigen",
+    accounting_members_email: "E-mail",
+    accounting_members_role: "Rol",
+    accounting_members_status: "Status",
+    accounting_members_actions: "Acties",
+    accounting_members_empty: "Nog geen leden.",
+    accounting_status_active: "Actief",
+    accounting_status_revoked: "Ingetrokken",
+    accounting_action_revoke: "Intrekken",
+    accounting_action_activate: "Activeren",
+    accounting_invite_sent: "Uitnodiging verzonden",
+    accounting_magic_link_sent: "Magische link verzonden",
     edit_mode_on: "Bewerkmodus: AAN",
     edit_mode_off: "Bewerkmodus: UIT",
     search_placeholder: "Zoek items (code of beschrijving)...",
@@ -2054,6 +2214,10 @@ let currentNotesItemId = null;
 let progressSaveTimers = {};
 let realtimeChannel = null;
 let audioCtx = null;
+let accountingClient = null;
+let accountingSession = null;
+let accountingIsAdmin = false;
+let accountingMembers = [];
 
 function t(key){
   const dict = I18N[currentLanguage()] || I18N.en;
@@ -2480,9 +2644,11 @@ function setTab(tab){
   el("tabProgress").classList.toggle("active", tab==="progress");
   el("tabSchedule").classList.toggle("active", tab==="schedule");
   el("tabPlans").classList.toggle("active", tab==="plans");
+  el("tabAccounting").classList.toggle("active", tab==="accounting");
   el("viewProgress").classList.toggle("active", tab==="progress");
   el("viewSchedule").classList.toggle("active", tab==="schedule");
   el("viewPlans").classList.toggle("active", tab==="plans");
+  el("viewAccounting").classList.toggle("active", tab==="accounting");
 }
 
 function currentLanguage(){
@@ -2637,6 +2803,7 @@ function applyLanguageStatic(){
   el("tabProgress").textContent = t("progress");
   el("tabSchedule").textContent = t("schedule");
   el("tabPlans").textContent = t("plans");
+  el("tabAccounting").textContent = t("accounting");
   el("search").placeholder = t("search_placeholder");
   el("btnAdmin").textContent = fmt(t("access_label"), {role: accessRoleLabel()});
   el("btnLogout").textContent = t("logout");
@@ -2655,6 +2822,23 @@ function applyLanguageStatic(){
   el("btnImport").textContent = t("import_state");
   el("btnResetDraft").textContent = t("discard_draft");
   el("plansHint").textContent = t("plans_hint");
+  el("accountingHint").textContent = t("accounting_hint");
+  el("accountingTabAccess").textContent = t("accounting_access");
+  el("accountingLoginHint").textContent = t("accounting_login_hint");
+  el("accountingLoginEmailLabel").textContent = t("accounting_login_email");
+  el("accountingLoginBtn").textContent = t("accounting_send_magic_link");
+  el("accountingLogoutBtn").textContent = t("accounting_sign_out");
+  el("accountingDeniedTitle").textContent = t("accounting_access_denied_title");
+  el("accountingDeniedHint").textContent = t("accounting_access_denied_hint");
+  el("accountingInviteTitle").textContent = t("accounting_invite_title");
+  el("accountingInviteEmailLabel").textContent = t("accounting_invite_email");
+  el("accountingInviteRoleLabel").textContent = t("accounting_invite_role");
+  el("accountingInviteBtn").textContent = t("accounting_invite_button");
+  el("accountingMembersEmail").textContent = t("accounting_members_email");
+  el("accountingMembersRole").textContent = t("accounting_members_role");
+  el("accountingMembersStatus").textContent = t("accounting_members_status");
+  el("accountingMembersActions").textContent = t("accounting_members_actions");
+  el("accountingMembersEmpty").textContent = t("accounting_members_empty");
   el("btnClose").textContent = t("close");
   el("toast").textContent = t("saved");
   el("notesTitle").textContent = t("notes_title");
@@ -2674,6 +2858,8 @@ function applyLanguageStatic(){
   }
 
   updateLanguageToggle();
+  updateAccountingAuthUI();
+  renderAccountingMembers();
 }
 
 async function askPinAndEnable(){
@@ -2937,6 +3123,19 @@ function createSupabaseClient(){
   const key = window.SUPABASE_KEY || window.SUPABASE_ANON_KEY || window.__SUPABASE_ANON_KEY__ || (window.env && window.env.SUPABASE_ANON_KEY) || "";
   if(!url || !key || !window.supabase) return null;
   return supabase.createClient(url, key, {auth:{autoRefreshToken:false, persistSession:false}});
+}
+
+function createSupabaseAuthClient(){
+  const url = window.SUPABASE_URL || window.__SUPABASE_URL__ || window.SUPABASE_URL_PUBLIC || (window.env && window.env.SUPABASE_URL) || "";
+  const key = window.SUPABASE_KEY || window.SUPABASE_ANON_KEY || window.__SUPABASE_ANON_KEY__ || (window.env && window.env.SUPABASE_ANON_KEY) || "";
+  if(!url || !key || !window.supabase) return null;
+  return supabase.createClient(url, key, {
+    auth:{
+      autoRefreshToken:true,
+      persistSession:true,
+      detectSessionInUrl:true
+    }
+  });
 }
 
 function publicUrlFor(path){
@@ -3256,6 +3455,142 @@ function renderPlanViewer(){
   }
 }
 
+function setAccountingTab(tab){
+  el("accountingTabAccess").classList.toggle("active", tab==="access");
+}
+
+function showAccountingTab(show){
+  const btn = el("tabAccounting");
+  if(btn) btn.style.display = show ? "inline-flex" : "none";
+  if(!show && activeTab === "accounting") setTab("progress");
+}
+
+function updateAccountingAuthUI(){
+  const signedIn = !!accountingSession;
+  const authPanel = el("accountingAuthPanel");
+  const signedInPanel = el("accountingSignedInPanel");
+  const deniedPanel = el("accountingAccessDenied");
+  const adminPanel = el("accountingAccessAdmin");
+  if(authPanel) authPanel.style.display = signedIn ? "none" : "block";
+  if(signedInPanel) signedInPanel.style.display = signedIn ? "block" : "none";
+  if(deniedPanel) deniedPanel.style.display = signedIn && !accountingIsAdmin ? "block" : "none";
+  if(adminPanel) adminPanel.style.display = accountingIsAdmin ? "block" : "none";
+
+  const email = accountingSession?.user?.email || "—";
+  const signedInAs = el("accountingSignedInAs");
+  if(signedInAs) signedInAs.textContent = fmt(t("accounting_signed_in_as"), {email});
+}
+
+function renderAccountingMembers(){
+  const list = el("accountingMembersList");
+  const empty = el("accountingMembersEmpty");
+  if(!list || !empty) return;
+  list.innerHTML = "";
+  if(!accountingMembers.length){
+    empty.style.display = "block";
+    return;
+  }
+  empty.style.display = "none";
+  for(const member of accountingMembers){
+    const tr = document.createElement("tr");
+    const statusLabel = member.active ? t("accounting_status_active") : t("accounting_status_revoked");
+    const statusClass = member.active ? "member-status active" : "member-status revoked";
+    const actionLabel = member.active ? t("accounting_action_revoke") : t("accounting_action_activate");
+    tr.innerHTML = `
+      <td>${esc(member.email)}</td>
+      <td>${esc(member.role)}</td>
+      <td><span class="${statusClass}">${statusLabel}</span></td>
+      <td><button class="smallbtn" type="button">${actionLabel}</button></td>
+    `;
+    const btn = tr.querySelector("button");
+    btn.addEventListener("click", ()=>toggleAccountingMember(member));
+    list.appendChild(tr);
+  }
+}
+
+async function loadAccountingMembers(){
+  if(!accountingClient || !accountingIsAdmin) return;
+  const { data, error } = await accountingClient
+    .from("accounting_members")
+    .select("user_id,email,role,active,invited_by,created_at")
+    .order("created_at", {ascending:false});
+  if(error){
+    console.error(error);
+    accountingMembers = [];
+    renderAccountingMembers();
+    return;
+  }
+  accountingMembers = data || [];
+  renderAccountingMembers();
+}
+
+async function refreshAccountingState(){
+  if(!accountingClient){
+    showAccountingTab(false);
+    updateAccountingAuthUI();
+    return;
+  }
+  accountingIsAdmin = false;
+  if(accountingSession){
+    try{
+      const { data, error } = await accountingClient.rpc("is_admin");
+      if(error){ console.error(error); }
+      accountingIsAdmin = !!data;
+    }catch(e){ console.error(e); }
+  }
+  showAccountingTab(true);
+  updateAccountingAuthUI();
+  if(accountingIsAdmin){
+    await loadAccountingMembers();
+  }else{
+    accountingMembers = [];
+    renderAccountingMembers();
+  }
+}
+
+async function sendAccountingMagicLink(){
+  if(!accountingClient){ alert("Supabase not configured"); return; }
+  const email = (el("accountingLoginEmail").value || "").trim();
+  if(!email){ alert("Email required"); return; }
+  const { error } = await accountingClient.auth.signInWithOtp({
+    email,
+    options: { shouldCreateUser: false, emailRedirectTo: window.location.href }
+  });
+  if(error){ alert(error.message || "Magic link failed"); return; }
+  el("accountingLoginEmail").value = "";
+  toast(t("accounting_magic_link_sent"));
+}
+
+async function signOutAccounting(){
+  if(!accountingClient) return;
+  await accountingClient.auth.signOut();
+}
+
+async function inviteAccountingMember(){
+  if(!accountingClient) return;
+  const email = (el("accountingInviteEmail").value || "").trim();
+  if(!email){ alert("Email required"); return; }
+  const role = el("accountingInviteRole").value || "accounting";
+  const { error } = await accountingClient.functions.invoke("invite_member", {
+    body: { email, role }
+  });
+  if(error){ alert(error.message || "Invite failed"); return; }
+  el("accountingInviteEmail").value = "";
+  toast(t("accounting_invite_sent"));
+  await loadAccountingMembers();
+}
+
+async function toggleAccountingMember(member){
+  if(!accountingClient) return;
+  const nextActive = !member.active;
+  const { error } = await accountingClient
+    .from("accounting_members")
+    .update({active: nextActive})
+    .eq("user_id", member.user_id);
+  if(error){ alert(error.message || "Update failed"); return; }
+  await loadAccountingMembers();
+}
+
 function weeksElapsed(startDateStr){
   const start = new Date(startDateStr + "T00:00:00");
   const now = new Date();
@@ -3377,6 +3712,7 @@ async function boot(){
 
   pickInitialState();
   sb = createSupabaseClient();
+  accountingClient = createSupabaseAuthClient();
   applyLanguageStatic();
 
   const start = localStorage.getItem(LS_START) || DATA.project.start_date || "2025-12-11";
@@ -3389,6 +3725,15 @@ async function boot(){
   restoreSession();
   updateSoundButton();
   updateStatusLine();
+  if(accountingClient){
+    const { data } = await accountingClient.auth.getSession();
+    accountingSession = data?.session || null;
+    accountingClient.auth.onAuthStateChange((_event, session)=>{
+      accountingSession = session;
+      refreshAccountingState();
+    });
+  }
+  await refreshAccountingState();
   await loadNoteCountsFromSupabase();
   renderAll();
   if(sb){
@@ -3401,6 +3746,7 @@ async function boot(){
 el("tabProgress").addEventListener("click", ()=>setTab("progress"));
 el("tabSchedule").addEventListener("click", ()=>setTab("schedule"));
 el("tabPlans").addEventListener("click", ()=>setTab("plans"));
+el("tabAccounting").addEventListener("click", ()=>setTab("accounting"));
 el("btnAdmin").addEventListener("click", askPinAndEnable);
 el("btnLogout").addEventListener("click", ()=>{ clearSession(); toast(t("logout")); });
 el("langNl").addEventListener("click", ()=>setLanguage("nl"));
@@ -3431,6 +3777,10 @@ el("btnExport").addEventListener("click", exportState);
 el("btnImport").addEventListener("click", ()=>el("importFile").click());
 el("importFile").addEventListener("change", (e)=>{ const f=e.target.files?.[0]; if(f) importState(f); e.target.value=""; });
 el("btnResetDraft").addEventListener("click", ()=>{ if(confirm(t("discard_confirm"))) discardDraft(); });
+el("accountingTabAccess").addEventListener("click", ()=>setAccountingTab("access"));
+el("accountingLoginBtn").addEventListener("click", sendAccountingMagicLink);
+el("accountingLogoutBtn").addEventListener("click", signOutAccounting);
+el("accountingInviteBtn").addEventListener("click", inviteAccountingMember);
 window.addEventListener("online", ()=>processQueue());
 
 boot();
