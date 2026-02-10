@@ -2188,6 +2188,9 @@ const ROLE_VIEWER = "viewer";
 const ROLE_CLIENT = "client";
 const ROLE_MANAGER = "manager";
 const ROLE_ADMIN = "admin";
+const EDIT_ROLE_OWNER = "owner";
+const EDIT_ROLE_PARTNER = "partner";
+const PARTNER_EDIT_PIN = "4444";
 
 const el = (id)=>document.getElementById(id);
 let sb = null;
@@ -2209,7 +2212,7 @@ let pendingActions = [];
 let processingQueue = false;
 let lastSyncedAt = null;
 let soundEnabled = localStorage.getItem(LS_SOUND) === "1";
-let currentSession = {role: ROLE_VIEWER, author: "Viewer", pin: null, expiresAt: 0};
+let currentSession = {role: ROLE_VIEWER, author: "Viewer", pin: null, expiresAt: 0, editUnlocked: false, editRole: null};
 let currentNotesItemId = null;
 let progressSaveTimers = {};
 let realtimeChannel = null;
@@ -2639,7 +2642,14 @@ function subscribeRealtime(){
     .subscribe();
 }
 
+function canAccessAccounting(){
+  return !!currentSession?.editUnlocked && (currentSession.editRole===EDIT_ROLE_OWNER || currentSession.editRole===EDIT_ROLE_PARTNER);
+}
+
 function setTab(tab){
+  if(tab === "accounting" && !canAccessAccounting()){
+    tab = "progress";
+  }
   activeTab = tab;
   el("tabProgress").classList.toggle("active", tab==="progress");
   el("tabSchedule").classList.toggle("active", tab==="schedule");
@@ -2750,12 +2760,13 @@ const canUseAdminTools = ()=> currentRole===ROLE_ADMIN;
 
 function applySession(session){
   const sess = session || {role: ROLE_VIEWER};
-  currentSession = Object.assign({pin:null, expiresAt:0, author:"Viewer"}, sess);
+  currentSession = Object.assign({pin:null, expiresAt:0, author:"Viewer", editUnlocked:false, editRole:null}, sess);
   currentRole = currentSession.role || ROLE_VIEWER;
   currentAuthor = displayNameFor(currentRole, currentSession.author);
   el("btnAdmin").textContent = fmt(t("access_label"), {role: accessRoleLabel()});
   el("btnLogout").style.display = currentRole===ROLE_VIEWER ? "none" : "inline-flex";
   el("adminTools").style.display = canUseAdminTools() ? "block" : "none";
+  showAccountingTab(canAccessAccounting());
   toggleNotesInputVisibility();
   updateStatusLine();
   if(currentChapter) renderModal(currentChapter);
@@ -2769,7 +2780,7 @@ function persistSession(session){
 
 function clearSession(){
   localStorage.removeItem(LS_ROLE_SESSION);
-  applySession({role: ROLE_VIEWER, author: "Viewer", pin: null, expiresAt: 0});
+  applySession({role: ROLE_VIEWER, author: "Viewer", pin: null, expiresAt: 0, editUnlocked: false, editRole: null});
 }
 
 function restoreSession(){
@@ -2868,12 +2879,28 @@ async function askPinAndEnable(){
   if(!pinInput) return;
   try{
     const p = String(pinInput || '').trim();
+    if(p === PARTNER_EDIT_PIN){
+      const session = {pin: p, author: "Partner", role: ROLE_VIEWER, editUnlocked: true, editRole: EDIT_ROLE_PARTNER};
+      persistSession(session);
+      applySession(session);
+      toast(t("edit_mode_enabled"));
+      processQueue();
+      return;
+    }
+
     const { data, error } = await sb.rpc('rpc_pin_login', { p_pin: p });
     if (error) { console.error(error); alert("PIN login error: " + error.message); return; }
     const row = Array.isArray(data) ? data[0] : data;
     if (!row?.author || !row?.role) { alert("Invalid PIN"); return; }
 
-    const session = {pin: p, author: row.author, role: row.role};
+    const session = {pin: p, author: row.author, role: row.role, editUnlocked: false, editRole: null};
+    if(row.role === ROLE_ADMIN){
+      session.editUnlocked = true;
+      session.editRole = EDIT_ROLE_OWNER;
+    }else if(row.role === EDIT_ROLE_PARTNER){
+      session.editUnlocked = true;
+      session.editRole = EDIT_ROLE_PARTNER;
+    }
     persistSession(session);
     applySession(session);
     toast(t("edit_mode_enabled"));
@@ -3525,8 +3552,12 @@ async function loadAccountingMembers(){
 }
 
 async function refreshAccountingState(){
+  showAccountingTab(canAccessAccounting());
+  if(!canAccessAccounting()){
+    if(activeTab === "accounting") setTab("progress");
+    return;
+  }
   if(!accountingClient){
-    showAccountingTab(false);
     updateAccountingAuthUI();
     return;
   }
@@ -3538,7 +3569,6 @@ async function refreshAccountingState(){
       accountingIsAdmin = !!data;
     }catch(e){ console.error(e); }
   }
-  showAccountingTab(true);
   updateAccountingAuthUI();
   if(accountingIsAdmin){
     await loadAccountingMembers();
