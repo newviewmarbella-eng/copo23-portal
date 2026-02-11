@@ -2888,7 +2888,7 @@ async function askPinAndEnable(){
     const role = String(data?.role || "").toLowerCase();
     const author = String(data?.author || "").trim();
 
-    if(response.ok && data?.valid === true){
+    if(data?.valid === true){
       const resolvedRole = role || ROLE_VIEWER;
       const session = {pin: p, author: author || displayNameFor(resolvedRole, ""), role: resolvedRole, expiresAt: Date.now() + (12*60*60*1000)};
       persistSession(session);
@@ -2901,8 +2901,7 @@ async function askPinAndEnable(){
     }
 
     if(data?.valid === false){
-      const message = String(data?.error || "Invalid PIN");
-      showPinDebugBanner(`❌ ${message}`);
+      showPinDebugBanner("❌ PIN incorrecto");
       return;
     }
 
@@ -3166,7 +3165,8 @@ async function verifyPinWithEdgeFunction(pin, requiredRole){
     headers: {
       apikey: anonKey,
       Authorization: `Bearer ${anonKey}`,
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      "x-pin": String(pin || "")
     },
     body: JSON.stringify({ pin, requiredRole, sessionId: `web-${Date.now()}` })
   });
@@ -3565,7 +3565,10 @@ async function accountingInvoke(action, payload){
     throw new Error(String(accessData?.error || "Forbidden: editor PIN required"));
   }
 
-  const {data, error} = await sb.functions.invoke("accounting_api", { body: Object.assign({ pin: currentSession.pin, action }, payload||{}) });
+  const {data, error} = await sb.functions.invoke("accounting_api", {
+    headers: { "x-pin": String(currentSession.pin || "") },
+    body: Object.assign({ pin: currentSession.pin, action }, payload||{})
+  });
   if(error) throw error;
   if(data?.error) throw new Error(data.error);
   return data;
