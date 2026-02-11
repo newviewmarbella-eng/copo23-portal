@@ -182,6 +182,7 @@ code{background:#10182810;padding:2px 6px;border-radius:8px}
 
 <div class="wrap">
   <div id="supabaseBanner" class="warning-banner">Supabase not configured. Live sync is disabled.</div>
+  <div id="pinDebugBanner" class="warning-banner"></div>
 </div>
 
 <div class="wrap">
@@ -2269,6 +2270,20 @@ function toggleSupabaseBanner(show){
   banner.style.display = show ? "block" : "none";
 }
 
+function hidePinDebugBanner(){
+  const banner = el("pinDebugBanner");
+  if(!banner) return;
+  banner.textContent = "";
+  banner.style.display = "none";
+}
+
+function showPinDebugBanner(message){
+  const banner = el("pinDebugBanner");
+  if(!banner) return;
+  banner.textContent = message || "PIN verification failed";
+  banner.style.display = "block";
+}
+
 function updateStatusLine(){
   const syncText = lastSyncedAt ? fmtDate(lastSyncedAt) : "—";
   const pending = pendingActions.length ? ` · Pending actions: ${pendingActions.length}` : "";
@@ -2822,23 +2837,32 @@ async function askPinAndEnable(){
   if(!sb){ toggleSupabaseBanner(true); return; }
   const pinInput = prompt(t("enter_pin_prompt"));
   if(!pinInput) return;
+  hidePinDebugBanner();
   try{
     const p = String(pinInput || '').trim();
-    const { data, error } = await sb.functions.invoke("verify_pin", {
-      body: { pin: p, sessionId: `web-${Date.now()}` }
-    });
-    if(error) throw error;
-    if(!data?.ok || !data?.role) throw new Error("Invalid PIN");
+    const { response, rawBody, data, endpoint } = await verifyPinWithEdgeFunction(p);
+    if(!response.ok || !data?.ok || !data?.role){
+      const debugMessage = `${t("incorrect_pin")}. HTTP ${response.status} · ${rawBody || "(empty body)"}`;
+      showPinDebugBanner(debugMessage);
+      if(response.status === 401){
+        alert(debugMessage);
+      }
+      throw new Error(`verify_pin failed (${response.status}) @ ${endpoint}`);
+    }
     const role = String(data.role || "viewer").toLowerCase();
     const author = role === ROLE_EDITOR ? "Editor" : (role === ROLE_MANAGER ? "Manager" : "Viewer");
     const session = {pin: p, author, role, expiresAt: Date.now() + (12*60*60*1000)};
     persistSession(session);
     applySession(session);
+    hidePinDebugBanner();
     toast(t("edit_mode_enabled"));
     processQueue();
   }catch(e){
+    const msg = String(e?.message || e || "Unknown error");
+    if(!el("pinDebugBanner")?.textContent){
+      showPinDebugBanner(`${t("incorrect_pin")}. ${msg}`);
+    }
     console.error(e);
-    alert(t("incorrect_pin"));
   }
 }
 
@@ -3081,6 +3105,27 @@ function createSupabaseClient(){
   const key = window.SUPABASE_KEY || window.SUPABASE_ANON_KEY || window.__SUPABASE_ANON_KEY__ || (window.env && window.env.SUPABASE_ANON_KEY) || "";
   if(!url || !key || !window.supabase) return null;
   return supabase.createClient(url, key, {auth:{autoRefreshToken:false, persistSession:false}});
+}
+
+async function verifyPinWithEdgeFunction(pin){
+  const supabaseUrl = window.SUPABASE_URL || window.__SUPABASE_URL__ || window.SUPABASE_URL_PUBLIC || (window.env && window.env.SUPABASE_URL) || "";
+  const anonKey = window.SUPABASE_KEY || window.SUPABASE_ANON_KEY || window.__SUPABASE_ANON_KEY__ || (window.env && window.env.SUPABASE_ANON_KEY) || "";
+  if(!supabaseUrl || !anonKey) throw new Error("Supabase config missing");
+  const projectRef = String(supabaseUrl).replace(/^https:\/\//, "").split(".")[0];
+  const endpoint = `https://${projectRef}.supabase.co/functions/v1/verify_pin`;
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${anonKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ pin, sessionId: `web-${Date.now()}` })
+  });
+  const rawBody = await response.text();
+  let data = null;
+  try{ data = rawBody ? JSON.parse(rawBody) : null; }catch(_){ data = null; }
+  return { response, rawBody, data, endpoint };
 }
 
 function publicUrlFor(path){
