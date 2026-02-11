@@ -1,42 +1,25 @@
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { corsHeaders, getAdminClient, json } from "../_accounting_shared/utils.ts";
 
-const RATE_LIMIT_MAX = 5;
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const ALLOWED_REQUIRED_ROLES = new Set(["viewer", "editor", "manager"] as const);
-const attemptsByKey = new Map<string, number[]>();
+type Role = "viewer" | "foreman" | "editor";
 
-type RequiredRole = "viewer" | "editor" | "manager";
+const ROLE_LEVEL: Record<Role, number> = {
+  viewer: 1,
+  foreman: 2,
+  editor: 3,
+};
 
-type MemberRole = RequiredRole;
-
-function getRateLimitKey(req: Request, sessionId: string) {
-  const forwarded = req.headers.get("x-forwarded-for") || "";
-  const ip = forwarded.split(",")[0]?.trim() || "unknown";
-  return `${sessionId || "anon"}:${ip}`;
+function normalizeRole(input: unknown): Role | null {
+  const value = String(input || "").trim().toLowerCase();
+  if (value === "manager") return "foreman";
+  if (value === "viewer" || value === "foreman" || value === "editor") return value;
+  return null;
 }
 
-function isRateLimited(key: string) {
-  const now = Date.now();
-  const attempts = (attemptsByKey.get(key) || []).filter((ts) => now - ts < RATE_LIMIT_WINDOW_MS);
-  attempts.push(now);
-  attemptsByKey.set(key, attempts);
-  return attempts.length > RATE_LIMIT_MAX;
-}
-
-function roleSatisfiesRequirement(role: MemberRole, requiredRole?: RequiredRole) {
-  if (!requiredRole) return true;
-  if (requiredRole === "viewer") return role === "viewer";
-  if (requiredRole === "editor") return role === "editor";
-  if (requiredRole === "manager") return role === "manager";
-  return false;
-}
-
-function resolveRequiredRole(input: unknown): RequiredRole | undefined {
-  const normalized = String(input || "").trim().toLowerCase();
-  if (!normalized) return undefined;
-  if (!ALLOWED_REQUIRED_ROLES.has(normalized as RequiredRole)) return undefined;
-  return normalized as RequiredRole;
+async function sha256Hex(value: string) {
+  const bytes = new TextEncoder().encode(value);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 serve(async (req) => {
@@ -46,15 +29,17 @@ serve(async (req) => {
   try {
     const body = await req.json();
     const pin = String(body?.pin ?? "").trim();
-    const requiredRole = resolveRequiredRole(body?.requiredRole);
-    const sessionId = String(body?.sessionId || "").trim();
+    const requiredRole = body?.requiredRole === undefined ? undefined : normalizeRole(body.requiredRole);
 
-    if (!pin) return json({ valid: false, error: "Invalid PIN" }, 200);
-
-    const key = getRateLimitKey(req, sessionId);
-    if (isRateLimited(key)) {
-      return json({ valid: false, error: "Too many attempts" }, 429);
+    if (!/^\d{4}$/.test(pin)) {
+      return json({ valid: false, error: "Invalid PIN" }, 401);
     }
+
+    if (body?.requiredRole !== undefined && !requiredRole) {
+      return json({ valid: false, error: "Invalid requiredRole" }, 400);
+    }
+
+    const pinSha256 = await sha256Hex(pin);
 
     let admin;
     try {
@@ -66,9 +51,9 @@ serve(async (req) => {
 
     const { data, error } = await admin
       .from("accounting_members")
-      .select("role, author")
-      .eq("pin", pin)
-      .eq("is_active", true)
+      .select("role, author, active, is_active")
+      .or(`pin_sha256.eq.${pinSha256},pin_hash.eq.${pinSha256}`)
+      .limit(1)
       .maybeSingle();
 
     if (error) {
@@ -76,19 +61,17 @@ serve(async (req) => {
       return json({ valid: false, error: "Internal server error" }, 500);
     }
 
-    if (!data?.role) {
-      return json({ valid: false, error: "Invalid PIN" }, 200);
+    const isActive = data ? (data.active ?? data.is_active ?? true) : false;
+    const role = normalizeRole(data?.role);
+    if (!data || !role || !isActive) {
+      return json({ valid: false, error: "Invalid PIN" }, 401);
     }
 
-    const role = String(data.role).toLowerCase() as MemberRole;
-    const author = String(data.author || "").trim();
-
-    if (!roleSatisfiesRequirement(role, requiredRole)) {
-      const forbiddenMsg = requiredRole === "editor" ? "editor PIN required" : `${requiredRole} PIN required`;
-      return json({ valid: false, error: forbiddenMsg }, 200);
+    if (requiredRole && ROLE_LEVEL[role] < ROLE_LEVEL[requiredRole]) {
+      return json({ valid: false, error: `Forbidden: ${requiredRole} PIN required` }, 403);
     }
 
-    return json({ valid: true, role, author }, 200);
+    return json({ valid: true, role, author: String(data.author || "") }, 200);
   } catch (error) {
     console.error("[verify_pin] unexpected error", error);
     return json({ valid: false, error: "Internal server error" }, 500);
