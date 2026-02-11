@@ -1,5 +1,5 @@
 -- Ensure direct client access to invoice storage is blocked while keeping access through Edge Functions (service role).
-alter table storage.objects enable row level security;
+-- NOTE: Do not alter RLS/ownership on storage.objects from this migration; handled by Supabase internals.
 
 drop policy if exists deny_anon_invoice_bucket_select on storage.objects;
 create policy deny_anon_invoice_bucket_select
