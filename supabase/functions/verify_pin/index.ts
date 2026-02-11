@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
-import { corsHeaders, json, resolvePinRole } from "../_accounting_shared/utils.ts";
+import { corsHeaders, getAdminClient, json } from "../_accounting_shared/utils.ts";
 
 const RATE_LIMIT_MAX = 5;
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -19,47 +19,50 @@ function isRateLimited(key: string) {
   return attempts.length > RATE_LIMIT_MAX;
 }
 
-function hasPinSecret(name: string) {
-  return Boolean((Deno.env.get(name) || "").trim());
-}
-
-function missingPinSecrets() {
-  const requiredSecrets = ["ACCOUNTING_EDITOR_PINS", "ACCOUNTING_VIEWER_PINS"];
-  return requiredSecrets.filter((secret) => !hasPinSecret(secret));
+async function sha256Hex(input: string) {
+  const bytes = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (req.method !== "POST") return json({ valid: false, role: null, error: "method_not_allowed" }, 200);
+  if (req.method !== "POST") return json({ valid: false, error: "method_not_allowed" }, 405);
 
   try {
-    const missingSecrets = missingPinSecrets();
-    if (missingSecrets.length > 0) {
-      console.error(`[verify_pin] missing required PIN secrets: ${missingSecrets.join(", ")}`);
-      return json({ valid: false, role: null, error: "missing_pin_secrets" }, 200);
-    }
-
     const body = await req.json();
-    const pin = String(body?.pin || "").trim();
-    const requestedRole = String(body?.requiredRole || "").trim().toLowerCase();
+    const pin = String(body?.pin ?? "").trim();
     const sessionId = String(body?.sessionId || "").trim();
-    if (!pin) return json({ valid: false, role: null, error: "invalid_pin" }, 200);
+    if (!pin) return json({ valid: false, error: "Invalid PIN" }, 401);
 
     const key = getRateLimitKey(req, sessionId);
     if (isRateLimited(key)) {
-      return json({ valid: false, role: null, error: "too_many_attempts" }, 200);
+      return json({ valid: false, error: "Too many attempts" }, 429);
     }
 
-    const role = resolvePinRole(pin);
-    if (!role) return json({ valid: false, role: null, error: "invalid_pin" }, 200);
+    const pinHash = await sha256Hex(pin);
+    const admin = getAdminClient();
+    const { data, error } = await admin
+      .from("accounting_members")
+      .select("role, author")
+      .eq("pin_hash", pinHash)
+      .eq("active", true)
+      .maybeSingle();
 
-    if (requestedRole === "editor" && role !== "editor") {
-      return json({ valid: false, role, error: "editor_required" }, 200);
+    if (error) {
+      console.error("[verify_pin] lookup error", error);
+      return json({ valid: false, error: "Invalid PIN" }, 401);
     }
 
-    return json({ valid: true, role }, 200);
+    if (!data?.role) {
+      return json({ valid: false, error: "Invalid PIN" }, 401);
+    }
+
+    return json({ valid: true, role: data.role, author: data.author || "" }, 200);
   } catch (error) {
     console.error("[verify_pin] unexpected error", error);
-    return json({ valid: false, role: null, error: "invalid_pin_request" }, 200);
+    return json({ valid: false, error: "invalid_pin_request" }, 400);
   }
 });
