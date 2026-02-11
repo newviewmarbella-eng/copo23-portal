@@ -2641,11 +2641,11 @@ function subscribeRealtime(){
 }
 
 function canAccessAccounting(){
-  return currentRole === ROLE_EDITOR;
+  return currentRole === ROLE_EDITOR || currentRole === ROLE_ADMIN;
 }
 
 function canEditAccounting(){
-  return currentRole === ROLE_EDITOR;
+  return currentRole === ROLE_EDITOR || currentRole === ROLE_ADMIN;
 }
 
 function setTab(tab){
