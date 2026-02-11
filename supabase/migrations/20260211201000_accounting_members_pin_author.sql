@@ -16,16 +16,35 @@ alter table public.accounting_members
   add column if not exists author text,
   add column if not exists active boolean not null default true;
 
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'accounting_members'
+      and column_name = 'user_id'
+      and is_nullable = 'NO'
+  ) then
+    alter table public.accounting_members alter column user_id drop not null;
+  end if;
+end
+$$;
+
 create unique index if not exists idx_accounting_members_pin_hash_unique
   on public.accounting_members (pin_hash);
 
--- Seed initial viewer/editor members (PIN is hashed with SHA-256, never stored in plain text).
+create unique index if not exists accounting_members_pin_hash_key
+  on public.accounting_members (pin_hash);
+
+-- Seed initial viewer/editor members (SHA-256 hex only, never plain PINs).
 insert into public.accounting_members (pin_hash, role, author, active)
 values
-  (encode(digest('1111', 'sha256'), 'hex'), 'viewer', 'Robbert', true),
-  (encode(digest('2222', 'sha256'), 'hex'), 'viewer', 'Michael', true),
-  (encode(digest('3333', 'sha256'), 'hex'), 'viewer', 'Nic', true),
-  (encode(digest('2244', 'sha256'), 'hex'), 'editor', 'Jan', true)
+  ('0ffe1abd1a08215353c233d6e009613e95eec4253832a761af28ff37ac5a150c', 'viewer', 'Robbert', true),
+  ('edee29f882543b956620b26d0ee0e7e950399b1c4222f5de05e06425b4c995e9', 'viewer', 'Michael', true),
+  ('318aee3fed8c9d040d35a7fc1fa776fb31303833aa2de885354ddf3d44d8fb69', 'viewer', 'Nic', true),
+  ('a9480594e7414a75b0e0a5d1116e7a650526d77d2e70a04e61722ffedc4138b7', 'editor', 'Jesus', true),
+  ('869863cb16b6c08ba88302e21e3ce3ae5e188e8290c3b457e55b555f0e1d1e37', 'editor', 'Jan', true)
 on conflict (pin_hash) do update
 set role = excluded.role,
     author = excluded.author,
@@ -33,10 +52,10 @@ set role = excluded.role,
 
 -- Preserve existing editor/manager PIN rows and normalize visible author names.
 update public.accounting_members
-set author = 'Jesús',
+set author = 'Jesus',
     active = coalesce(active, true)
 where lower(coalesce(role, '')) = 'editor'
-  and coalesce(author, '') in ('', 'Editor', 'EDITOR', 'Jesus');
+  and coalesce(author, '') in ('', 'Editor', 'EDITOR', 'Jesus', 'Jesús');
 
 update public.accounting_members
 set author = 'Encargado',
