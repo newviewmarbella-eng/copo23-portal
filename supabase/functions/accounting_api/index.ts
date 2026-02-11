@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
-import { PDFDocument, StandardFonts, rgb } from "https://esm.sh/pdf-lib@1.17.1";
 import { cleanName, corsHeaders, getAdminClient, json, requireEditorPin } from "../_accounting_shared/utils.ts";
 
 const BUCKET = "copo23-invoices";
@@ -21,29 +20,7 @@ serve(async (req) => {
     const client = getAdminClient();
     await requireEditorPin(client, pin);
 
-    if (action === "upload-url") {
-      const filename = String(body?.filename || "invoice.bin");
-      const contentType = String(body?.contentType || "application/octet-stream");
-      const now = new Date();
-      const yyyy = String(now.getUTCFullYear());
-      const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
-      const ext = cleanName(filename.includes(".") ? filename.split(".").pop() || "bin" : "bin");
-      const objectPath = `accounting/${yyyy}/${mm}/${crypto.randomUUID()}.${ext}`;
-
-      const { data, error } = await client.storage.from(BUCKET).createSignedUploadUrl(objectPath);
-      if (error) throw error;
-
-      return json({
-        action,
-        bucket: BUCKET,
-        path: objectPath,
-        uploadUrl: data.signedUrl,
-        token: data.token,
-        contentType,
-      });
-    }
-
-    if (action === "save-invoice") {
+    if (action === "create_invoice") {
       const payload = {
         id: body?.id || crypto.randomUUID(),
         type: String(body?.type || "expense"),
@@ -59,6 +36,7 @@ serve(async (req) => {
         status: String(body?.status || "pending"),
         file_path: body?.file_path ?? null,
         notes: body?.notes ?? null,
+        ocr_text: body?.ocr_text ?? null,
       };
 
       const { data, error } = await client.from("accounting_invoices").upsert(payload).select("*").single();
@@ -66,10 +44,9 @@ serve(async (req) => {
       return json({ action, item: data });
     }
 
-    if (action === "list") {
+    if (action === "list_invoices") {
       const f = body?.filters || {};
       let query = client.from("accounting_invoices").select("*").order("date", { ascending: false }).limit(500);
-
       if (f.type) query = query.eq("type", String(f.type));
       if (f.status) query = query.eq("status", String(f.status));
       if (f.category) query = query.eq("category", Number(f.category));
@@ -82,58 +59,96 @@ serve(async (req) => {
       return json({ action, items: data || [] });
     }
 
-    if (action === "download-url") {
-      const path = String(body?.path || "").trim();
-      if (!path) throw new Error("Missing path");
-      const expiresIn = parseNumber(body?.expiresIn, 3600);
-      const { data, error } = await client.storage.from(BUCKET).createSignedUrl(path, expiresIn);
+    if (action === "create_worker") {
+      const payload = {
+        id: body?.id || crypto.randomUUID(),
+        name: String(body?.name || "").trim(),
+        day_rate: parseNumber(body?.day_rate),
+        vat_applicable: Boolean(body?.vat_applicable),
+        active: body?.active === undefined ? true : Boolean(body?.active),
+      };
+      const { data, error } = await client.from("accounting_workers").insert(payload).select("*").single();
       if (error) throw error;
-      return json({ action, signedUrl: data.signedUrl, expiresIn, path, bucket: BUCKET });
+      return json({ action, item: data });
     }
 
-    if (action === "export-pdf") {
+    if (action === "list_workers") {
+      let query = client.from("accounting_workers").select("*").order("name", { ascending: true }).limit(500);
+      if (body?.active !== undefined) query = query.eq("active", Boolean(body.active));
+      const { data, error } = await query;
+      if (error) throw error;
+      return json({ action, items: data || [] });
+    }
+
+    if (action === "update_worker") {
+      const workerId = String(body?.id || "").trim();
+      if (!workerId) throw new Error("Worker id is required");
+      const updates: Record<string, unknown> = {};
+      if (body?.name !== undefined) updates.name = String(body.name).trim();
+      if (body?.day_rate !== undefined) updates.day_rate = parseNumber(body.day_rate);
+      if (body?.vat_applicable !== undefined) updates.vat_applicable = Boolean(body.vat_applicable);
+      if (body?.active !== undefined) updates.active = Boolean(body.active);
+
+      const { data, error } = await client.from("accounting_workers").update(updates).eq("id", workerId).select("*").single();
+      if (error) throw error;
+      return json({ action, item: data });
+    }
+
+    if (action === "create_timesheet") {
+      const days = Array.isArray(body?.days) ? body.days : [];
+      if (!days.length) throw new Error("Timesheet days are required");
+      const rows = days.map((entry: Record<string, unknown>) => {
+        const hours = parseNumber(entry.hours, 8);
+        const dayRate = parseNumber(entry.day_rate, parseNumber(body?.day_rate));
+        return {
+          worker_id: String(entry.worker_id || body?.worker_id || ""),
+          date: String(entry.date || ""),
+          hours,
+          day_rate: dayRate,
+          total_cost: Number(((dayRate / 8) * hours).toFixed(2)),
+          status: String(body?.status || "pending"),
+          notes: body?.notes ?? null,
+        };
+      }).filter((row) => row.worker_id && row.date);
+
+      if (!rows.length) throw new Error("No valid timesheet rows");
+      const { data, error } = await client.from("accounting_timesheets").insert(rows).select("*");
+      if (error) throw error;
+      return json({ action, items: data || [] });
+    }
+
+    if (action === "list_timesheets") {
       const f = body?.filters || {};
-      let query = client.from("accounting_invoices").select("*").order("date", { ascending: true }).limit(2000);
-      if (f.type) query = query.eq("type", String(f.type));
-      if (f.category) query = query.eq("category", Number(f.category));
+      let query = client.from("accounting_timesheets").select("*, accounting_workers(name)").order("date", { ascending: false }).limit(1000);
       if (f.date_from) query = query.gte("date", String(f.date_from));
       if (f.date_to) query = query.lte("date", String(f.date_to));
-
-      const { data: rows, error } = await query;
+      if (f.worker_id) query = query.eq("worker_id", String(f.worker_id));
+      const { data, error } = await query;
       if (error) throw error;
+      return json({ action, items: data || [] });
+    }
 
-      const pdf = await PDFDocument.create();
-      const font = await pdf.embedFont(StandardFonts.Helvetica);
-      let page = pdf.addPage([595, 842]);
-      let y = 810;
-      page.drawText("Accounting export", { x: 40, y, size: 16, font, color: rgb(0, 0, 0) });
-      y -= 24;
-      page.drawText("Date | Vendor/Client | Subtotal | VAT | Total | Category", { x: 40, y, size: 10, font });
-      y -= 14;
+    if (action === "get_upload_url") {
+      const filename = String(body?.filename || "invoice.bin");
+      const contentType = String(body?.contentType || "application/octet-stream");
+      const now = new Date();
+      const yyyy = String(now.getUTCFullYear());
+      const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
+      const ext = cleanName(filename.includes(".") ? filename.split(".").pop() || "bin" : "bin");
+      const objectPath = `accounting/${yyyy}/${mm}/${crypto.randomUUID()}.${ext}`;
 
-      for (const row of rows || []) {
-        if (y < 60) {
-          page = pdf.addPage([595, 842]);
-          y = 810;
-        }
-        const line = `${row.date || ""} | ${(row.vendor_or_client || "").slice(0, 20)} | ${row.subtotal || 0} | ${row.vat || 0} | ${row.total || 0} | ${row.category || ""}`;
-        page.drawText(line, { x: 40, y, size: 9, font });
-        y -= 12;
-      }
+      const { data, error } = await client.storage.from(BUCKET).createSignedUploadUrl(objectPath);
+      if (error) throw error;
+      return json({ action, bucket: BUCKET, path: objectPath, uploadUrl: data.signedUrl, token: data.token, contentType });
+    }
 
-      const bytes = await pdf.save();
-      const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const objectPath = `exports/${stamp}_${f.type || "all"}.pdf`;
-      const { error: uploadError } = await client.storage.from(BUCKET).upload(objectPath, bytes, {
-        contentType: "application/pdf",
-        upsert: true,
-      });
-      if (uploadError) throw uploadError;
-
-      const { data: signedData, error: signedError } = await client.storage.from(BUCKET).createSignedUrl(objectPath, 3600);
-      if (signedError) throw signedError;
-
-      return json({ action, path: objectPath, count: rows?.length || 0, signedUrl: signedData.signedUrl, bucket: BUCKET });
+    if (action === "confirm_upload") {
+      const invoiceId = String(body?.invoice_id || "").trim();
+      const filePath = String(body?.file_path || "").trim();
+      if (!invoiceId || !filePath) throw new Error("invoice_id and file_path are required");
+      const { data, error } = await client.from("accounting_invoices").update({ file_path: filePath }).eq("id", invoiceId).select("*").single();
+      if (error) throw error;
+      return json({ action, item: data });
     }
 
     return json({ error: "Invalid action" }, 400);

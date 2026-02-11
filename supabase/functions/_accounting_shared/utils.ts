@@ -19,17 +19,36 @@ export function getAdminClient() {
   return createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
 }
 
-export async function requireEditorPin(client: ReturnType<typeof createClient>, pin: string) {
-  const editorPins = new Set(["4444", "2244"]);
-  if (editorPins.has(pin)) return { author: "Editor", role: "editor" };
+function parsePinsFromSecret(secretName: string): Set<string> {
+  const raw = Deno.env.get(secretName) ?? "";
+  return new Set(
+    raw
+      .split(/[\s,;]+/g)
+      .map((pin) => pin.trim())
+      .filter(Boolean),
+  );
+}
 
-  const { data, error } = await client.rpc("rpc_pin_login", { p_pin: pin });
-  if (error) throw new Error(error.message);
-  const row = Array.isArray(data) ? data[0] : data;
-  if (!row?.role || String(row.role).toLowerCase() !== "editor") {
+export function resolvePinRole(pin: string): "editor" | "viewer" | "manager" | null {
+  const normalized = String(pin || "").trim();
+  if (!normalized) return null;
+
+  const editorPins = parsePinsFromSecret("ACCOUNTING_EDITOR_PINS");
+  const viewerPins = parsePinsFromSecret("ACCOUNTING_VIEWER_PINS");
+  const managerPins = parsePinsFromSecret("ACCOUNTING_MANAGER_PINS");
+
+  if (editorPins.has(normalized)) return "editor";
+  if (viewerPins.has(normalized)) return "viewer";
+  if (managerPins.has(normalized)) return "manager";
+  return null;
+}
+
+export async function requireEditorPin(_client: ReturnType<typeof createClient>, pin: string) {
+  const role = resolvePinRole(pin);
+  if (role !== "editor") {
     throw new Error("Forbidden: editor PIN required");
   }
-  return row;
+  return { author: "Editor", role };
 }
 
 export function cleanName(name: string) {
