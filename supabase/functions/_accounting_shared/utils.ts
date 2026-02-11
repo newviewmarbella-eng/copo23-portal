@@ -19,36 +19,43 @@ export function getAdminClient() {
   return createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
 }
 
-function parsePinsFromSecret(secretName: string): Set<string> {
-  const raw = Deno.env.get(secretName) ?? "";
-  return new Set(
-    raw
-      .split(/[\s,;]+/g)
-      .map((pin) => pin.trim())
-      .filter(Boolean),
-  );
-}
-
-export function resolvePinRole(pin: string): "editor" | "viewer" | "manager" | null {
-  const normalized = String(pin || "").trim();
-  if (!normalized) return null;
-
-  const editorPins = parsePinsFromSecret("ACCOUNTING_EDITOR_PINS");
-  const viewerPins = parsePinsFromSecret("ACCOUNTING_VIEWER_PINS");
-  const managerPins = parsePinsFromSecret("ACCOUNTING_MANAGER_PINS");
-
-  if (editorPins.has(normalized)) return "editor";
-  if (viewerPins.has(normalized)) return "viewer";
-  if (managerPins.has(normalized)) return "manager";
+function normalizeRole(input: unknown): "viewer" | "foreman" | "editor" | null {
+  const value = String(input || "").trim().toLowerCase();
+  if (value === "manager") return "foreman";
+  if (value === "viewer" || value === "foreman" || value === "editor") return value;
   return null;
 }
 
-export async function requireEditorPin(_client: ReturnType<typeof createClient>, pin: string) {
-  const role = resolvePinRole(pin);
-  if (role !== "editor") {
+async function sha256Hex(value: string) {
+  const bytes = new TextEncoder().encode(value);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+export async function requireEditorPin(client: ReturnType<typeof createClient>, pin: string) {
+  const normalizedPin = String(pin || "").trim();
+  if (!/^\d{4}$/.test(normalizedPin)) {
     throw new Error("Forbidden: editor PIN required");
   }
-  return { author: "Editor", role };
+
+  const pinSha256 = await sha256Hex(normalizedPin);
+  const { data, error } = await client
+    .from("accounting_members")
+    .select("role, author, active, is_active")
+    .or(`pin_sha256.eq.${pinSha256},pin_hash.eq.${pinSha256}`)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message || "Forbidden: editor PIN required");
+
+  const isActive = data ? (data.active ?? data.is_active ?? true) : false;
+  const role = normalizeRole(data?.role);
+
+  if (!data || !role || !isActive || role !== "editor") {
+    throw new Error("Forbidden: editor PIN required");
+  }
+
+  return { author: String(data.author || "Editor"), role };
 }
 
 export function cleanName(name: string) {

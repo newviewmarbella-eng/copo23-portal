@@ -2159,8 +2159,11 @@ const LS_ROLE = "copo23_role";
 const LS_AUTHOR = "copo23_author";
 const LS_ACCESS_ROLE = "accessRole";
 const LS_ACCESS_AUTHOR = "accessAuthor";
+const LS_PIN_ROLE = "pin_role";
+const LS_PIN_AUTHOR = "pin_author";
 const ROLE_VIEWER = "viewer";
 const ROLE_CLIENT = "client";
+const ROLE_FOREMAN = "foreman";
 const ROLE_MANAGER = "manager";
 const ROLE_ADMIN = "admin";
 const ROLE_EDITOR = "editor";
@@ -2638,7 +2641,7 @@ function subscribeRealtime(){
 }
 
 function canAccessAccounting(){
-  return Boolean(currentSession?.pin) && currentRole === ROLE_EDITOR;
+  return currentRole === ROLE_EDITOR;
 }
 
 function canEditAccounting(){
@@ -2647,7 +2650,7 @@ function canEditAccounting(){
 
 function setTab(tab){
   if(tab === "accounting" && !canAccessAccounting()){
-    alert(t("enter_pin_prompt"));
+    showPinDebugBanner("❌ Forbidden: editor PIN required");
     tab = "progress";
   }
   activeTab = tab;
@@ -2743,21 +2746,20 @@ function displayNameFor(role, author){
   if(role===ROLE_CLIENT && author) return (author || "").toUpperCase();
   if(author) return author;
   if(role===ROLE_ADMIN) return "Jesus";
-  if(role===ROLE_MANAGER) return "Encargado";
+  if(role===ROLE_FOREMAN || role===ROLE_MANAGER) return "Encargado";
   if(role===ROLE_CLIENT) return t("role_client");
   return t("role_viewer");
 }
 
 function accessRoleLabel(){
-  const name = roleLabel();
-  return (name || "").toUpperCase();
+  return String(currentRole || ROLE_VIEWER).toUpperCase();
 }
 
 function roleLabel(){
   return displayNameFor(currentRole, currentAuthor);
 }
-const canEditProgress = ()=> currentRole===ROLE_ADMIN || currentRole===ROLE_MANAGER || currentRole===ROLE_EDITOR;
-const canEditNotes = ()=> currentRole===ROLE_ADMIN || currentRole===ROLE_MANAGER || currentRole===ROLE_CLIENT || currentRole===ROLE_EDITOR;
+const canEditProgress = ()=> currentRole===ROLE_ADMIN || currentRole===ROLE_MANAGER || currentRole===ROLE_FOREMAN || currentRole===ROLE_EDITOR;
+const canEditNotes = ()=> currentRole===ROLE_ADMIN || currentRole===ROLE_MANAGER || currentRole===ROLE_FOREMAN || currentRole===ROLE_CLIENT || currentRole===ROLE_EDITOR;
 const canUseAdminTools = ()=> currentRole===ROLE_ADMIN || currentRole===ROLE_EDITOR;
 
 function applySession(session){
@@ -2785,6 +2787,8 @@ function persistSession(session){
     localStorage.setItem(LS_AUTHOR, author);
     localStorage.setItem(LS_ACCESS_ROLE, role);
     localStorage.setItem(LS_ACCESS_AUTHOR, author);
+    localStorage.setItem(LS_PIN_ROLE, role);
+    localStorage.setItem(LS_PIN_AUTHOR, author);
   }catch(_){ }
 }
 
@@ -2795,6 +2799,8 @@ function clearSession(){
   localStorage.removeItem(LS_AUTHOR);
   localStorage.removeItem(LS_ACCESS_ROLE);
   localStorage.removeItem(LS_ACCESS_AUTHOR);
+  localStorage.removeItem(LS_PIN_ROLE);
+  localStorage.removeItem(LS_PIN_AUTHOR);
   applySession({role: ROLE_VIEWER, author: "Viewer", pin: null, expiresAt: 0, editUnlocked: false, editRole: null});
 }
 
@@ -3551,6 +3557,13 @@ function syncAccountingHash(){
 
 async function accountingInvoke(action, payload){
   if(!sb) throw new Error("Supabase unavailable");
+  if(!currentSession?.pin) throw new Error("Forbidden: editor PIN required");
+
+  const { data: accessData } = await verifyPinWithEdgeFunction(currentSession.pin, "editor");
+  if(!accessData?.valid){
+    throw new Error(String(accessData?.error || "Forbidden: editor PIN required"));
+  }
+
   const {data, error} = await sb.functions.invoke("accounting_api", { body: Object.assign({ pin: currentSession.pin, action }, payload||{}) });
   if(error) throw error;
   if(data?.error) throw new Error(data.error);
@@ -3588,7 +3601,10 @@ async function runInvoiceOCR(file){
 }
 
 async function renderAccounting(){
-  if(!canAccessAccounting()) return;
+  if(!canAccessAccounting()){
+    showPinDebugBanner("❌ Forbidden: editor PIN required");
+    return;
+  }
   const hashView = accountingViewFromHash(location.hash);
   if(hashView) accountingView = hashView;
   await renderAccountingPanel();
@@ -3596,7 +3612,7 @@ async function renderAccounting(){
 
 async function renderAccountingPanel(){
   if(!canEditAccounting() && ["accounting-new-expense","accounting-new-income","accounting-workers","accounting-timesheets"].includes(accountingView)){
-    toast("Necesitas PIN editor");
+    showPinDebugBanner("❌ Forbidden: editor PIN required");
     setAccountingView("accounting-dashboard", false);
     return;
   }
