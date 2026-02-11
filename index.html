@@ -125,6 +125,17 @@ textarea{width:100%;min-height:56px;border-radius:14px;border:1px solid var(--li
 .table th{background:#fbfcfd;font-weight:900}
 .notice{background:#0b2a3a10;border:1px solid var(--line);border-radius:18px;padding:12px;margin-top:12px}
 .notice strong{font-weight:900}
+
+.accounting-grid{grid-template-columns:1fr 1fr}
+@media(max-width:720px){.accounting-grid{grid-template-columns:1fr}}
+.acc-btn{padding:20px;font-size:18px;font-weight:800;border-radius:16px;border:1px solid var(--line);background:#fff;cursor:pointer;text-align:left}
+.acc-btn small{display:block;color:var(--muted);font-size:12px;font-weight:600;margin-top:4px}
+.acc-form{display:grid;gap:10px}
+.acc-form label{font-size:13px;color:var(--muted);display:grid;gap:4px}
+.acc-form input,.acc-form select,.acc-form textarea{width:100%;padding:10px;border-radius:12px;border:1px solid var(--line)}
+.acc-list{display:grid;gap:10px}
+.acc-item{border:1px solid var(--line);border-radius:12px;padding:10px;background:#fbfcfd}
+
 /* Toast */
 .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#101828;color:#fff;padding:10px 14px;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s ease;z-index:60}
 .toast.show{opacity:1}
@@ -263,17 +274,12 @@ code{background:#10182810;padding:2px 6px;border-radius:8px}
 
   <section id="viewAccounting" class="view">
     <div class="toolbar">
-      <div class="row" style="justify-content:space-between;gap:12px;align-items:center">
-        <div>
-          <div class="muted" id="accountingHint">Accounting is enabled while edit mode is unlocked.</div>
-        </div>
-      </div>
+      <div class="muted" id="accountingHint">Accounting is only available for editor role.</div>
     </div>
     <div style="height:12px"></div>
+    <div id="accountingHome" class="grid accounting-grid"></div>
     <div class="card" id="accountingPanel">
-      <div class="body">
-        <div class="muted" id="accountingBodyText">Accounting content available for editor mode.</div>
-      </div>
+      <div class="body" id="accountingBody"></div>
     </div>
   </section>
 </div>
@@ -2131,9 +2137,8 @@ const ROLE_VIEWER = "viewer";
 const ROLE_CLIENT = "client";
 const ROLE_MANAGER = "manager";
 const ROLE_ADMIN = "admin";
-const EDIT_ROLE_OWNER = "owner";
-const EDIT_ROLE_PARTNER = "partner";
-const PARTNER_EDIT_PIN = "4444";
+const ROLE_EDITOR = "editor";
+const EDITOR_PINS = new Set(["4444","2244"]);
 
 const el = (id)=>document.getElementById(id);
 let sb = null;
@@ -2142,6 +2147,10 @@ let currentChapter = null;
 let currentRole = ROLE_VIEWER;
 let currentAuthor = "Viewer";
 let activeTab = "progress";
+let accountingInvoices = [];
+let accountingWorkers = [];
+let accountingTimesheets = [];
+let accountingView = "home";
 let currentPlan = (DATA.plans || [])[0] || null;
 let noteDraftImage = null;
 let notesCache = {};
@@ -2582,7 +2591,7 @@ function subscribeRealtime(){
 }
 
 function canAccessAccounting(){
-  return !!currentSession?.editUnlocked && (currentSession.editRole===EDIT_ROLE_OWNER || currentSession.editRole===EDIT_ROLE_PARTNER);
+  return (currentRole || "") === ROLE_EDITOR;
 }
 
 function setTab(tab){
@@ -2599,6 +2608,7 @@ function setTab(tab){
   el("viewSchedule").classList.toggle("active", tab==="schedule");
   el("viewPlans").classList.toggle("active", tab==="plans");
   el("viewAccounting").classList.toggle("active", tab==="accounting");
+  if(tab==="accounting") renderAccounting();
 }
 
 function currentLanguage(){
@@ -2678,6 +2688,7 @@ function planSrc(plan){
 }
 
 function displayNameFor(role, author){
+  if(role===ROLE_EDITOR) return "EDITOR";
   if(role===ROLE_CLIENT && author) return (author || "").toUpperCase();
   if(author) return author;
   if(role===ROLE_ADMIN) return "Jesus";
@@ -2694,9 +2705,9 @@ function accessRoleLabel(){
 function roleLabel(){
   return displayNameFor(currentRole, currentAuthor);
 }
-const canEditProgress = ()=> currentRole===ROLE_ADMIN || currentRole===ROLE_MANAGER;
-const canEditNotes = ()=> currentRole===ROLE_ADMIN || currentRole===ROLE_MANAGER || currentRole===ROLE_CLIENT;
-const canUseAdminTools = ()=> currentRole===ROLE_ADMIN;
+const canEditProgress = ()=> currentRole===ROLE_ADMIN || currentRole===ROLE_MANAGER || currentRole===ROLE_EDITOR;
+const canEditNotes = ()=> currentRole===ROLE_ADMIN || currentRole===ROLE_MANAGER || currentRole===ROLE_CLIENT || currentRole===ROLE_EDITOR;
+const canUseAdminTools = ()=> currentRole===ROLE_ADMIN || currentRole===ROLE_EDITOR;
 
 function applySession(session){
   const sess = session || {role: ROLE_VIEWER};
@@ -2774,7 +2785,7 @@ function applyLanguageStatic(){
   el("btnResetDraft").textContent = t("discard_draft");
   el("plansHint").textContent = t("plans_hint");
   el("accountingHint").textContent = t("accounting_hint");
-  el("accountingBodyText").textContent = t("accounting_hint");
+
   el("btnClose").textContent = t("close");
   el("toast").textContent = t("saved");
   el("notesTitle").textContent = t("notes_title");
@@ -2802,8 +2813,8 @@ async function askPinAndEnable(){
   if(!pinInput) return;
   try{
     const p = String(pinInput || '').trim();
-    if(p === PARTNER_EDIT_PIN){
-      const session = {pin: p, author: "Partner", role: ROLE_VIEWER, editUnlocked: true, editRole: EDIT_ROLE_PARTNER};
+    if(EDITOR_PINS.has(p)){
+      const session = {pin: p, author: "Editor", role: ROLE_EDITOR, expiresAt: Date.now() + (12*60*60*1000)};
       persistSession(session);
       applySession(session);
       toast(t("edit_mode_enabled"));
@@ -2816,14 +2827,8 @@ async function askPinAndEnable(){
     const row = Array.isArray(data) ? data[0] : data;
     if (!row?.author || !row?.role) { alert("Invalid PIN"); return; }
 
-    const session = {pin: p, author: row.author, role: row.role, editUnlocked: false, editRole: null};
-    if(row.role === ROLE_ADMIN){
-      session.editUnlocked = true;
-      session.editRole = EDIT_ROLE_OWNER;
-    }else if(row.role === EDIT_ROLE_PARTNER){
-      session.editUnlocked = true;
-      session.editRole = EDIT_ROLE_PARTNER;
-    }
+    const role = String(row.role || "").toLowerCase();
+    const session = {pin: p, author: row.author, role, expiresAt: Date.now() + (12*60*60*1000)};
     persistSession(session);
     applySession(session);
     toast(t("edit_mode_enabled"));
@@ -3389,6 +3394,130 @@ function renderPlanViewer(){
     download.href = src;
     download.download = currentPlan.file;
     download.textContent = t("download");
+  }
+}
+
+
+const ACCOUNTING_ACTIONS = [
+  {id:"expense", title:"A) + Añadir Gasto", desc:"Factura gasto"},
+  {id:"income", title:"B) + Añadir Ingreso", desc:"Factura ingreso"},
+  {id:"workers", title:"C) Trabajadores", desc:"Tarifas por día"},
+  {id:"timesheets", title:"D) Jornales / Partes", desc:"Registro semanal"},
+  {id:"payments", title:"E) Pagos", desc:"Preparado (próximamente)"},
+  {id:"invoices", title:"F) Facturas", desc:"Listado + filtros"},
+  {id:"dashboard", title:"G) Dashboard", desc:"Preparado (próximamente)"},
+  {id:"export", title:"H) Exportar", desc:"PDF"}
+];
+
+async function accountingInvoke(name, payload){
+  if(!sb) throw new Error("Supabase unavailable");
+  const {data, error} = await sb.functions.invoke(name, { body: Object.assign({pin: currentSession.pin}, payload||{}) });
+  if(error) throw error;
+  return data;
+}
+
+async function renderAccounting(){
+  if(!canAccessAccounting()) return;
+  const home = el("accountingHome");
+  home.innerHTML = "";
+  for(const action of ACCOUNTING_ACTIONS){
+    const b = document.createElement("button");
+    b.className = "acc-btn";
+    b.innerHTML = `${action.title}<small>${action.desc}</small>`;
+    b.addEventListener("click", ()=>{ accountingView = action.id; renderAccountingPanel(); });
+    home.appendChild(b);
+  }
+  await renderAccountingPanel();
+}
+
+async function renderAccountingPanel(){
+  const body = el("accountingBody");
+  if(!body) return;
+  if(accountingView === "home"){
+    body.innerHTML = `<div class="muted">Selecciona una acción de Contabilidad.</div>`;
+    return;
+  }
+  if(accountingView === "payments" || accountingView === "dashboard"){
+    body.innerHTML = `<div class="notice"><strong>Módulo preparado</strong><div class="muted">Disponible en la siguiente fase.</div></div>`;
+    return;
+  }
+  if(accountingView === "expense" || accountingView === "income"){
+    const isExpense = accountingView === "expense";
+    body.innerHTML = `<form id="accInvoiceForm" class="acc-form">
+      <label>${isExpense?"Proveedor":"Cliente / pagador"}<input name="vendor_or_client" required></label>
+      <label>Fecha<input type="date" name="date" required></label>
+      <label>${isExpense?"Nº factura":"Referencia"}<input name="invoice_number"></label>
+      <label>Base<input type="number" step="0.01" name="subtotal" required></label>
+      <label>IVA<input type="number" step="0.01" name="vat" value="0"></label>
+      <label>Total<input type="number" step="0.01" name="total" required></label>
+      <label>Categoría (1-5)<input type="number" min="1" max="5" name="category"></label>
+      <label>Subcategoría<input name="subcategory"></label>
+      <label>Método pago<input name="payment_method"></label>
+      <label>Estado<select name="status"><option value="pending">pendiente</option><option value="paid">pagada</option></select></label>
+      <label>Archivo (foto/PDF)<input type="file" name="file" accept="image/*,application/pdf"></label>
+      <label>Notas<textarea name="notes"></textarea></label>
+      <div class="row"><button class="smallbtn" type="submit">Guardar</button><button class="smallbtn" type="button" id="btnOcr">Procesar OCR</button></div>
+    </form>`;
+    el("btnOcr").addEventListener("click", ()=>toast("OCR opcional (pendiente)"));
+    el("accInvoiceForm").addEventListener("submit", async(ev)=>{
+      ev.preventDefault();
+      try{
+        const fd = new FormData(ev.target);
+        let file_path = "";
+        const file = fd.get("file");
+        if(file && file.size){
+          const up = await accountingInvoke("accounting_upload_signed_url", {filename: file.name, contentType: file.type});
+          await fetch(up.uploadUrl, {method:"PUT", headers:{"Content-Type": file.type || "application/octet-stream"}, body:file});
+          file_path = up.path;
+        }
+        await accountingInvoke("accounting_upsert_invoice", {
+          type: isExpense ? "expense" : "income",
+          vendor_or_client: fd.get("vendor_or_client"),
+          date: fd.get("date"),
+          invoice_number: fd.get("invoice_number"),
+          subtotal: fd.get("subtotal"), vat: fd.get("vat"), total: fd.get("total"),
+          category: fd.get("category") || null, subcategory: fd.get("subcategory"), payment_method: fd.get("payment_method"),
+          status: fd.get("status"), notes: fd.get("notes"), file_path
+        });
+        toast("Factura guardada");
+        accountingView = "invoices";
+        await renderAccountingPanel();
+      }catch(err){ alert(err.message || String(err)); }
+    });
+    return;
+  }
+  if(accountingView === "workers"){
+    const list = await accountingInvoke("accounting_upsert_worker", {mode:"list"});
+    accountingWorkers = list.items || [];
+    body.innerHTML = `<div class="row"><button class="smallbtn" id="btnNewWorker" type="button">+ Nuevo trabajador</button></div><div id="workerFormWrap"></div><div class="acc-list">${accountingWorkers.map(w=>`<div class="acc-item"><strong>${esc(w.name)}</strong> · ${w.day_rate}€ · ${w.vat_applicable?"IVA":"Sin IVA"} · ${w.active?"Activo":"Inactivo"}</div>`).join("") || '<div class="muted">Sin trabajadores</div>'}</div>`;
+    el("btnNewWorker").addEventListener("click", ()=>{
+      el("workerFormWrap").innerHTML = `<form id="workerForm" class="acc-form"><label>Nombre<input name="name" required></label><label>Precio/día<input type="number" step="0.01" name="day_rate" required></label><label><input type="checkbox" name="vat_applicable"> aplica IVA</label><button class="smallbtn" type="submit">Guardar</button></form>`;
+      el("workerForm").addEventListener("submit", async(ev)=>{ev.preventDefault();const fd=new FormData(ev.target);await accountingInvoke("accounting_upsert_worker",{name:fd.get("name"),day_rate:fd.get("day_rate"),vat_applicable:fd.get("vat_applicable")==="on",active:true});toast("Trabajador guardado");renderAccountingPanel();});
+    });
+    return;
+  }
+  if(accountingView === "timesheets"){
+    const workers = await accountingInvoke("accounting_upsert_worker", {mode:"list_active"});
+    const workerOpts = (workers.items||[]).map(w=>`<option value="${w.id}" data-rate="${w.day_rate}">${esc(w.name)}</option>`).join("");
+    body.innerHTML = `<form id="timesheetForm" class="acc-form"><label>Fecha<input type="date" name="date" required></label><label>Trabajador<select name="worker_id" required>${workerOpts}</select></label><label>Horas<input type="number" step="0.25" name="hours" value="8"></label><label>Precio día<input type="number" step="0.01" name="day_rate"></label><label>Estado<select name="status"><option value="pending">pendiente</option><option value="paid">pagado</option></select></label><label>Notas<textarea name="notes"></textarea></label><button class="smallbtn" type="submit">Guardar jornal</button></form><div id="timesheetSummary"></div>`;
+    const select = body.querySelector('select[name="worker_id"]');
+    const rateInput = body.querySelector('input[name="day_rate"]');
+    const syncRate=()=>{ const opt=select.selectedOptions[0]; if(opt && !rateInput.value) rateInput.value = opt.dataset.rate || "";};
+    select.addEventListener('change', syncRate); syncRate();
+    el("timesheetForm").addEventListener("submit", async(ev)=>{ev.preventDefault();const fd=new FormData(ev.target);await accountingInvoke("accounting_upsert_timesheet",{worker_id:fd.get("worker_id"),date:fd.get("date"),hours:fd.get("hours"),day_rate:fd.get("day_rate"),status:fd.get("status"),notes:fd.get("notes")});toast("Jornal guardado");});
+    const list = await accountingInvoke("accounting_upsert_timesheet", {mode:"list_week"});
+    el("timesheetSummary").innerHTML = `<div class="acc-list">${(list.items||[]).map(it=>`<div class="acc-item">${it.date} · ${esc(it.worker_name||"")} · ${it.hours}h · ${it.total_cost}€</div>`).join("") || '<div class="muted">Sin jornales esta semana</div>'}</div>`;
+    return;
+  }
+  if(accountingView === "invoices"){
+    const list = await accountingInvoke("accounting_list_invoices", {});
+    accountingInvoices = list.items || [];
+    body.innerHTML = `<div class="acc-list">${accountingInvoices.map(inv=>`<div class="acc-item"><strong>${inv.type}</strong> · ${esc(inv.vendor_or_client||"")} · ${inv.date||""} · ${inv.total||0}€</div>`).join("") || '<div class="muted">Sin facturas</div>'}</div>`;
+    return;
+  }
+  if(accountingView === "export"){
+    body.innerHTML = `<form id="exportForm" class="acc-form"><label>Desde<input type="date" name="date_from"></label><label>Hasta<input type="date" name="date_to"></label><label>Tipo<select name="type"><option value="">Todos</option><option value="expense">Gasto</option><option value="income">Ingreso</option></select></label><button class="smallbtn" type="submit">Exportar PDF</button></form><div id="exportResult" class="muted"></div>`;
+    el("exportForm").addEventListener("submit", async(ev)=>{ev.preventDefault();const fd=new FormData(ev.target);const out=await accountingInvoke("accounting_export_pdf",{filters:{date_from:fd.get("date_from"),date_to:fd.get("date_to"),type:fd.get("type")}});el("exportResult").innerHTML = out?.signedUrl ? `<a href="${out.signedUrl}" target="_blank" rel="noopener">Descargar PDF</a>` : "No se pudo generar";});
   }
 }
 
