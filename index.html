@@ -141,6 +141,11 @@ textarea{width:100%;min-height:56px;border-radius:14px;border:1px solid var(--li
 .acc-form input,.acc-form select,.acc-form textarea{width:100%;padding:10px;border-radius:12px;border:1px solid var(--line)}
 .acc-list{display:grid;gap:10px}
 .acc-item{border:1px solid var(--line);border-radius:12px;padding:10px;background:#fbfcfd}
+.acc-nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.acc-nav-btn{padding:9px 12px;border:1px solid var(--line);border-radius:12px;background:#fff;cursor:pointer;font-weight:700}
+.acc-nav-btn.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+.acc-progress{height:8px;background:#eef2f6;border-radius:999px;overflow:hidden}
+.acc-progress>div{height:100%;width:0%;background:var(--ink);transition:width .2s ease}
 
 /* Toast */
 .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#101828;color:#fff;padding:10px 14px;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s ease;z-index:60}
@@ -148,6 +153,7 @@ textarea{width:100%;min-height:56px;border-radius:14px;border:1px solid var(--li
 code{background:#10182810;padding:2px 6px;border-radius:8px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
 <header>
@@ -2143,7 +2149,6 @@ const ROLE_CLIENT = "client";
 const ROLE_MANAGER = "manager";
 const ROLE_ADMIN = "admin";
 const ROLE_EDITOR = "editor";
-const EDITOR_PINS = new Set(["4444","2244"]);
 
 const el = (id)=>document.getElementById(id);
 let sb = null;
@@ -2597,7 +2602,7 @@ function subscribeRealtime(){
 }
 
 function canAccessAccounting(){
-  return (currentRole || "") === ROLE_EDITOR;
+  return [ROLE_EDITOR, ROLE_MANAGER].includes(currentRole || "");
 }
 
 function setTab(tab){
@@ -2819,22 +2824,14 @@ async function askPinAndEnable(){
   if(!pinInput) return;
   try{
     const p = String(pinInput || '').trim();
-    if(EDITOR_PINS.has(p)){
-      const session = {pin: p, author: "Editor", role: ROLE_EDITOR, expiresAt: Date.now() + (12*60*60*1000)};
-      persistSession(session);
-      applySession(session);
-      toast(t("edit_mode_enabled"));
-      processQueue();
-      return;
-    }
-
-    const { data, error } = await sb.rpc('rpc_pin_login', { p_pin: p });
-    if (error) { console.error(error); alert("PIN login error: " + error.message); return; }
-    const row = Array.isArray(data) ? data[0] : data;
-    if (!row?.author || !row?.role) { alert("Invalid PIN"); return; }
-
-    const role = String(row.role || "").toLowerCase();
-    const session = {pin: p, author: row.author, role, expiresAt: Date.now() + (12*60*60*1000)};
+    const { data, error } = await sb.functions.invoke("verify_pin", {
+      body: { pin: p, sessionId: `web-${Date.now()}` }
+    });
+    if(error) throw error;
+    if(!data?.ok || !data?.role) throw new Error("Invalid PIN");
+    const role = String(data.role || "viewer").toLowerCase();
+    const author = role === ROLE_EDITOR ? "Editor" : (role === ROLE_MANAGER ? "Manager" : "Viewer");
+    const session = {pin: p, author, role, expiresAt: Date.now() + (12*60*60*1000)};
     persistSession(session);
     applySession(session);
     toast(t("edit_mode_enabled"));
@@ -3405,25 +3402,22 @@ function renderPlanViewer(){
 
 
 const ACCOUNTING_HOME_CARDS = [
-  {id:"accounting-invoices", title:"Facturas", desc:"Alta, listado y exportación"},
-  {id:"accounting-workers", title:"Trabajadores", desc:"Tarifas por día"},
-  {id:"accounting-timesheets", title:"Jornales / Partes", desc:"Registro semanal"},
-  {id:"accounting-payments", title:"Pagos", desc:"Preparado (próximamente)"},
-  {id:"accounting-dashboard", title:"Dashboard", desc:"Preparado (próximamente)"}
+  {id:"accounting-dashboard", title:"Dashboard", desc:"Resumen y exportación"},
+  {id:"accounting-invoices", title:"Facturas", desc:"Alta, listado y exportaciones"},
+  {id:"accounting-workers", title:"Trabajadores", desc:"CRUD de tarifas por día"},
+  {id:"accounting-timesheets", title:"Jornales / Partes", desc:"Parte semanal con coste automático"}
 ];
 
 const ACCOUNTING_INVOICE_ACTIONS = [
-  {id:"accounting-new-expense", title:"Añadir factura de GASTO", desc:"Crear una nueva factura de gasto"},
-  {id:"accounting-new-income", title:"Añadir factura de INGRESO", desc:"Crear una nueva factura de ingreso"},
-  {id:"accounting-invoice-list", title:"Listado de facturas", desc:"Ver facturas registradas"},
-  {id:"accounting-export-expense", title:"Exportar GASTOS (PDF)", desc:"Generar PDF de gastos"},
-  {id:"accounting-export-income", title:"Exportar INGRESOS (PDF)", desc:"Generar PDF de ingresos"}
+  {id:"accounting-new-expense", title:"Añadir Gasto", desc:"Registrar factura de gasto"},
+  {id:"accounting-new-income", title:"Añadir Ingreso", desc:"Registrar factura de ingreso"},
+  {id:"accounting-invoice-list", title:"Listado / Buscar", desc:"Filtrar y revisar facturas"},
+  {id:"accounting-export-expense", title:"Exportar Gastos", desc:"Placeholder PDF/Excel"},
+  {id:"accounting-export-income", title:"Exportar Ingresos", desc:"Placeholder PDF/Excel"}
 ];
 
 function setAccountingView(view, pushHistory=true){
-  if(pushHistory && accountingView !== view){
-    accountingHistory.push(accountingView);
-  }
+  if(pushHistory && accountingView !== view) accountingHistory.push(accountingView);
   accountingView = view;
   if(activeTab === "accounting") syncAccountingHash();
   renderAccountingPanel();
@@ -3431,11 +3425,7 @@ function setAccountingView(view, pushHistory=true){
 
 function goBackAccounting(){
   const prev = accountingHistory.pop();
-  if(prev){
-    accountingView = prev;
-  }else{
-    accountingView = "accounting-home";
-  }
+  accountingView = prev || "accounting-home";
   if(activeTab === "accounting") syncAccountingHash();
   renderAccountingPanel();
 }
@@ -3444,6 +3434,8 @@ function accountingViewFromHash(hash){
   if(!hash) return null;
   if(hash === "#accounting") return "accounting-home";
   const map = {
+    "#accounting-home":"accounting-home",
+    "#accounting-dashboard":"accounting-dashboard",
     "#accounting-invoices":"accounting-invoices",
     "#accounting-new-expense":"accounting-new-expense",
     "#accounting-new-income":"accounting-new-income",
@@ -3451,51 +3443,56 @@ function accountingViewFromHash(hash){
     "#accounting-export-expense":"accounting-export-expense",
     "#accounting-export-income":"accounting-export-income",
     "#accounting-workers":"accounting-workers",
-    "#accounting-timesheets":"accounting-timesheets",
-    "#accounting-payments":"accounting-payments",
-    "#accounting-dashboard":"accounting-dashboard"
+    "#accounting-timesheets":"accounting-timesheets"
   };
   return map[hash] || null;
 }
 
 function hashFromAccountingView(view){
-  const map = {
-    "accounting-home":"#accounting",
-    "accounting-invoices":"#accounting-invoices",
-    "accounting-new-expense":"#accounting-new-expense",
-    "accounting-new-income":"#accounting-new-income",
-    "accounting-invoice-list":"#accounting-invoice-list",
-    "accounting-export-expense":"#accounting-export-expense",
-    "accounting-export-income":"#accounting-export-income",
-    "accounting-workers":"#accounting-workers",
-    "accounting-timesheets":"#accounting-timesheets",
-    "accounting-payments":"#accounting-payments",
-    "accounting-dashboard":"#accounting-dashboard"
-  };
-  return map[view] || "#accounting";
+  return `#${view || "accounting"}`;
 }
 
 function syncAccountingHash(){
   const hash = hashFromAccountingView(accountingView);
-  if(location.hash !== hash){
-    history.replaceState(null, "", hash);
-  }
+  if(location.hash !== hash) history.replaceState(null, "", hash);
 }
 
-async function accountingInvoke(name, payload){
+async function accountingInvoke(action, payload){
   if(!sb) throw new Error("Supabase unavailable");
-  const {data, error} = await sb.functions.invoke(name, { body: Object.assign({pin: currentSession.pin}, payload||{}) });
+  const {data, error} = await sb.functions.invoke("accounting_api", { body: Object.assign({ pin: currentSession.pin, action }, payload||{}) });
   if(error) throw error;
+  if(data?.error) throw new Error(data.error);
   return data;
+}
+
+function accountingNav(active){
+  const items = ACCOUNTING_HOME_CARDS.map((item)=>`<button class="acc-nav-btn ${active===item.id?"active":""}" type="button" data-acc-goto="${item.id}">${item.title}</button>`).join("");
+  return `<div class="acc-nav"><button class="acc-nav-btn ${active==="accounting-home"?"active":""}" type="button" data-acc-goto="accounting-home">Inicio</button>${items}</div>`;
+}
+
+function bindAccountingNav(){
+  document.querySelectorAll('[data-acc-goto]').forEach((btn)=>btn.addEventListener('click', ()=>setAccountingView(btn.dataset.accGoto)));
 }
 
 function renderAccountingScreen(title, content, withBack=true){
   const body = el("accountingBody");
   if(!body) return;
-  body.innerHTML = `<div class="acc-view">    <div class="acc-view-header">${withBack ? '<button class="smallbtn" type="button" id="btnAccountingBack">← Volver</button>' : ''}<h3>${title}</h3></div>    <div>${content}</div>  </div>`;
-  if(withBack){
-    el("btnAccountingBack").addEventListener("click", goBackAccounting);
-  }
+  body.innerHTML = `<div class="acc-view"><div class="acc-view-header">${withBack ? '<button class="smallbtn" type="button" id="btnAccountingBack">← Volver</button>' : ''}<h3>${title}</h3></div>${accountingNav(accountingView)}<div>${content}</div></div>`;
+  if(withBack) el("btnAccountingBack").addEventListener("click", goBackAccounting);
+  bindAccountingNav();
+}
+
+async function runInvoiceOCR(file){
+  if(!window.Tesseract) throw new Error("Tesseract no disponible");
+  const { data } = await window.Tesseract.recognize(file, 'spa+eng', {
+    logger: (m)=>{
+      if(m.status === 'recognizing text' && el('ocrBar')){
+        el('ocrBar').style.width = `${Math.round((m.progress||0)*100)}%`;
+      }
+      if(el('ocrStatus')) el('ocrStatus').textContent = `${m.status || 'procesando'} ${Math.round((m.progress||0)*100)}%`;
+    }
+  });
+  return data?.text || "";
 }
 
 async function renderAccounting(){
@@ -3520,99 +3517,109 @@ async function renderAccountingPanel(){
     return;
   }
 
-  if(accountingView === "accounting-payments" || accountingView === "accounting-dashboard"){
-    const title = accountingView === "accounting-payments" ? "Pagos" : "Dashboard";
-    renderAccountingScreen(title, `<div class="notice"><strong>Módulo preparado</strong><div class="muted">Disponible en la siguiente fase.</div></div>`);
+  if(accountingView === "accounting-dashboard"){
+    const invoiceRes = await accountingInvoke("list_invoices", {});
+    const workerRes = await accountingInvoke("list_workers", {});
+    const tsRes = await accountingInvoke("list_timesheets", {});
+    const invoiceTotal = (invoiceRes.items||[]).reduce((acc, row)=>acc + Number(row.total||0), 0);
+    const timesheetTotal = (tsRes.items||[]).reduce((acc, row)=>acc + Number(row.total_cost||0), 0);
+    renderAccountingScreen("Dashboard", `<div class="kpis"><div class="kpi"><div class="muted">Facturas</div><div class="big">${(invoiceRes.items||[]).length}</div></div><div class="kpi"><div class="muted">Trabajadores</div><div class="big">${(workerRes.items||[]).length}</div></div><div class="kpi"><div class="muted">Jornales</div><div class="big">${(tsRes.items||[]).length}</div></div></div><div class="notice" style="margin-top:10px"><strong>Total facturas: ${invoiceTotal.toFixed(2)} €</strong><div class="muted">Coste jornales: ${timesheetTotal.toFixed(2)} €</div><div class="row" style="margin-top:8px"><button class="smallbtn" type="button">Exportar PDF (placeholder)</button><button class="smallbtn" type="button">Exportar Excel (placeholder)</button></div></div>`);
     return;
   }
 
   if(accountingView === "accounting-new-expense" || accountingView === "accounting-new-income"){
     const isExpense = accountingView === "accounting-new-expense";
-    renderAccountingScreen(isExpense ? "Nueva factura gasto" : "Nueva factura ingreso", `<form id="accInvoiceForm" class="acc-form">
-      <label>${isExpense?"Proveedor":"Cliente / pagador"}<input name="vendor_or_client" required></label>
-      <label>Fecha<input type="date" name="date" required></label>
-      <label>${isExpense?"Nº factura":"Referencia"}<input name="invoice_number"></label>
-      <label>Base<input type="number" step="0.01" name="subtotal" required></label>
-      <label>IVA<input type="number" step="0.01" name="vat" value="0"></label>
-      <label>Total<input type="number" step="0.01" name="total" required></label>
-      <label>Categoría (1-5)<input type="number" min="1" max="5" name="category"></label>
-      <label>Subcategoría<input name="subcategory"></label>
-      <label>Método pago<input name="payment_method"></label>
-      <label>Estado<select name="status"><option value="pending">pendiente</option><option value="paid">pagada</option></select></label>
-      <label>Archivo (foto/PDF)<input type="file" name="file" accept="image/*,application/pdf"></label>
-      <label>Notas<textarea name="notes"></textarea></label>
-      <div class="row"><button class="smallbtn" type="submit">Guardar</button><button class="smallbtn" type="button" id="btnOcr">Procesar OCR</button></div>
-    </form>`);
-    el("btnOcr").addEventListener("click", ()=>toast("OCR opcional (pendiente)"));
+    renderAccountingScreen(isExpense ? "Añadir Gasto" : "Añadir Ingreso", `<form id="accInvoiceForm" class="acc-form"><label>${isExpense?"Proveedor":"Cliente / pagador"}<input name="vendor_or_client" required></label><label>Fecha<input type="date" name="date" required></label><label>${isExpense?"Nº factura":"Referencia"}<input name="invoice_number"></label><label>Base<input type="number" step="0.01" name="subtotal" required></label><label>IVA<input type="number" step="0.01" name="vat" value="0"></label><label>Total<input type="number" step="0.01" name="total" required></label><label>Categoría (1-5)<input type="number" min="1" max="5" name="category"></label><label>Subcategoría<input name="subcategory"></label><label>Método pago<input name="payment_method"></label><label>Estado<select name="status"><option value="pending">pendiente</option><option value="paid">pagada</option></select></label><label>Archivo (imagen/PDF)<input type="file" name="file" accept="image/*,application/pdf"></label><div class="acc-progress"><div id="ocrBar"></div></div><div class="muted" id="ocrStatus">OCR no iniciado</div><label>Texto OCR<input name="ocr_text" id="ocrText"></label><label>Notas<textarea name="notes"></textarea></label><div class="row"><button class="smallbtn" type="submit">Guardar</button><button class="smallbtn" type="button" id="btnOcr">Procesar OCR</button></div></form>`);
+    el("btnOcr").addEventListener("click", async()=>{
+      const file = el("accInvoiceForm").querySelector('input[name="file"]').files?.[0];
+      if(!file) return toast("Selecciona un archivo");
+      if(!file.type.startsWith("image/")) return toast("OCR v1 solo imagen");
+      try{ const text = await runInvoiceOCR(file); el("ocrText").value = text.slice(0, 4000); toast("OCR completado"); }catch(err){ alert(err.message || String(err)); }
+    });
     el("accInvoiceForm").addEventListener("submit", async(ev)=>{
       ev.preventDefault();
-      try{
-        const fd = new FormData(ev.target);
-        let file_path = "";
-        const file = fd.get("file");
-        if(file && file.size){
-          const up = await accountingInvoke("accounting_upload_signed_url", {filename: file.name, contentType: file.type});
-          await fetch(up.uploadUrl, {method:"PUT", headers:{"Content-Type": file.type || "application/octet-stream"}, body:file});
-          file_path = up.path;
-        }
-        await accountingInvoke("accounting_upsert_invoice", {
-          type: isExpense ? "expense" : "income",
-          vendor_or_client: fd.get("vendor_or_client"),
-          date: fd.get("date"),
-          invoice_number: fd.get("invoice_number"),
-          subtotal: fd.get("subtotal"), vat: fd.get("vat"), total: fd.get("total"),
-          category: fd.get("category") || null, subcategory: fd.get("subcategory"), payment_method: fd.get("payment_method"),
-          status: fd.get("status"), notes: fd.get("notes"), file_path
-        });
-        toast("Factura guardada");
-        setAccountingView("accounting-invoice-list");
-      }catch(err){ alert(err.message || String(err)); }
+      const fd = new FormData(ev.target);
+      const file = fd.get("file");
+      const invoice = await accountingInvoke("create_invoice", {
+        type: isExpense ? "expense" : "income",
+        vendor_or_client: fd.get("vendor_or_client"),
+        date: fd.get("date"),
+        invoice_number: fd.get("invoice_number"),
+        subtotal: fd.get("subtotal"),
+        vat: fd.get("vat"),
+        total: fd.get("total"),
+        category: fd.get("category") || null,
+        subcategory: fd.get("subcategory"),
+        payment_method: fd.get("payment_method"),
+        status: fd.get("status"),
+        notes: fd.get("notes"),
+        ocr_text: fd.get("ocr_text") || null
+      });
+      if(file && file.size){
+        const up = await accountingInvoke("get_upload_url", { filename: file.name, contentType: file.type });
+        await fetch(up.uploadUrl, { method:"PUT", headers:{"Content-Type": file.type || "application/octet-stream"}, body: file });
+        await accountingInvoke("confirm_upload", { invoice_id: invoice.item.id, file_path: up.path });
+      }
+      toast("Factura guardada");
+      setAccountingView("accounting-invoice-list");
     });
     return;
   }
 
   if(accountingView === "accounting-workers"){
-    const list = await accountingInvoke("accounting_upsert_worker", {mode:"list"});
+    const list = await accountingInvoke("list_workers", {});
     accountingWorkers = list.items || [];
-    renderAccountingScreen("Trabajadores", `<div class="row"><button class="smallbtn" id="btnNewWorker" type="button">+ Nuevo trabajador</button></div><div id="workerFormWrap"></div><div class="acc-list">${accountingWorkers.map(w=>`<div class="acc-item"><strong>${esc(w.name)}</strong> · ${w.day_rate}€ · ${w.vat_applicable?"IVA":"Sin IVA"} · ${w.active?"Activo":"Inactivo"}</div>`).join("") || '<div class="muted">Sin trabajadores</div>'}</div>`);
+    renderAccountingScreen("Trabajadores", `<div class="row"><button class="smallbtn" id="btnNewWorker" type="button">+ Nuevo trabajador</button></div><div id="workerFormWrap"></div><div class="acc-list">${accountingWorkers.map(w=>`<div class="acc-item"><strong>${esc(w.name)}</strong> · ${w.day_rate}€ · ${w.vat_applicable?"IVA":"Sin IVA"} · ${w.active?"Activo":"Inactivo"} <button class="smallbtn" data-worker-id="${w.id}" data-worker-toggle="${w.active?0:1}" type="button">${w.active?"Desactivar":"Activar"}</button></div>`).join("") || '<div class="muted">Sin trabajadores</div>'}</div>`);
     el("btnNewWorker").addEventListener("click", ()=>{
       el("workerFormWrap").innerHTML = `<form id="workerForm" class="acc-form"><label>Nombre<input name="name" required></label><label>Precio/día<input type="number" step="0.01" name="day_rate" required></label><label><input type="checkbox" name="vat_applicable"> aplica IVA</label><button class="smallbtn" type="submit">Guardar</button></form>`;
-      el("workerForm").addEventListener("submit", async(ev)=>{ev.preventDefault();const fd=new FormData(ev.target);await accountingInvoke("accounting_upsert_worker",{name:fd.get("name"),day_rate:fd.get("day_rate"),vat_applicable:fd.get("vat_applicable")==="on",active:true});toast("Trabajador guardado");renderAccountingPanel();});
+      el("workerForm").addEventListener("submit", async(ev)=>{ev.preventDefault();const fd=new FormData(ev.target);await accountingInvoke("create_worker",{name:fd.get("name"),day_rate:fd.get("day_rate"),vat_applicable:fd.get("vat_applicable")==="on",active:true});toast("Trabajador guardado");renderAccountingPanel();});
     });
+    document.querySelectorAll('[data-worker-id]').forEach((btn)=>btn.addEventListener('click', async()=>{ await accountingInvoke('update_worker',{id:btn.dataset.workerId, active: btn.dataset.workerToggle === '1'}); renderAccountingPanel(); }));
     return;
   }
 
   if(accountingView === "accounting-timesheets"){
-    const workers = await accountingInvoke("accounting_upsert_worker", {mode:"list_active"});
+    const workers = await accountingInvoke("list_workers", { active: true });
     const workerOpts = (workers.items||[]).map(w=>`<option value="${w.id}" data-rate="${w.day_rate}">${esc(w.name)}</option>`).join("");
-    renderAccountingScreen("Jornales / Partes", `<form id="timesheetForm" class="acc-form"><label>Fecha<input type="date" name="date" required></label><label>Trabajador<select name="worker_id" required>${workerOpts}</select></label><label>Horas<input type="number" step="0.25" name="hours" value="8"></label><label>Precio día<input type="number" step="0.01" name="day_rate"></label><label>Estado<select name="status"><option value="pending">pendiente</option><option value="paid">pagado</option></select></label><label>Notas<textarea name="notes"></textarea></label><button class="smallbtn" type="submit">Guardar jornal</button></form><div id="timesheetSummary"></div>`);
+    renderAccountingScreen("Jornales / Partes", `<form id="timesheetForm" class="acc-form"><label>Semana (lunes)<input type="date" name="week_start" required></label><label>Trabajador<select name="worker_id" required>${workerOpts}</select></label><label>Precio día<input type="number" step="0.01" name="day_rate"></label><label>Días trabajados (1-7, separados por coma)<input name="days" placeholder="1,2,3,4,5"></label><label>Horas por día<input type="number" step="0.25" name="hours" value="8"></label><label>Estado<select name="status"><option value="pending">pendiente</option><option value="paid">pagado</option></select></label><label>Notas<textarea name="notes"></textarea></label><button class="smallbtn" type="submit">Guardar parte semanal</button></form><div id="timesheetSummary"></div>`);
     const body = el("accountingBody");
     const select = body.querySelector('select[name="worker_id"]');
     const rateInput = body.querySelector('input[name="day_rate"]');
     const syncRate=()=>{ const opt=select.selectedOptions[0]; if(opt && !rateInput.value) rateInput.value = opt.dataset.rate || "";};
     select.addEventListener('change', syncRate); syncRate();
-    el("timesheetForm").addEventListener("submit", async(ev)=>{ev.preventDefault();const fd=new FormData(ev.target);await accountingInvoke("accounting_upsert_timesheet",{worker_id:fd.get("worker_id"),date:fd.get("date"),hours:fd.get("hours"),day_rate:fd.get("day_rate"),status:fd.get("status"),notes:fd.get("notes")});toast("Jornal guardado");});
-    const list = await accountingInvoke("accounting_upsert_timesheet", {mode:"list_week"});
-    el("timesheetSummary").innerHTML = `<div class="acc-list">${(list.items||[]).map(it=>`<div class="acc-item">${it.date} · ${esc(it.worker_name||"")} · ${it.hours}h · ${it.total_cost}€</div>`).join("") || '<div class="muted">Sin jornales esta semana</div>'}</div>`;
+    el("timesheetForm").addEventListener("submit", async(ev)=>{
+      ev.preventDefault();
+      const fd=new FormData(ev.target);
+      const weekStart = new Date(String(fd.get("week_start")) + "T00:00:00");
+      const days = String(fd.get("days") || "").split(',').map(v=>Number(v.trim())).filter(v=>v>=1 && v<=7);
+      const payloadDays = days.map((d)=>{
+        const date = new Date(weekStart); date.setDate(weekStart.getDate() + (d - 1));
+        return { worker_id: fd.get("worker_id"), date: date.toISOString().slice(0,10), hours: Number(fd.get("hours") || 8), day_rate: Number(fd.get("day_rate") || 0) };
+      });
+      await accountingInvoke("create_timesheet",{ days: payloadDays, worker_id: fd.get("worker_id"), day_rate: fd.get("day_rate"), status: fd.get("status"), notes: fd.get("notes") });
+      toast("Parte semanal guardado");
+      renderAccountingPanel();
+    });
+    const list = await accountingInvoke("list_timesheets", {});
+    el("timesheetSummary").innerHTML = `<div class="acc-list">${(list.items||[]).slice(0,20).map(it=>`<div class="acc-item">${it.date} · ${esc(it.accounting_workers?.name||"")} · ${it.hours}h · ${it.total_cost}€</div>`).join("") || '<div class="muted">Sin jornales</div>'}</div>`;
     return;
   }
 
   if(accountingView === "accounting-invoice-list"){
-    const list = await accountingInvoke("accounting_list_invoices", {});
-    accountingInvoices = list.items || [];
-    renderAccountingScreen("Listado", `<div class="acc-list">${accountingInvoices.map(inv=>`<div class="acc-item"><strong>${inv.type}</strong> · ${esc(inv.vendor_or_client||"")} · ${inv.date||""} · ${inv.total||0}€</div>`).join("") || '<div class="muted">Sin facturas</div>'}</div>`);
+    renderAccountingScreen("Listado / Buscar", `<form id="invoiceFilter" class="acc-form"><label>Tipo<select name="type"><option value="">todos</option><option value="expense">gasto</option><option value="income">ingreso</option></select></label><label>Buscar tercero<input name="search"></label><button class="smallbtn" type="submit">Buscar</button></form><div id="invoiceList"></div>`);
+    const load = async(filters={})=>{
+      const list = await accountingInvoke("list_invoices", { filters });
+      accountingInvoices = list.items || [];
+      el("invoiceList").innerHTML = `<div class="acc-list">${accountingInvoices.map(inv=>`<div class="acc-item"><strong>${inv.type}</strong> · ${esc(inv.vendor_or_client||"")} · ${inv.date||""} · ${inv.total||0}€</div>`).join("") || '<div class="muted">Sin facturas</div>'}</div>`;
+    };
+    await load();
+    el("invoiceFilter").addEventListener("submit", async(ev)=>{ev.preventDefault();const fd=new FormData(ev.target);await load({type:fd.get("type"),search:fd.get("search")});});
     return;
   }
 
   if(accountingView === "accounting-export-expense" || accountingView === "accounting-export-income"){
     const exportType = accountingView === "accounting-export-expense" ? "expense" : "income";
-    renderAccountingScreen(exportType === "expense" ? "Exportar gastos" : "Exportar ingresos", `<form id="exportForm" class="acc-form"><label>Desde<input type="date" name="date_from"></label><label>Hasta<input type="date" name="date_to"></label><button class="smallbtn" type="submit">Exportar PDF</button></form><div id="exportResult" class="muted"></div>`);
-    el("exportForm").addEventListener("submit", async(ev)=>{
-      ev.preventDefault();
-      const fd=new FormData(ev.target);
-      const out=await accountingInvoke("accounting_export_pdf",{filters:{date_from:fd.get("date_from"),date_to:fd.get("date_to"),type:exportType}});
-      el("exportResult").innerHTML = out?.signedUrl ? `<a href="${out.signedUrl}" target="_blank" rel="noopener">Descargar PDF</a>` : "No se pudo generar";
-    });
+    renderAccountingScreen(exportType === "expense" ? "Exportar Gastos" : "Exportar Ingresos", `<div class="notice"><strong>Placeholder</strong><div class="muted">Exportación PDF/Excel se mantiene como siguiente iteración. Usa listado para revisar datos.</div></div>`);
     return;
   }
 
