@@ -30,30 +30,36 @@ function missingPinSecrets() {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+  if (req.method !== "POST") return json({ valid: false, role: null, error: "method_not_allowed" }, 200);
 
   try {
     const missingSecrets = missingPinSecrets();
     if (missingSecrets.length > 0) {
       console.error(`[verify_pin] missing required PIN secrets: ${missingSecrets.join(", ")}`);
-      return json({ ok: false, error: "missing_pin_secrets" }, 500);
+      return json({ valid: false, role: null, error: "missing_pin_secrets" }, 200);
     }
 
     const body = await req.json();
     const pin = String(body?.pin || "").trim();
+    const requestedRole = String(body?.requiredRole || "").trim().toLowerCase();
     const sessionId = String(body?.sessionId || "").trim();
-    if (!pin) return json({ ok: false, error: "PIN is required" }, 400);
+    if (!pin) return json({ valid: false, role: null, error: "invalid_pin" }, 200);
 
     const key = getRateLimitKey(req, sessionId);
     if (isRateLimited(key)) {
-      return json({ ok: false, error: "Too many attempts" }, 429);
+      return json({ valid: false, role: null, error: "too_many_attempts" }, 200);
     }
 
     const role = resolvePinRole(pin);
-    if (!role) return json({ ok: false, error: "Invalid PIN" }, 401);
+    if (!role) return json({ valid: false, role: null, error: "invalid_pin" }, 200);
 
-    return json({ ok: true, role });
+    if (requestedRole === "editor" && role !== "editor") {
+      return json({ valid: false, role, error: "editor_required" }, 200);
+    }
+
+    return json({ valid: true, role }, 200);
   } catch (error) {
-    return json({ ok: false, error: (error as Error).message }, 400);
+    console.error("[verify_pin] unexpected error", error);
+    return json({ valid: false, role: null, error: "invalid_pin_request" }, 200);
   }
 });
