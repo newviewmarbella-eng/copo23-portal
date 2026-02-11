@@ -440,7 +440,7 @@ const I18N = {
     editor_permission_required: "Correct PIN but you do not have editor permission",
     pin_secrets_missing: "PIN configuration missing",
     create_pin_prompt: "Create an admin PIN (4–8 digits):",
-    enter_pin_prompt: "Enter admin PIN:",
+    enter_admin_pin_prompt: "Enter admin PIN:",
     discard_confirm: "Discard local draft changes on this device?",
     import_invalid: "Invalid state.json",
     import_error_prefix: "Could not import: ",
@@ -547,7 +547,7 @@ const I18N = {
     editor_permission_required: "PIN correcto pero no tienes permiso de editor",
     pin_secrets_missing: "Falta configurar los PINs",
     create_pin_prompt: "Crea un PIN de administrador (4–8 dígitos):",
-    enter_pin_prompt: "Introduce el PIN de administrador:",
+    enter_admin_pin_prompt: "Introduce el PIN de administrador:",
     discard_confirm: "¿Descartar los cambios locales en este dispositivo?",
     import_invalid: "state.json no válido",
     import_error_prefix: "No se pudo importar: ",
@@ -653,8 +653,8 @@ const I18N = {
     access_granted: "Toegang verleend: {role}",
     editor_permission_required: "Juiste pincode maar je hebt geen editorrechten",
     pin_secrets_missing: "Pincode-configuratie ontbreekt",
-    create_pin_prompt: "Maak een beheerderspincode (4–8 cijfers):",
-    enter_pin_prompt: "Voer beheerderspincode in:",
+    create_pin_prompt: "Maak een beheerderspincode (4-8 cijfers):",
+    enter_admin_pin_prompt: "Voer beheerderspincode in:",
     discard_confirm: "Lokale conceptwijzigingen op dit apparaat verwijderen?",
     import_invalid: "Ongeldige state.json",
     import_error_prefix: "Kan niet importeren: ",
@@ -2873,7 +2873,7 @@ function applyLanguageStatic(){
 
 async function askPinAndEnable(){
   if(!sb){ toggleSupabaseBanner(true); return; }
-  const pinInput = prompt(t("enter_pin_prompt"));
+  const pinInput = prompt(t("enter_admin_pin_prompt"));
   if(!pinInput) return;
   hidePinDebugBanner();
   try{
