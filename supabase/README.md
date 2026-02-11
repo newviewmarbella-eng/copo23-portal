@@ -8,6 +8,7 @@ Set these environment variables locally (or via CI secrets):
 
 - `SUPABASE_ACCESS_TOKEN`
 - `SUPABASE_PROJECT_REF`
+- `SUPABASE_SERVICE_ROLE_KEY` (required by `verify_pin` to read `public.accounting_members` when RLS is enabled)
 
 ## Local workflow
 
@@ -52,3 +53,7 @@ Required bucket: `copo23-invoices`
 ## CI deployment
 
 Use workflow `.github/workflows/supabase-deploy.yml` and run it manually via `workflow_dispatch`.
+
+### verify_pin secrets
+
+`verify_pin` now uses the service-role client to validate any active PIN (`viewer`/`editor`/`manager`) and return the member `author`. If `SUPABASE_SERVICE_ROLE_KEY` is missing from Edge Function secrets, the function returns HTTP 500 with a clear configuration error.
