@@ -32,7 +32,7 @@ jobs:
       - name: Push database migrations
         run: |
           echo "Pushing database migrations..."
-          supabase db push --yes
+          yes | supabase db push
           echo "Migrations pushed successfully."
 
       - name: Deploy accounting_api function
