@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 export function json(data: unknown, status = 200) {
@@ -19,10 +20,10 @@ export function getAdminClient() {
   return createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
 }
 
-function normalizeRole(input: unknown): "viewer" | "foreman" | "editor" | null {
+function normalizeRole(input: unknown): "viewer" | "client" | "manager" | "admin" | "editor" | null {
   const value = String(input || "").trim().toLowerCase();
-  if (value === "manager") return "foreman";
-  if (value === "viewer" || value === "foreman" || value === "editor") return value;
+  if (value === "foreman") return "manager";
+  if (value === "viewer" || value === "client" || value === "manager" || value === "admin" || value === "editor") return value;
   return null;
 }
 
@@ -40,18 +41,18 @@ export async function requireEditorPin(client: ReturnType<typeof createClient>, 
 
   const pinSha256 = await sha256Hex(normalizedPin);
   const { data, error } = await client
-    .from("accounting_members")
-    .select("role, author, active, is_active")
-    .or(`pin_sha256.eq.${pinSha256},pin_hash.eq.${pinSha256}`)
+    .from("app_pins")
+    .select("role, author, active")
+    .eq("pin_sha256", pinSha256)
     .limit(1)
     .maybeSingle();
 
   if (error) throw new Error(error.message || "Forbidden: editor PIN required");
 
-  const isActive = data ? (data.active ?? data.is_active ?? true) : false;
+  const isActive = data ? (data.active ?? true) : false;
   const role = normalizeRole(data?.role);
 
-  if (!data || !role || !isActive || role !== "editor") {
+  if (!data || !role || !isActive || !["editor", "admin"].includes(role)) {
     throw new Error("Forbidden: editor PIN required");
   }
 

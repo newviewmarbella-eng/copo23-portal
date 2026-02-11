@@ -1,18 +1,14 @@
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { corsHeaders, getAdminClient, json } from "../_accounting_shared/utils.ts";
 
-type Role = "viewer" | "foreman" | "editor";
+type Role = "viewer" | "client" | "manager" | "admin" | "editor";
 
-const ROLE_LEVEL: Record<Role, number> = {
-  viewer: 1,
-  foreman: 2,
-  editor: 3,
-};
+const EDITOR_ALLOWED_ROLES = new Set<Role>(["editor", "admin"]);
 
 function normalizeRole(input: unknown): Role | null {
   const value = String(input || "").trim().toLowerCase();
-  if (value === "manager") return "foreman";
-  if (value === "viewer" || value === "foreman" || value === "editor") return value;
+  if (value === "foreman") return "manager";
+  if (value === "viewer" || value === "client" || value === "manager" || value === "admin" || value === "editor") return value;
   return null;
 }
 
@@ -23,19 +19,31 @@ async function sha256Hex(value: string) {
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS") {
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   if (req.method !== "POST") return json({ valid: false, error: "method_not_allowed" }, 405);
 
   try {
     const body = await req.json();
     const pin = String(body?.pin ?? "").trim();
-    const requiredRole = body?.requiredRole === undefined ? undefined : normalizeRole(body.requiredRole);
+    const requiredRoleRaw = body?.requiredRole;
+    const hasRequiredRole = requiredRoleRaw !== undefined && requiredRoleRaw !== null && String(requiredRoleRaw).trim() !== "";
+    const requiredRole = hasRequiredRole ? normalizeRole(requiredRoleRaw) : null;
 
     if (!/^\d{4}$/.test(pin)) {
       return json({ valid: false, error: "Invalid PIN" }, 401);
     }
 
-    if (body?.requiredRole !== undefined && !requiredRole) {
+    if (hasRequiredRole && !requiredRole) {
+      return json({ valid: false, error: "Invalid requiredRole" }, 400);
+    }
+
+    if (requiredRole && requiredRole !== "editor") {
       return json({ valid: false, error: "Invalid requiredRole" }, 400);
     }
 
@@ -50,9 +58,9 @@ serve(async (req) => {
     }
 
     const { data, error } = await admin
-      .from("accounting_members")
-      .select("role, author, active, is_active")
-      .or(`pin_sha256.eq.${pinSha256},pin_hash.eq.${pinSha256}`)
+      .from("app_pins")
+      .select("role, author, active")
+      .eq("pin_sha256", pinSha256)
       .limit(1)
       .maybeSingle();
 
@@ -61,14 +69,15 @@ serve(async (req) => {
       return json({ valid: false, error: "Internal server error" }, 500);
     }
 
-    const isActive = data ? (data.active ?? data.is_active ?? true) : false;
     const role = normalizeRole(data?.role);
+    const isActive = data ? (data.active ?? true) : false;
+
     if (!data || !role || !isActive) {
       return json({ valid: false, error: "Invalid PIN" }, 401);
     }
 
-    if (requiredRole && ROLE_LEVEL[role] < ROLE_LEVEL[requiredRole]) {
-      return json({ valid: false, error: `Forbidden: ${requiredRole} PIN required` }, 403);
+    if (requiredRole === "editor" && !EDITOR_ALLOWED_ROLES.has(role)) {
+      return json({ valid: false, error: "Forbidden: editor PIN required" }, 403);
     }
 
     return json({ valid: true, role, author: String(data.author || "") }, 200);
