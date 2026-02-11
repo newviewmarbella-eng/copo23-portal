@@ -2900,12 +2900,8 @@ async function askPinAndEnable(){
       return;
     }
 
-    if(data?.valid === false){
-      showPinDebugBanner("❌ PIN incorrecto");
-      return;
-    }
-
-    showPinDebugBanner(`❌ ${String(data?.error || t("incorrect_pin"))}`);
+    const fallbackError = response.ok ? t("incorrect_pin") : String(data?.error || `HTTP ${response.status}`);
+    showPinDebugBanner(`❌ ${fallbackError}`);
   }catch(e){
     const msg = String(e?.message || e || "Unknown error");
     showPinDebugBanner(`❌ PIN incorrecto: ${msg}`);
@@ -3160,6 +3156,8 @@ async function verifyPinWithEdgeFunction(pin, requiredRole){
   if(!supabaseUrl || !anonKey) throw new Error("Supabase config missing");
   const projectRef = String(supabaseUrl).replace(/^https:\/\//, "").split(".")[0];
   const endpoint = `https://${projectRef}.supabase.co/functions/v1/verify_pin`;
+  const payload = { pin, sessionId: `web-${Date.now()}` };
+  if(requiredRole === "editor") payload.requiredRole = "editor";
   const response = await fetch(endpoint, {
     method: "POST",
     headers: {
@@ -3168,7 +3166,7 @@ async function verifyPinWithEdgeFunction(pin, requiredRole){
       "Content-Type": "application/json",
       "x-pin": String(pin || "")
     },
-    body: JSON.stringify({ pin, requiredRole, sessionId: `web-${Date.now()}` })
+    body: JSON.stringify(payload)
   });
   let data = null;
   try{

@@ -8,52 +8,36 @@ Set these environment variables locally (or via CI secrets):
 
 - `SUPABASE_ACCESS_TOKEN`
 - `SUPABASE_PROJECT_REF`
-- `SUPABASE_SERVICE_ROLE_KEY` (required by `verify_pin` to read `public.accounting_members` when RLS is enabled)
+- `SUPABASE_DB_PASSWORD`
+- `SUPABASE_SERVICE_ROLE_KEY` (required by `verify_pin` to read `public.app_pins` with RLS enabled)
 
-## Local workflow
+## Run migrations
 
 ```bash
 supabase login --token "$SUPABASE_ACCESS_TOKEN"
 supabase link --project-ref "$SUPABASE_PROJECT_REF"
+echo "y" | supabase db push
 ```
 
-Apply migrations:
+## Deploy Edge Functions
 
-```bash
-supabase db push
-```
-
-Deploy edge functions:
+Run function deploys only after migrations succeed:
 
 ```bash
 supabase functions deploy accounting_api --no-verify-jwt
 supabase functions deploy verify_pin --no-verify-jwt
 ```
 
-## Edge API contract
+## Test `verify_pin`
 
-`accounting_api` uses POST with `action`:
+```bash
+curl -i -X POST https://<project>.supabase.co/functions/v1/verify_pin \
+  -H "Content-Type: application/json" \
+  -d '{"pin":"1111"}'
+```
 
-- `upload-url`
-- `save-invoice`
-- `list`
-- `download-url`
-- `export-pdf`
-
-`verify_pin` validates accounting PIN access.
-
-## Storage bucket
-
-Required bucket: `copo23-invoices`
-
-- Bucket is created (or enforced) by migration.
-- It is private (`public = false`).
-- Access is intended through edge functions using signed URLs.
+Expected response includes `valid: true`, `role: "viewer"`, `author: "Robbert"`.
 
 ## CI deployment
 
 Use workflow `.github/workflows/supabase-deploy.yml` and run it manually via `workflow_dispatch`.
-
-### verify_pin secrets
-
-`verify_pin` now uses the service-role client to validate any active PIN (`viewer`/`editor`/`manager`) and return the member `author`. If `SUPABASE_SERVICE_ROLE_KEY` is missing from Edge Function secrets, the function returns HTTP 500 with a clear configuration error.
