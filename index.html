@@ -2641,11 +2641,11 @@ function subscribeRealtime(){
 }
 
 function canAccessAccounting(){
-  return currentRole === ROLE_EDITOR || currentRole === ROLE_ADMIN;
+  return currentRole === ROLE_EDITOR;
 }
 
 function canEditAccounting(){
-  return currentRole === ROLE_EDITOR || currentRole === ROLE_ADMIN;
+  return currentRole === ROLE_EDITOR;
 }
 
 function setTab(tab){
@@ -2888,11 +2888,12 @@ async function askPinAndEnable(){
     const role = String(data?.role || "").toLowerCase();
     const author = String(data?.author || "").trim();
 
-    if(response.ok && data?.valid === true && role){
-      const session = {pin: p, author: author || displayNameFor(role, ""), role, expiresAt: Date.now() + (12*60*60*1000)};
+    if(response.ok && data?.valid === true){
+      const resolvedRole = role || ROLE_VIEWER;
+      const session = {pin: p, author: author || displayNameFor(resolvedRole, ""), role: resolvedRole, expiresAt: Date.now() + (12*60*60*1000)};
       persistSession(session);
       applySession(session);
-      const okMsg = `✅ PIN correcto (Usuario: ${session.author}, Rol: ${role})`;
+      const okMsg = `✅ PIN correcto (Usuario: ${session.author}, Rol: ${session.role})`;
       showPinDebugBanner(okMsg, "success");
       toast(okMsg);
       processQueue();
