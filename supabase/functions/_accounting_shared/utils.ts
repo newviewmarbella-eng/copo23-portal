@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-pin",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -20,43 +20,50 @@ export function getAdminClient() {
   return createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
 }
 
-function normalizeRole(input: unknown): "viewer" | "client" | "manager" | "admin" | "editor" | null {
+function normalizeRole(input: unknown): "viewer" | "editor" | null {
   const value = String(input || "").trim().toLowerCase();
-  if (value === "foreman") return "manager";
-  if (value === "viewer" || value === "client" || value === "manager" || value === "admin" || value === "editor") return value;
+  if (value === "viewer" || value === "editor") return value;
   return null;
 }
 
-async function sha256Hex(value: string) {
+export async function sha256Hex(value: string) {
   const bytes = new TextEncoder().encode(value);
   const hashBuffer = await crypto.subtle.digest("SHA-256", bytes);
   return Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export async function requireEditorPin(client: ReturnType<typeof createClient>, pin: string) {
+export async function lookupPin(client: ReturnType<typeof createClient>, pin: string) {
   const normalizedPin = String(pin || "").trim();
-  if (!/^\d{4}$/.test(normalizedPin)) {
-    throw new Error("Forbidden: editor PIN required");
-  }
+  if (!/^\d{4}$/.test(normalizedPin)) return { valid: false as const };
 
-  const pinSha256 = await sha256Hex(normalizedPin);
+  const pinHash = await sha256Hex(normalizedPin);
   const { data, error } = await client
     .from("app_pins")
     .select("role, author, active")
-    .eq("pin_sha256", pinSha256)
+    .eq("pin_hash", pinHash)
     .limit(1)
     .maybeSingle();
 
-  if (error) throw new Error(error.message || "Forbidden: editor PIN required");
+  if (error) throw new Error(error.message || "PIN lookup failed");
 
-  const isActive = data ? (data.active ?? true) : false;
   const role = normalizeRole(data?.role);
+  const isActive = data ? (data.active ?? true) : false;
 
-  if (!data || !role || !isActive || !["editor", "admin"].includes(role)) {
-    throw new Error("Forbidden: editor PIN required");
+  if (!data || !role || !isActive) return { valid: false as const };
+
+  return {
+    valid: true as const,
+    role,
+    author: String(data.author || ""),
+  };
+}
+
+export async function requireEditorPin(client: ReturnType<typeof createClient>, pin: string) {
+  const pinResult = await lookupPin(client, pin);
+  if (!pinResult.valid || pinResult.role !== "editor") {
+    throw new Error("editor PIN required");
   }
-
-  return { author: String(data.author || "Editor"), role };
+  return pinResult;
 }
 
 export function cleanName(name: string) {

@@ -13,12 +13,16 @@ serve(async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
   try {
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const action = String(body?.action || "").trim();
-    const pin = String(body?.pin || "").trim();
+    const pin = String(req.headers.get("x-pin") || body?.pin || "").trim();
 
     const client = getAdminClient();
-    await requireEditorPin(client, pin);
+    try {
+      await requireEditorPin(client, pin);
+    } catch (_) {
+      return json({ error: "editor PIN required" }, 403);
+    }
 
     if (action === "create_invoice") {
       const payload = {
@@ -153,6 +157,8 @@ serve(async (req) => {
 
     return json({ error: "Invalid action" }, 400);
   } catch (error) {
-    return json({ error: (error as Error).message }, 400);
+    const message = String((error as Error).message || "Internal server error");
+    const status = message === "editor PIN required" ? 403 : 400;
+    return json({ error: message }, status);
   }
 });
