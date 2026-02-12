@@ -2759,7 +2759,7 @@ function roleLabel(){
   return displayNameFor(currentRole, currentAuthor);
 }
 const canEditProgress = ()=> currentRole===ROLE_ADMIN || currentRole===ROLE_MANAGER || currentRole===ROLE_FOREMAN || currentRole===ROLE_EDITOR;
-const canEditNotes = ()=> currentRole===ROLE_ADMIN || currentRole===ROLE_MANAGER || currentRole===ROLE_FOREMAN || currentRole===ROLE_CLIENT || currentRole===ROLE_EDITOR;
+const canPostNotes = ()=> !!currentSession?.pin && [ROLE_VIEWER, ROLE_CLIENT, ROLE_EDITOR, ROLE_ADMIN, ROLE_MANAGER].includes(currentRole);
 const canUseAdminTools = ()=> currentRole===ROLE_ADMIN || currentRole===ROLE_EDITOR;
 
 function applySession(session){
@@ -3020,7 +3020,7 @@ function renderGrid(){
 
 function renderModal(ch){
   el("mTitle").textContent = `${chapterLabel(ch)} — ${chapterTitle(ch)}`;
-  el("mSub").textContent = `${roleLabel()} · ${canEditNotes()||canEditProgress() ? t("edit_enabled_device") : t("read_only_view")}`;
+  el("mSub").textContent = `${roleLabel()} · ${canPostNotes()||canEditProgress() ? t("edit_enabled_device") : t("read_only_view")}`;
   el("mCount").textContent = `${ch.items.length} ${t("items")}`;
   el("mAvg").textContent = `${t("average")}: ${chapterProgress(ch)}%`;
   const unreadCh = chapterUnreadCount(ch);
@@ -3308,7 +3308,7 @@ async function compressImage(file){
 
 function toggleNotesInputVisibility(){
   const panel = el("notesInputPanel");
-  if(panel) panel.style.display = canEditNotes() ? "flex" : "none";
+  if(panel) panel.style.display = canPostNotes() ? "flex" : "none";
 }
 
 function setNotesMetaText(itemId){
@@ -3327,7 +3327,7 @@ async function openNotesModal(item){
   renderNotesFeed(cache.notes);
   el("notesModal").style.display = "flex";
   resetNoteComposer();
-  if(canEditNotes()) el("noteText").focus();
+  if(canPostNotes()) el("noteText").focus();
   await loadNotesForItem(item.id);
   setNotesMetaText(item.id);
   markItemNotesRead(item.id);
@@ -3376,7 +3376,7 @@ async function markItemNotesRead(itemId){
 }
 
 async function sendNote(){
-  if(!canEditNotes()) return;
+  if(!canPostNotes()) return;
   if(!currentSession.pin){ alert(t("enter_pin_prompt")); return; }
   if(!sb){ alert("Supabase not configured"); return; }
   const itemId = el("notesModal").dataset.itemId;
