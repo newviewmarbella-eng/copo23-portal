@@ -155,13 +155,14 @@ textarea{width:100%;min-height:56px;border-radius:14px;border:1px solid var(--li
 @media(max-width:720px){.worker-row .row-two{grid-template-columns:1fr}}
 .timesheet-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .timesheet-scroll-hint{display:none;font-size:12px;color:var(--muted);font-weight:700;margin-top:4px}
-.timesheet-grid-wrap{width:100%;overflow-x:scroll;overflow-y:hidden;border:1px solid #e7e7e7;border-radius:12px;background:#fff;-webkit-overflow-scrolling:touch;touch-action:pan-x;overscroll-behavior-x:contain;scrollbar-gutter:stable}
+.timesheet-grid-wrap{width:100%;overflow-x:auto;overflow-y:hidden;border:1px solid #e7e7e7;border-radius:12px;background:#fff;-webkit-overflow-scrolling:touch;touch-action:pan-y;overscroll-behavior-x:contain;scrollbar-gutter:stable;cursor:grab}
+.timesheet-grid-wrap.dragging{cursor:grabbing}
 .timesheet-hscroll{display:flex;align-items:center;gap:10px;margin:10px 0 12px;}
 .timesheet-hscroll .ts-arrow{min-width:44px;height:38px;border-radius:999px;border:1px solid #e7e7e7;background:#fff;cursor:pointer;font-weight:700}
 .timesheet-hscroll .ts-arrow:disabled{opacity:.45;cursor:not-allowed}
-.timesheet-hscroll .ts-range{flex:1;height:38px;padding:0 6px;border:1px solid #e7e7e7;border-radius:999px;background:#fff}
+.timesheet-hscroll .ts-range{flex:1;height:38px;padding:0 6px;border:1px solid #e7e7e7;border-radius:999px;background:#fff;touch-action:none}
 .timesheet-hscroll .ts-range:disabled{opacity:.5}
-.timesheet-grid{width:100%;border-collapse:collapse;min-width:650px;background:#fff}
+.timesheet-grid{width:max-content;border-collapse:collapse;min-width:760px;background:#fff}
 .timesheet-grid th,.timesheet-grid td{border-bottom:1px solid var(--line);padding:8px;text-align:center}
 .timesheet-grid thead th{position:sticky;top:0;z-index:5;background:#fff}
 .timesheet-grid th:first-child,.timesheet-grid td:first-child{text-align:left;position:sticky;left:0;z-index:6;background:#fff}
@@ -3845,26 +3846,85 @@ async function renderWorkerTimesheetsView(){
   const tsRight = el('tsScrollRight');
 
   if (tsWrap && tsRange) {
-    const sync = () => {
-      const max = Math.max(0, tsWrap.scrollWidth - tsWrap.clientWidth);
-      tsRange.max = String(max);
-      tsRange.value = String(Math.min(max, tsWrap.scrollLeft));
-      const disabled = max <= 0;
+    let maxScroll = 0;
+    const drag = { active:false, pointerId:null, startX:0, startY:0, startScrollLeft:0, lockAxis:null };
+
+    const updateRange = () => {
+      tsRange.max = String(maxScroll);
+      tsRange.value = String(Math.min(maxScroll, Math.max(0, tsWrap.scrollLeft)));
+      const disabled = maxScroll <= 0;
       tsRange.disabled = disabled;
       if (tsLeft) tsLeft.disabled = disabled || tsWrap.scrollLeft <= 0;
-      if (tsRight) tsRight.disabled = disabled || tsWrap.scrollLeft >= max - 1;
+      if (tsRight) tsRight.disabled = disabled || tsWrap.scrollLeft >= maxScroll - 1;
+    };
+
+    const sync = () => {
+      maxScroll = Math.max(0, tsWrap.scrollWidth - tsWrap.clientWidth);
+      updateRange();
+    };
+
+    const syncWhenVisible = () => requestAnimationFrame(() => setTimeout(sync, 0));
+
+    const onPointerDown = (ev) => {
+      if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+      drag.active = true;
+      drag.pointerId = ev.pointerId;
+      drag.startX = ev.clientX;
+      drag.startY = ev.clientY;
+      drag.startScrollLeft = tsWrap.scrollLeft;
+      drag.lockAxis = null;
+      tsWrap.classList.add('dragging');
+      tsWrap.setPointerCapture(ev.pointerId);
+    };
+
+    const onPointerMove = (ev) => {
+      if (!drag.active || ev.pointerId !== drag.pointerId) return;
+      const dx = ev.clientX - drag.startX;
+      const dy = ev.clientY - drag.startY;
+      if (!drag.lockAxis) drag.lockAxis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      if (drag.lockAxis === 'x') {
+        ev.preventDefault();
+        tsWrap.scrollLeft = drag.startScrollLeft - dx;
+      }
+    };
+
+    const endDrag = (ev) => {
+      if (drag.active && ev.pointerId === drag.pointerId) {
+        drag.active = false;
+        drag.pointerId = null;
+        drag.lockAxis = null;
+        tsWrap.classList.remove('dragging');
+        if (tsWrap.hasPointerCapture(ev.pointerId)) tsWrap.releasePointerCapture(ev.pointerId);
+      }
     };
 
     const onResize = () => sync();
     window.addEventListener('resize', onResize);
-    state.ui._tsHScrollCleanup = () => window.removeEventListener('resize', onResize);
 
-    tsWrap.addEventListener('scroll', sync, { passive: true });
-    tsRange.addEventListener('input', () => { tsWrap.scrollLeft = Number(tsRange.value || 0); });
+    tsWrap.addEventListener('pointerdown', onPointerDown);
+    tsWrap.addEventListener('pointermove', onPointerMove, { passive: false });
+    tsWrap.addEventListener('pointerup', endDrag);
+    tsWrap.addEventListener('pointercancel', endDrag);
+    tsWrap.addEventListener('scroll', updateRange, { passive: true });
+
+    tsRange.addEventListener('input', () => {
+      tsWrap.scrollLeft = Math.min(maxScroll, Number(tsRange.value || 0));
+      updateRange();
+    });
+
     if (tsLeft) tsLeft.addEventListener('click', () => tsWrap.scrollBy({ left: -240, behavior: 'smooth' }));
     if (tsRight) tsRight.addEventListener('click', () => tsWrap.scrollBy({ left: 240, behavior: 'smooth' }));
 
-    requestAnimationFrame(sync);
+    state.ui._tsHScrollCleanup = () => {
+      window.removeEventListener('resize', onResize);
+      tsWrap.removeEventListener('pointerdown', onPointerDown);
+      tsWrap.removeEventListener('pointermove', onPointerMove);
+      tsWrap.removeEventListener('pointerup', endDrag);
+      tsWrap.removeEventListener('pointercancel', endDrag);
+      tsWrap.removeEventListener('scroll', updateRange);
+    };
+
+    syncWhenVisible();
   }
 
   document.querySelectorAll('.ts-cell').forEach((btn)=>btn.addEventListener('click', async()=>{
