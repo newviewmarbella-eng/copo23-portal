@@ -175,7 +175,7 @@ code{background:#10182810;padding:2px 6px;border-radius:8px}
     <button id="tabSchedule" class="navbtn" type="button">Schedule</button>
     <button id="tabPlans" class="navbtn" type="button">Plans</button>
     <button id="tabAccounting" class="navbtn" type="button" style="display:none">Accounting</button>
-    <button id="btnAdmin" class="navbtn ghost" type="button">Access: VIEWER</button>
+    <button id="btnAdmin" class="navbtn ghost" type="button">Access: —</button>
     <button id="btnLogout" class="navbtn ghost" type="button" style="display:none">Logout</button>
   </div>
 </header>
@@ -287,7 +287,7 @@ code{background:#10182810;padding:2px 6px;border-radius:8px}
 
   <section id="viewAccounting" class="view">
     <div class="toolbar">
-      <div class="muted" id="accountingHint">Accounting is only available for editor role.</div>
+      <div class="muted" id="accountingHint">Accounting is only available in edit mode.</div>
     </div>
     <div style="height:12px"></div>
     <div class="card" id="accountingPanel">
@@ -436,8 +436,8 @@ const I18N = {
     edit_mode_enabled: "Edit mode enabled",
     pin_saved_enabled: "PIN saved. Edit mode enabled",
     incorrect_pin: "Incorrect PIN",
-    access_granted: "Access granted: {role}",
-    editor_permission_required: "Correct PIN but you do not have editor permission",
+    access_granted: "Access granted",
+    editor_permission_required: "Correct PIN but you do not have permission to edit",
     pin_secrets_missing: "PIN configuration missing",
     create_pin_prompt: "Create an admin PIN (4–8 digits):",
     enter_admin_pin_prompt: "Enter admin PIN:",
@@ -449,7 +449,7 @@ const I18N = {
     ahead: "Ahead",
     behind: "Behind",
     vs_plan: "vs plan",
-    access_label: "Access: {role}",
+    access_label: "Access: {author}",
     role_viewer: "VIEWER",
     role_client: "CLIENTE",
     role_manager: "ENCARGADO",
@@ -543,8 +543,8 @@ const I18N = {
     edit_mode_enabled: "Modo edición activado",
     pin_saved_enabled: "PIN guardado. Modo edición activado",
     incorrect_pin: "PIN incorrecto",
-    access_granted: "Acceso concedido: {role}",
-    editor_permission_required: "PIN correcto pero no tienes permiso de editor",
+    access_granted: "Acceso concedido",
+    editor_permission_required: "PIN correcto pero no tienes permiso para editar",
     pin_secrets_missing: "Falta configurar los PINs",
     create_pin_prompt: "Crea un PIN de administrador (4–8 dígitos):",
     enter_admin_pin_prompt: "Introduce el PIN de administrador:",
@@ -556,7 +556,7 @@ const I18N = {
     ahead: "Adelantado",
     behind: "Retrasado",
     vs_plan: "vs plan",
-    access_label: "Acceso: {role}",
+    access_label: "Acceso: {author}",
     role_viewer: "VIEWER",
     role_client: "CLIENTE",
     role_manager: "ENCARGADO",
@@ -650,8 +650,8 @@ const I18N = {
     edit_mode_enabled: "Bewerkmodus geactiveerd",
     pin_saved_enabled: "Pincode opgeslagen. Bewerkmodus ingeschakeld",
     incorrect_pin: "Onjuiste pincode",
-    access_granted: "Toegang verleend: {role}",
-    editor_permission_required: "Juiste pincode maar je hebt geen editorrechten",
+    access_granted: "Toegang verleend",
+    editor_permission_required: "Juiste pincode maar je hebt geen bewerkrechten",
     pin_secrets_missing: "Pincode-configuratie ontbreekt",
     create_pin_prompt: "Maak een beheerderspincode (4-8 cijfers):",
     enter_admin_pin_prompt: "Voer beheerderspincode in:",
@@ -663,7 +663,7 @@ const I18N = {
     ahead: "Voor op schema",
     behind: "Achter op schema",
     vs_plan: "vs plan",
-    access_label: "Toegang: {role}",
+    access_label: "Toegang: {author}",
     role_viewer: "VIEWER",
     role_client: "CLIENTE",
     role_manager: "ENCARGADO",
@@ -2173,7 +2173,7 @@ let sb = null;
 let STATE = {items:{}};
 let currentChapter = null;
 let currentRole = ROLE_VIEWER;
-let currentAuthor = "Viewer";
+let currentAuthor = "";
 let activeTab = "progress";
 let accountingInvoices = [];
 let accountingWorkers = [];
@@ -2193,7 +2193,7 @@ let pendingActions = [];
 let processingQueue = false;
 let lastSyncedAt = null;
 let soundEnabled = localStorage.getItem(LS_SOUND) === "1";
-let currentSession = {role: ROLE_VIEWER, author: "Viewer", pin: null, expiresAt: 0, editUnlocked: false, editRole: null};
+let currentSession = {role: ROLE_VIEWER, author: "", pin: null, expiresAt: 0, editUnlocked: false, editRole: null};
 let currentNotesItemId = null;
 let progressSaveTimers = {};
 let realtimeChannel = null;
@@ -2650,7 +2650,7 @@ function canEditAccounting(){
 
 function setTab(tab){
   if(tab === "accounting" && !canAccessAccounting()){
-    showPinDebugBanner("❌ Forbidden: editor PIN required");
+    showPinDebugBanner("❌ Permission required");
     tab = "progress";
   }
   activeTab = tab;
@@ -2741,22 +2741,9 @@ function planSrc(plan){
   return "./plans/" + encodeURI(plan.file);
 }
 
-function displayNameFor(role, author){
-  if(role===ROLE_EDITOR) return "EDITOR";
-  if(role===ROLE_CLIENT && author) return (author || "").toUpperCase();
-  if(author) return author;
-  if(role===ROLE_ADMIN) return "Jesus";
-  if(role===ROLE_FOREMAN || role===ROLE_MANAGER) return "Encargado";
-  if(role===ROLE_CLIENT) return t("role_client");
-  return t("role_viewer");
-}
-
-function accessRoleLabel(){
-  return String(currentRole || ROLE_VIEWER).toUpperCase();
-}
-
-function roleLabel(){
-  return displayNameFor(currentRole, currentAuthor);
+function accessAuthorLabel(){
+  const author = String(currentSession?.author || "").trim();
+  return author || "—";
 }
 const canEditProgress = ()=> currentRole===ROLE_ADMIN || currentRole===ROLE_MANAGER || currentRole===ROLE_FOREMAN || currentRole===ROLE_EDITOR;
 const canPostNotes = ()=> !!currentSession?.pin && [ROLE_VIEWER, ROLE_CLIENT, ROLE_EDITOR, ROLE_ADMIN, ROLE_MANAGER].includes(currentRole);
@@ -2764,10 +2751,10 @@ const canUseAdminTools = ()=> currentRole===ROLE_ADMIN || currentRole===ROLE_EDI
 
 function applySession(session){
   const sess = session || {role: ROLE_VIEWER};
-  currentSession = Object.assign({pin:null, expiresAt:0, author:"Viewer", editUnlocked:false, editRole:null}, sess);
+  currentSession = Object.assign({pin:null, expiresAt:0, author:"", editUnlocked:false, editRole:null}, sess);
   currentRole = currentSession.role || ROLE_VIEWER;
-  currentAuthor = displayNameFor(currentRole, currentSession.author);
-  el("btnAdmin").textContent = fmt(t("access_label"), {role: accessRoleLabel()});
+  currentAuthor = String(currentSession.author || "").trim() || "Visitante";
+  el("btnAdmin").textContent = fmt(t("access_label"), {author: accessAuthorLabel()});
   el("btnLogout").style.display = currentRole===ROLE_VIEWER ? "none" : "inline-flex";
   el("adminTools").style.display = canUseAdminTools() ? "block" : "none";
   showAccountingTab(canAccessAccounting());
@@ -2782,7 +2769,7 @@ function persistSession(session){
   try{
     localStorage.setItem(LS_ROLE_SESSION, JSON.stringify(session));
     const role = String(session?.role || ROLE_VIEWER);
-    const author = String(session?.author || "Viewer");
+    const author = String(session?.author || "");
     localStorage.setItem(LS_ROLE, role);
     localStorage.setItem(LS_AUTHOR, author);
     localStorage.setItem(LS_ACCESS_ROLE, role);
@@ -2801,7 +2788,7 @@ function clearSession(){
   localStorage.removeItem(LS_ACCESS_AUTHOR);
   localStorage.removeItem(LS_PIN_ROLE);
   localStorage.removeItem(LS_PIN_AUTHOR);
-  applySession({role: ROLE_VIEWER, author: "Viewer", pin: null, expiresAt: 0, editUnlocked: false, editRole: null});
+  applySession({role: ROLE_VIEWER, author: "", pin: null, expiresAt: 0, editUnlocked: false, editRole: null});
 }
 
 function restoreSession(){
@@ -2837,7 +2824,7 @@ function applyLanguageStatic(){
   el("tabPlans").textContent = t("plans");
   el("tabAccounting").textContent = t("accounting");
   el("search").placeholder = t("search_placeholder");
-  el("btnAdmin").textContent = fmt(t("access_label"), {role: accessRoleLabel()});
+  el("btnAdmin").textContent = fmt(t("access_label"), {author: accessAuthorLabel()});
   el("btnLogout").textContent = t("logout");
   el("startDateLabel").textContent = t("project_start_date");
   el("labelWeekNow").textContent = t("week_now");
@@ -2890,21 +2877,18 @@ async function askPinAndEnable(){
 
     if(data?.valid === true){
       const resolvedRole = role || ROLE_VIEWER;
-      const session = {pin: p, author: author || displayNameFor(resolvedRole, ""), role: resolvedRole, expiresAt: Date.now() + (12*60*60*1000)};
+      const session = {pin: p, author: author || "Visitante", role: resolvedRole, expiresAt: Date.now() + (12*60*60*1000)};
       persistSession(session);
       applySession(session);
-      const okMsg = `✅ PIN correcto (Usuario: ${session.author}, Rol: ${session.role})`;
-      showPinDebugBanner(okMsg, "success");
-      toast(okMsg);
+      hidePinDebugBanner();
+      toast(t("access_granted"));
       processQueue();
       return;
     }
 
-    const fallbackError = response.ok ? t("incorrect_pin") : String(data?.error || `HTTP ${response.status}`);
-    showPinDebugBanner(`❌ ${fallbackError}`);
+    showPinDebugBanner(`❌ ${t("incorrect_pin")}`);
   }catch(e){
-    const msg = String(e?.message || e || "Unknown error");
-    showPinDebugBanner(`❌ PIN incorrecto: ${msg}`);
+    showPinDebugBanner(`❌ ${t("incorrect_pin")}`);
     console.error(e);
   }
 }
@@ -3020,7 +3004,7 @@ function renderGrid(){
 
 function renderModal(ch){
   el("mTitle").textContent = `${chapterLabel(ch)} — ${chapterTitle(ch)}`;
-  el("mSub").textContent = `${roleLabel()} · ${canPostNotes()||canEditProgress() ? t("edit_enabled_device") : t("read_only_view")}`;
+  el("mSub").textContent = `${canPostNotes()||canEditProgress() ? t("edit_enabled_device") : t("read_only_view")}`;
   el("mCount").textContent = `${ch.items.length} ${t("items")}`;
   el("mAvg").textContent = `${t("average")}: ${chapterProgress(ch)}%`;
   const unreadCh = chapterUnreadCount(ch);
@@ -3140,7 +3124,7 @@ function fmtDate(ts){
 }
 
 function noteAuthorName(note){
-  return displayNameFor(note.role || ROLE_VIEWER, note.author);
+  return String(note.author || "Visitante");
 }
 
 function createSupabaseClient(){
@@ -3556,11 +3540,11 @@ function syncAccountingHash(){
 
 async function accountingInvoke(action, payload){
   if(!sb) throw new Error("Supabase unavailable");
-  if(!currentSession?.pin) throw new Error("Forbidden: editor PIN required");
+  if(!currentSession?.pin) throw new Error("Permission required");
 
   const { data: accessData } = await verifyPinWithEdgeFunction(currentSession.pin, "editor");
   if(!accessData?.valid){
-    throw new Error(String(accessData?.error || "Forbidden: editor PIN required"));
+    throw new Error(String(accessData?.error || "Permission required"));
   }
 
   const {data, error} = await sb.functions.invoke("accounting_api", {
@@ -3604,7 +3588,7 @@ async function runInvoiceOCR(file){
 
 async function renderAccounting(){
   if(!canAccessAccounting()){
-    showPinDebugBanner("❌ Forbidden: editor PIN required");
+    showPinDebugBanner("❌ Permission required");
     return;
   }
   const hashView = accountingViewFromHash(location.hash);
@@ -3614,7 +3598,7 @@ async function renderAccounting(){
 
 async function renderAccountingPanel(){
   if(!canEditAccounting() && ["accounting-new-expense","accounting-new-income","accounting-workers","accounting-timesheets"].includes(accountingView)){
-    showPinDebugBanner("❌ Forbidden: editor PIN required");
+    showPinDebugBanner("❌ Permission required");
     setAccountingView("accounting-dashboard", false);
     return;
   }
