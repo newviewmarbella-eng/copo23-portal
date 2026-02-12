@@ -174,6 +174,9 @@ textarea{width:100%;min-height:56px;border-radius:14px;border:1px solid var(--li
 @media(max-width:767px){.timesheet-scroll-hint{display:block}}
 .ts-cell{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:#fff;cursor:pointer;font-weight:900}
 .ts-cell.active{background:#101828;color:#fff;border-color:#101828}
+.ts-dayrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px;border:1px solid var(--line);border-radius:12px;background:#fff;margin-bottom:8px}
+.ts-daybtn{min-width:56px;height:44px;border-radius:14px;border:1px solid var(--line);background:#fff;font-weight:900;cursor:pointer}
+.ts-daybtn.active{background:#101828;color:#fff;border-color:#101828}
 
 /* Toast */
 .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#101828;color:#fff;padding:10px 14px;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s ease;z-index:60}
@@ -3803,74 +3806,19 @@ function bindWorkerTabNav(){
   document.querySelectorAll('[data-worker-tab="timesheets"]').forEach((btn)=>btn.addEventListener('click', ()=>setAccountingView('accounting-workers-timesheets')));
 }
 
-function enableHorizontalPanScroll(container){
-  if(!container) return ()=>{};
-  let startX = 0;
-  let startScrollLeft = 0;
-  let dragging = false;
-  let pointerId = null;
-  let suppressClicksUntil = 0;
-
-  const DRAG_THRESHOLD = 8;
-  const SUPPRESS_MS = 250;
-
-  const onPointerDown = (e) => {
-    if(e.pointerType === "mouse" && e.button !== 0) return;
-    pointerId = e.pointerId;
-    startX = e.clientX;
-    startScrollLeft = container.scrollLeft;
-    dragging = false;
-    try{ container.setPointerCapture(pointerId); }catch(_){}
-  };
-
-  const onPointerMove = (e) => {
-    if(pointerId !== e.pointerId) return;
-    const dx = e.clientX - startX;
-    if(!dragging && Math.abs(dx) > DRAG_THRESHOLD) dragging = true;
-    if(dragging){
-      container.scrollLeft = startScrollLeft - dx;
-      e.preventDefault();
-    }
-  };
-
-  const endDrag = (e) => {
-    if(pointerId !== null && e && pointerId !== e.pointerId) return;
-    if(dragging) suppressClicksUntil = Date.now() + SUPPRESS_MS;
-    dragging = false;
-    if(pointerId !== null){
-      try{ if(container.hasPointerCapture(pointerId)) container.releasePointerCapture(pointerId); }catch(_){}
-    }
-    pointerId = null;
-  };
-
-  const onClickCapture = (e) => {
-    if(Date.now() < suppressClicksUntil){
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  };
-
-  container.addEventListener("pointerdown", onPointerDown, {passive:true});
-  container.addEventListener("pointermove", onPointerMove, {passive:false});
-  container.addEventListener("pointerup", endDrag, {passive:true});
-  container.addEventListener("pointercancel", endDrag, {passive:true});
-  container.addEventListener("click", onClickCapture, true);
-
-  return () => {
-    container.removeEventListener("pointerdown", onPointerDown);
-    container.removeEventListener("pointermove", onPointerMove);
-    container.removeEventListener("pointerup", endDrag);
-    container.removeEventListener("pointercancel", endDrag);
-    container.removeEventListener("click", onClickCapture, true);
-  };
-}
-
 async function renderWorkerTimesheetsView(){
   const workersRes = await accountingInvoke("list_workers", { active:true });
   const workers = (workersRes.items || []).filter((w)=>w.active !== false);
+  const isMobile = window.matchMedia("(max-width: 900px)").matches || window.matchMedia("(pointer: coarse)").matches;
   const base = mondayOf(new Date());
   const offset = Number(sessionStorage.getItem('accounting_ts_offset') || '0');
   const mode = sessionStorage.getItem('accounting_ts_mode') || 'week';
+  const storedUi = sessionStorage.getItem('accounting_ts_ui');
+  const ui = storedUi || (isMobile ? 'day' : 'grid');
+  if(!storedUi) sessionStorage.setItem('accounting_ts_ui', ui);
+  const dayIndexRaw = Number(sessionStorage.getItem('accounting_ts_day_index') || '0');
+  const dayIndex = Number.isFinite(dayIndexRaw) ? Math.max(0, Math.min(6, dayIndexRaw)) : 0;
+  sessionStorage.setItem('accounting_ts_day_index', String(dayIndex));
   const weekStart = new Date(base); weekStart.setDate(base.getDate() + (offset * 7));
   const days = Array.from({length:7}, (_,i)=>{ const d = new Date(weekStart); d.setDate(weekStart.getDate()+i); return d; });
   const from = formatYmd(days[0]);
@@ -3884,7 +3832,7 @@ async function renderWorkerTimesheetsView(){
     return `<tr><td>${esc(w.name)}</td>${cells}</tr>`;
   }).join('');
 
-  renderAccountingScreen("Trabajadores · Días trabajados", `${renderWorkerTabs('timesheets')}<div class="timesheet-controls"><button class="smallbtn" type="button" id="tsPrev">← Semana anterior</button><strong>${from} → ${to}</strong><button class="smallbtn" type="button" id="tsNext">Semana siguiente →</button><label>Periodo<select id="tsMode"><option value="week" ${mode==='week'?'selected':''}>Semana</option><option value="month" ${mode==='month'?'selected':''}>Mes (base MVP)</option></select></label></div><div class="timesheet-scroll-hint">Desliza →</div><div class="timesheet-hscroll" aria-label="Desplazamiento horizontal"><button class="ts-arrow" type="button" id="tsScrollLeft" aria-label="Desplazar a la izquierda">◀</button><div class="timesheet-daystrip" id="tsDayStrip"></div><button class="ts-arrow" type="button" id="tsScrollRight" aria-label="Desplazar a la derecha">▶</button></div><div class="timesheet-scroll timesheet-grid-wrap workers-days-hscroll" id="workersDaysHScroll"><table class="timesheet-grid"><thead><tr><th>Trabajador</th>${head}</tr></thead><tbody>${body || '<tr><td colspan="8" class="muted">Sin trabajadores activos</td></tr>'}</tbody></table></div><div id="tsTotals"></div>`);
+  renderAccountingScreen("Trabajadores · Días trabajados", `${renderWorkerTabs('timesheets')}<div class="timesheet-controls"><button class="smallbtn" type="button" id="tsPrev">← Semana anterior</button><strong>${from} → ${to}</strong><button class="smallbtn" type="button" id="tsNext">Semana siguiente →</button><label>Periodo<select id="tsMode"><option value="week" ${mode==='week'?'selected':''}>Semana</option><option value="month" ${mode==='month'?'selected':''}>Mes (base MVP)</option></select></label><button class="smallbtn" id="tsToggleView" type="button">Vista: ${ui === 'day' ? 'Día' : 'Tabla'}</button></div><div class="timesheet-scroll-hint">Desliza →</div><div class="timesheet-hscroll" aria-label="Desplazamiento horizontal"><button class="ts-arrow" type="button" id="tsScrollLeft" aria-label="Desplazar a la izquierda">◀</button><div class="timesheet-daystrip" id="tsDayStrip"></div><button class="ts-arrow" type="button" id="tsScrollRight" aria-label="Desplazar a la derecha">▶</button></div><div class="timesheet-scroll timesheet-grid-wrap workers-days-hscroll" id="workersDaysHScroll" style="display:${ui === 'grid' ? 'block' : 'none'}"><table class="timesheet-grid"><thead><tr><th>Trabajador</th>${head}</tr></thead><tbody>${body || '<tr><td colspan="8" class="muted">Sin trabajadores activos</td></tr>'}</tbody></table></div><div id="tsDayList" style="margin-top:10px;display:${ui === 'day' ? 'block' : 'none'}"></div><div id="tsTotals"></div>`);
   bindWorkerTabNav();
 
   const renderTotals = ()=>{
@@ -3900,9 +3848,54 @@ async function renderWorkerTimesheetsView(){
   };
   renderTotals();
 
+  const toggleTimesheet = async(btn)=>{
+    if (!btn || btn.dataset.pending === '1') return;
+    const worker_id = btn.dataset.worker;
+    const work_date = btn.dataset.date;
+    const present = !btn.classList.contains('active');
+    const key = `${worker_id}__${work_date}`;
+
+    btn.dataset.pending = '1';
+    if(present) map.add(key); else map.delete(key);
+    btn.classList.toggle('active', present);
+    btn.textContent = present ? 'X' : '';
+    renderTotals();
+
+    try {
+      await accountingInvoke('upsert_timesheet', { worker_id, work_date, present });
+    } catch (err) {
+      if(present) map.delete(key); else map.add(key);
+      btn.classList.toggle('active', !present);
+      btn.textContent = !present ? 'X' : '';
+      renderTotals();
+      toast(`No se pudo guardar el día (${(err && err.message) || 'error de red'})`);
+    } finally {
+      delete btn.dataset.pending;
+    }
+  };
+
+  const renderDayList = ()=>{
+    const dayList = el('tsDayList');
+    if(!dayList) return;
+    const selectedIdx = Number(sessionStorage.getItem('accounting_ts_day_index') || '0');
+    const safeIdx = Number.isFinite(selectedIdx) ? Math.max(0, Math.min(6, selectedIdx)) : 0;
+    const selectedDate = formatYmd(days[safeIdx] || days[0]);
+    dayList.innerHTML = workers.map((w)=>{
+      const key = `${w.id}__${selectedDate}`;
+      const present = map.has(key);
+      return `<div class="ts-dayrow"><strong>${esc(w.name)}</strong><button class="ts-daybtn ${present?'active':''}" type="button" data-worker="${w.id}" data-date="${selectedDate}">${present?'X':''}</button></div>`;
+    }).join('') || '<div class="muted">Sin trabajadores activos</div>';
+    dayList.querySelectorAll('.ts-daybtn').forEach((btn)=>btn.addEventListener('click', ()=>toggleTimesheet(btn)));
+  };
+
   el('tsPrev').addEventListener('click', ()=>{ sessionStorage.setItem('accounting_ts_offset', String(offset-1)); renderWorkerTimesheetsView(); });
   el('tsNext').addEventListener('click', ()=>{ sessionStorage.setItem('accounting_ts_offset', String(offset+1)); renderWorkerTimesheetsView(); });
   el('tsMode').addEventListener('change', (ev)=>{ sessionStorage.setItem('accounting_ts_mode', ev.target.value); toast('Vista mes en base MVP: se mantiene cálculo semanal'); });
+  el('tsToggleView').addEventListener('click', ()=>{
+    const nextUi = (sessionStorage.getItem('accounting_ts_ui') || ui) === 'day' ? 'grid' : 'day';
+    sessionStorage.setItem('accounting_ts_ui', nextUi);
+    renderWorkerTimesheetsView();
+  });
 
   if (state.ui._tsHScrollCleanup) { try { state.ui._tsHScrollCleanup(); } catch(e) {} state.ui._tsHScrollCleanup = null; }
 
@@ -3912,7 +3905,6 @@ async function renderWorkerTimesheetsView(){
   const tsRight = el('tsScrollRight');
 
   if (tsWrap) {
-    const panCleanup = enableHorizontalPanScroll(tsWrap);
     let maxScroll = 0;
     const dayHeaders = [...tsWrap.querySelectorAll('thead th')].slice(1);
 
@@ -3952,6 +3944,12 @@ async function renderWorkerTimesheetsView(){
       tsDayStrip.innerHTML = dayHeaders.map((th, idx) => `<button class="timesheet-daypill" type="button" data-day-index="${idx}" aria-label="Ir al día ${th.textContent.trim()}">${"LMXJVSD"[idx] || '-'}</button>`).join('');
       tsDayStrip.querySelectorAll('.timesheet-daypill').forEach((pill) => pill.addEventListener('click', () => {
         const dayIdx = Number(pill.dataset.dayIndex || 0);
+        sessionStorage.setItem('accounting_ts_day_index', String(dayIdx));
+        if((sessionStorage.getItem('accounting_ts_ui') || ui) === 'day'){
+          tsDayStrip.querySelectorAll('.timesheet-daypill').forEach((btn, idx) => btn.classList.toggle('active', idx === dayIdx));
+          renderDayList();
+          return;
+        }
         const dayTh = dayHeaders[dayIdx];
         if (!dayTh) return;
         const stickyWidth = getStickyWidth();
@@ -3975,41 +3973,19 @@ async function renderWorkerTimesheetsView(){
     if (tsRight) tsRight.addEventListener('click', () => tsWrap.scrollBy({ left: scrollStep(), behavior: 'smooth' }));
 
     state.ui._tsHScrollCleanup = () => {
-      panCleanup();
       window.removeEventListener('resize', onResize);
       tsWrap.removeEventListener('scroll', sync);
     };
 
-    syncWhenVisible();
+    if((sessionStorage.getItem('accounting_ts_ui') || ui) === 'grid'){
+      syncWhenVisible();
+    } else {
+      updateDayStrip();
+    }
   }
 
-
-
-  document.querySelectorAll('.ts-cell').forEach((btn)=>btn.addEventListener('click', async()=>{
-    if (btn.dataset.pending === '1') return;
-    const worker_id = btn.dataset.worker;
-    const work_date = btn.dataset.date;
-    const present = !btn.classList.contains('active');
-    const key = `${worker_id}__${work_date}`;
-
-    btn.dataset.pending = '1';
-    if(present) map.add(key); else map.delete(key);
-    btn.classList.toggle('active', present);
-    btn.textContent = present ? 'X' : '';
-    renderTotals();
-
-    try {
-      await accountingInvoke('upsert_timesheet', { worker_id, work_date, present });
-    } catch (err) {
-      if(present) map.delete(key); else map.add(key);
-      btn.classList.toggle('active', !present);
-      btn.textContent = !present ? 'X' : '';
-      renderTotals();
-      toast(`No se pudo guardar el día (${(err && err.message) || 'error de red'})`);
-    } finally {
-      delete btn.dataset.pending;
-    }
-  }));
+  if((sessionStorage.getItem('accounting_ts_ui') || ui) === 'day') renderDayList();
+  document.querySelectorAll('.ts-cell').forEach((btn)=>btn.addEventListener('click', ()=>toggleTimesheet(btn)));
 }
 
 
