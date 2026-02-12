@@ -39,6 +39,8 @@ serve(async (req) => {
         payment_method: body?.payment_method ?? null,
         status: String(body?.status || "pending"),
         file_path: body?.file_path ?? null,
+        file_name: body?.file_name ?? null,
+        file_type: body?.file_type ?? null,
         notes: body?.notes ?? null,
         ocr_text: body?.ocr_text ?? null,
       };
@@ -219,9 +221,48 @@ serve(async (req) => {
       const invoiceId = String(body?.invoice_id || "").trim();
       const filePath = String(body?.file_path || "").trim();
       if (!invoiceId || !filePath) throw new Error("invoice_id and file_path are required");
-      const { data, error } = await client.from("accounting_invoices").update({ file_path: filePath }).eq("id", invoiceId).select("*").single();
+      const updates: Record<string, unknown> = { file_path: filePath };
+      if (body?.file_name !== undefined) updates.file_name = body.file_name ?? null;
+      if (body?.file_type !== undefined) updates.file_type = body.file_type ?? null;
+      const { data, error } = await client.from("accounting_invoices").update(updates).eq("id", invoiceId).select("*").single();
       if (error) throw error;
       return json({ action, item: data });
+    }
+
+
+    if (action === "get_download_url") {
+      const invoiceId = String(body?.invoice_id || "").trim();
+      if (!invoiceId) throw new Error("invoice_id is required");
+      const { data: invoice, error: invoiceError } = await client
+        .from("accounting_invoices")
+        .select("id, file_path, file_name")
+        .eq("id", invoiceId)
+        .single();
+      if (invoiceError) throw invoiceError;
+      if (!invoice?.file_path) return json({ action, signedUrl: null, filename: null });
+      const { data: signed, error: signedError } = await client.storage.from(BUCKET).createSignedUrl(String(invoice.file_path), 60 * 10);
+      if (signedError) throw signedError;
+      return json({ action, signedUrl: signed?.signedUrl || null, filename: invoice.file_name || null });
+    }
+
+    if (action === "get_download_urls") {
+      const invoiceIds = Array.isArray(body?.invoice_ids) ? body.invoice_ids.map((id: unknown) => String(id).trim()).filter(Boolean) : [];
+      if (!invoiceIds.length) return json({ action, items: {} });
+      const { data: invoices, error: invoicesError } = await client
+        .from("accounting_invoices")
+        .select("id, file_path, file_name")
+        .in("id", invoiceIds);
+      if (invoicesError) throw invoicesError;
+      const out: Record<string, { signedUrl: string | null; filename: string | null }> = {};
+      for (const invoice of invoices || []) {
+        if (!invoice?.file_path) {
+          out[String(invoice.id)] = { signedUrl: null, filename: invoice?.file_name || null };
+          continue;
+        }
+        const { data: signed } = await client.storage.from(BUCKET).createSignedUrl(String(invoice.file_path), 60 * 10);
+        out[String(invoice.id)] = { signedUrl: signed?.signedUrl || null, filename: invoice?.file_name || null };
+      }
+      return json({ action, items: out });
     }
 
     return json({ error: "Invalid action" }, 400);

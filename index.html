@@ -2225,6 +2225,7 @@ let accountingWorkers = [];
 let accountingTimesheets = [];
 let accountingView = "accounting-home";
 let accountingHistory = [];
+let accountingSelectedInvoiceId = null;
 let currentPlan = (DATA.plans || [])[0] || null;
 let noteDraftImage = null;
 let notesCache = {};
@@ -3576,6 +3577,7 @@ function accountingViewFromHash(hash){
     "#accounting-new-expense":"accounting-new-expense",
     "#accounting-new-income":"accounting-new-income",
     "#accounting-invoice-list":"accounting-invoice-list",
+    "#accounting-invoice-detail":"accounting-invoice-detail",
     "#accounting-export-expense":"accounting-export-expense",
     "#accounting-export-income":"accounting-export-income",
     "#accounting-workers":"accounting-workers",
@@ -3632,6 +3634,128 @@ async function runInvoiceOCR(file){
   return data?.text || "";
 }
 
+
+function normalizeOcrText(text){
+  const raw = String(text || "");
+  const cr = String.fromCharCode(13);
+  return raw.split(`${cr}\n`).join("\n").split(cr).join("\n").trim();
+}
+
+function parseAmount(raw){
+  if(raw === null || raw === undefined) return null;
+  const cleaned = String(raw).replace(/[^\d,.-]/g, "").trim();
+  if(!cleaned) return null;
+  const normalized = cleaned.includes(",") ? cleaned.replace(/\./g, "").replace(",", ".") : cleaned;
+  const n = Number(normalized);
+  return Number.isFinite(n) ? Number(n.toFixed(2)) : null;
+}
+
+function findAmountInLine(line){
+  const matches = String(line || "").match(/-?\d{1,3}(?:[\.\s]\d{3})*(?:[\.,]\d{2})|-?\d+[\.,]\d{2}/g);
+  if(!matches || !matches.length) return null;
+  for(let i = matches.length - 1; i >= 0; i -= 1){
+    const n = parseAmount(matches[i]);
+    if(n !== null) return n;
+  }
+  return null;
+}
+
+function toIsoDate(raw){
+  const m = String(raw || "").match(/\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})\b/);
+  if(!m) return "";
+  const dd = Number(m[1]);
+  const mm = Number(m[2]);
+  let yyyy = Number(m[3]);
+  if(yyyy < 100) yyyy += 2000;
+  if(!dd || !mm || yyyy < 2000 || yyyy > 2100) return "";
+  return `${String(yyyy).padStart(4, "0")}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
+}
+
+function parseInvoiceFromOcr(text, isExpense){
+  const normalized = normalizeOcrText(text);
+  const lines = normalized.split("\n").map((line)=>line.trim()).filter(Boolean);
+  const out = { vendor_or_client:"", date:"", invoice_number:"", subtotal:"", vat:"", total:"", confidence:0.2 };
+
+  for(const line of lines){
+    if(!out.date){
+      const iso = toIsoDate(line);
+      if(iso) out.date = iso;
+    }
+    if(!out.invoice_number){
+      const m = line.match(/(?:factura|n[ºo°]|núm(?:ero)?|num(?:ero)?|f\/|no\.?|nº)\s*[:#-]?\s*([A-Z0-9\/-]{3,})/i);
+      if(m) out.invoice_number = m[1].trim();
+    }
+    if(out.total === "" && /(importe\s+total|total\s+a\s+pagar|\btotal\b)/i.test(line)){
+      const amount = findAmountInLine(line);
+      if(amount !== null) out.total = amount;
+    }
+    if(out.vat === "" && /\biva\b/i.test(line)){
+      const amount = findAmountInLine(line);
+      if(amount !== null) out.vat = amount;
+    }
+    if(out.subtotal === "" && /(base\s+imponible|\bbase\b|subtotal)/i.test(line)){
+      const amount = findAmountInLine(line);
+      if(amount !== null) out.subtotal = amount;
+    }
+  }
+
+  const vendorLine = lines.find((line)=>/\b(s\.?l\.?|s\.?a\.?|cif|nif)\b/i.test(line)) || lines.find((line)=>line.length > 4 && !/\d{2}[\/\-.]\d{2}[\/\-.]\d{2,4}/.test(line));
+  out.vendor_or_client = vendorLine || "";
+  if(!out.vendor_or_client && !isExpense && lines.length) out.vendor_or_client = lines[0];
+
+  const found = [out.vendor_or_client, out.date, out.invoice_number, out.subtotal, out.vat, out.total].filter((v)=>v !== "" && v !== null && v !== undefined).length;
+  out.confidence = Math.min(0.95, 0.15 + found * 0.12);
+  return out;
+}
+
+function fillInvoiceForm(form, parsed){
+  if(!form || !parsed) return;
+  if(parsed.vendor_or_client) form.elements.vendor_or_client.value = parsed.vendor_or_client;
+  if(parsed.date) form.elements.date.value = parsed.date;
+  if(parsed.invoice_number) form.elements.invoice_number.value = parsed.invoice_number;
+  if(parsed.subtotal !== "") form.elements.subtotal.value = parsed.subtotal;
+  if(parsed.vat !== "") form.elements.vat.value = parsed.vat;
+  if(parsed.total !== "") form.elements.total.value = parsed.total;
+}
+
+function todayIso(){ return new Date().toISOString().slice(0,10); }
+
+function sanitizeFileName(name){
+  return String(name || "file").replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+function triggerBlobDownload(blob, filename){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+
+async function ensureJsZip(){
+  if(window.JSZip) return window.JSZip;
+  await new Promise((resolve, reject)=>{
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js";
+    script.onload = resolve;
+    script.onerror = ()=>reject(new Error("No se pudo cargar JSZip"));
+    document.head.appendChild(script);
+  });
+  if(!window.JSZip) throw new Error("JSZip no disponible");
+  return window.JSZip;
+}
+
+function buildInvoiceCsv(items){
+  const headers = ["id","type","vendor_or_client","date","invoice_number","subtotal","vat","total","status","file_path","file_name","file_type"];
+  const rows = [headers.join(",")];
+  for(const inv of items || []){
+    const row = headers.map((h)=>`"${String(inv?.[h] ?? "").replaceAll('"','""')}"`);
+    rows.push(row.join(","));
+  }
+  return rows.join("\n");
+}
+
 async function renderAccounting(){
   if(!canAccessAccounting()){
     showPinDebugBanner("❌ Permission required");
@@ -3674,36 +3798,86 @@ async function renderAccountingPanel(){
 
   if(accountingView === "accounting-new-expense" || accountingView === "accounting-new-income"){
     const isExpense = accountingView === "accounting-new-expense";
-    renderAccountingScreen(isExpense ? "Añadir Gasto" : "Añadir Ingreso", `<form id="accInvoiceForm" class="acc-form"><label>${isExpense?"Proveedor":"Cliente / pagador"}<input name="vendor_or_client" required></label><label>Fecha<input type="date" name="date" required></label><label>${isExpense?"Nº factura":"Referencia"}<input name="invoice_number"></label><label>Base<input type="number" step="0.01" name="subtotal" required></label><label>IVA<input type="number" step="0.01" name="vat" value="0"></label><label>Total<input type="number" step="0.01" name="total" required></label><label>Categoría (1-5)<input type="number" min="1" max="5" name="category"></label><label>Subcategoría<input name="subcategory"></label><label>Método pago<input name="payment_method"></label><label>Estado<select name="status"><option value="pending">pendiente</option><option value="paid">pagada</option></select></label><label>Archivo (imagen/PDF)<input type="file" name="file" accept="image/*,application/pdf"></label><div class="acc-progress"><div id="ocrBar"></div></div><div class="muted" id="ocrStatus">OCR no iniciado</div><label>Texto OCR<input name="ocr_text" id="ocrText"></label><label>Notas<textarea name="notes"></textarea></label><div class="row"><button class="smallbtn" type="submit">Guardar</button><button class="smallbtn" type="button" id="btnOcr">Procesar OCR</button></div></form>`);
-    el("btnOcr").addEventListener("click", async()=>{
-      const file = el("accInvoiceForm").querySelector('input[name="file"]').files?.[0];
-      if(!file) return toast("Selecciona un archivo");
-      if(!file.type.startsWith("image/")) return toast("OCR v1 solo imagen");
-      try{ const text = await runInvoiceOCR(file); el("ocrText").value = text.slice(0, 4000); toast("OCR completado"); }catch(err){ alert(err.message || String(err)); }
+    renderAccountingScreen(isExpense ? "Añadir Gasto" : "Añadir Ingreso", `<form id="accInvoiceForm" class="acc-form"><label>${isExpense?"Proveedor":"Cliente / pagador"}<input name="vendor_or_client"></label><label>Fecha<input type="date" name="date"></label><label>${isExpense?"Nº factura":"Referencia"}<input name="invoice_number"></label><label>Base<input type="number" step="0.01" name="subtotal"></label><label>IVA<input type="number" step="0.01" name="vat" value="0"></label><label>Total<input type="number" step="0.01" name="total"></label><label>Categoría (1-5)<input type="number" min="1" max="5" name="category"></label><label>Subcategoría<input name="subcategory"></label><label>Método pago<input name="payment_method"></label><label>Estado<select name="status"><option value="pending">pendiente</option><option value="paid">pagada</option></select></label><label>Archivo (imagen/PDF)<input type="file" name="file" id="invoiceFile" accept="image/*,application/pdf"></label><img id="invoicePreview" alt="Vista previa" style="max-width:280px;display:none;border:1px solid var(--line);border-radius:12px;padding:4px"/><div class="acc-progress"><div id="ocrBar"></div></div><div class="muted" id="ocrStatus">OCR no iniciado</div><label>Texto OCR<textarea name="ocr_text" id="ocrText"></textarea></label><label>Notas<textarea name="notes"></textarea></label><div class="row"><button class="smallbtn" type="submit">Guardar</button><button class="smallbtn" type="button" id="btnOcrFill">OCR + Autorrellenar</button><button class="smallbtn" type="button" id="btnOcrDraft">OCR + Guardar borrador</button></div></form>`);
+    const form = el("accInvoiceForm");
+    const fileInput = el("invoiceFile");
+    const preview = el("invoicePreview");
+    fileInput.addEventListener("change", ()=>{
+      const file = fileInput.files?.[0];
+      if(!file || !file.type.startsWith("image/")){
+        preview.style.display = "none";
+        preview.removeAttribute("src");
+        return;
+      }
+      preview.src = URL.createObjectURL(file);
+      preview.style.display = "block";
     });
-    el("accInvoiceForm").addEventListener("submit", async(ev)=>{
+
+    async function doOcrAndFill(){
+      const file = fileInput.files?.[0];
+      if(!file) throw new Error("Selecciona un archivo");
+      if(!file.type.startsWith("image/")) throw new Error("OCR v1 solo imagen");
+      const text = await runInvoiceOCR(file);
+      const normalized = normalizeOcrText(text);
+      el("ocrText").value = normalized.slice(0, 15000);
+      const parsed = parseInvoiceFromOcr(normalized, isExpense);
+      fillInvoiceForm(form, parsed);
+      return { file, normalized, parsed };
+    }
+
+    el("btnOcrFill").addEventListener("click", async()=>{
+      try{
+        await doOcrAndFill();
+        toast("Autorrellenado (revisar campos)");
+      }catch(err){ alert(err.message || String(err)); }
+    });
+
+    el("btnOcrDraft").addEventListener("click", async()=>{
+      try{
+        const { file, normalized, parsed } = await doOcrAndFill();
+        const invoice = await accountingInvoke("create_invoice", {
+          type: isExpense ? "expense" : "income",
+          vendor_or_client: parsed.vendor_or_client || "Pendiente OCR",
+          date: parsed.date || todayIso(),
+          invoice_number: parsed.invoice_number || null,
+          subtotal: parsed.subtotal === "" ? 0 : parsed.subtotal,
+          vat: parsed.vat === "" ? 0 : parsed.vat,
+          total: parsed.total === "" ? 0 : parsed.total,
+          status: "pending",
+          notes: "Creado por OCR (revisar)",
+          ocr_text: normalized.slice(0, 15000)
+        });
+        const up = await accountingInvoke("get_upload_url", { filename: file.name, contentType: file.type });
+        await fetch(up.uploadUrl, { method:"PUT", headers:{"content-type": file.type || up.contentType}, body:file });
+        await accountingInvoke("confirm_upload", { invoice_id: invoice.item.id, file_path: up.path, file_name: file.name, file_type: file.type });
+        toast("Factura guardada (OCR)");
+        setAccountingView("accounting-invoice-list");
+      }catch(err){ alert(err.message || String(err)); }
+    });
+
+    form.addEventListener("submit", async(ev)=>{
       ev.preventDefault();
       const fd = new FormData(ev.target);
       const file = fd.get("file");
       const invoice = await accountingInvoke("create_invoice", {
         type: isExpense ? "expense" : "income",
-        vendor_or_client: fd.get("vendor_or_client"),
-        date: fd.get("date"),
+        vendor_or_client: fd.get("vendor_or_client") || "Pendiente OCR",
+        date: fd.get("date") || todayIso(),
         invoice_number: fd.get("invoice_number"),
-        subtotal: fd.get("subtotal"),
-        vat: fd.get("vat"),
-        total: fd.get("total"),
+        subtotal: fd.get("subtotal") || 0,
+        vat: fd.get("vat") || 0,
+        total: fd.get("total") || 0,
         category: fd.get("category") || null,
         subcategory: fd.get("subcategory"),
         payment_method: fd.get("payment_method"),
-        status: fd.get("status"),
+        status: fd.get("status") || "pending",
         notes: fd.get("notes"),
-        ocr_text: fd.get("ocr_text") || null
+        ocr_text: normalizeOcrText(fd.get("ocr_text") || "").slice(0, 15000) || null
       });
       if(file && file.size){
         const up = await accountingInvoke("get_upload_url", { filename: file.name, contentType: file.type });
         await fetch(up.uploadUrl, { method:"PUT", headers:{"content-type": file.type || up.contentType}, body:file });
-        await accountingInvoke("confirm_upload", { invoice_id: invoice.item.id, file_path: up.path });
+        await accountingInvoke("confirm_upload", { invoice_id: invoice.item.id, file_path: up.path, file_name: file.name, file_type: file.type });
       }
       toast("Factura guardada");
       setAccountingView("accounting-invoice-list");
@@ -3725,16 +3899,79 @@ async function renderAccountingPanel(){
     const load = async(filters={})=>{
       const list = await accountingInvoke("list_invoices", { filters });
       accountingInvoices = list.items || [];
-      el("invoiceList").innerHTML = `<div class="acc-list">${accountingInvoices.map(inv=>`<div class="acc-item"><strong>${inv.type}</strong> · ${esc(inv.vendor_or_client||"")} · ${inv.date||""} · ${inv.total||0}€</div>`).join("") || '<div class="muted">Sin facturas</div>'}</div>`;
+      el("invoiceList").innerHTML = `<div class="acc-list">${accountingInvoices.map(inv=>`<div class="acc-item" data-invoice-id="${inv.id}"><div class="row"><strong>${inv.type}</strong><span>${esc(inv.vendor_or_client||"")} · ${inv.date||""} · ${inv.total||0}€</span>${inv.file_path ? '<span class="pill">📎 archivo</span>' : ''}</div><div class="row" style="margin-top:8px"><button class="smallbtn" type="button" data-open-invoice="${inv.id}">Detalle</button>${inv.file_path ? `<button class="smallbtn" type="button" data-download-invoice="${inv.id}">Descargar</button>` : ''}</div></div>`).join("") || '<div class="muted">Sin facturas</div>'}</div>`;
+
+      document.querySelectorAll('[data-open-invoice]').forEach((btn)=>btn.addEventListener('click', ()=>{
+        accountingSelectedInvoiceId = btn.dataset.openInvoice;
+        setAccountingView('accounting-invoice-detail');
+      }));
+      document.querySelectorAll('[data-download-invoice]').forEach((btn)=>btn.addEventListener('click', async()=>{
+        const res = await accountingInvoke('get_download_url', { invoice_id: btn.dataset.downloadInvoice });
+        if(!res?.signedUrl) return toast('Archivo no disponible');
+        window.open(res.signedUrl, '_blank', 'noopener');
+      }));
     };
     await load();
     el("invoiceFilter").addEventListener("submit", async(ev)=>{ev.preventDefault();const fd=new FormData(ev.target);await load({type:fd.get("type"),search:fd.get("search")});});
     return;
   }
 
+  if(accountingView === "accounting-invoice-detail"){
+    const invoice = (accountingInvoices || []).find((inv)=>inv.id === accountingSelectedInvoiceId);
+    if(!invoice){
+      renderAccountingScreen('Detalle factura', '<div class="muted">Factura no encontrada.</div>');
+      return;
+    }
+    renderAccountingScreen('Detalle factura', `<div class="acc-form"><label>Tercero<input value="${esc(invoice.vendor_or_client||'')}" readonly></label><label>Fecha<input value="${esc(invoice.date||'')}" readonly></label><label>Nº factura<input value="${esc(invoice.invoice_number||'')}" readonly></label><label>Base<input value="${Number(invoice.subtotal||0)}" readonly></label><label>IVA<input value="${Number(invoice.vat||0)}" readonly></label><label>Total<input value="${Number(invoice.total||0)}" readonly></label><label>OCR<textarea readonly>${esc(invoice.ocr_text||'')}</textarea></label>${invoice.file_path ? '<button class="smallbtn" type="button" id="btnDetailDownload">Descargar archivo</button>' : '<div class="muted">Sin archivo adjunto</div>'}</div>`);
+    if(invoice.file_path){
+      el('btnDetailDownload').addEventListener('click', async()=>{
+        const res = await accountingInvoke('get_download_url', { invoice_id: invoice.id });
+        if(!res?.signedUrl) return toast('Archivo no disponible');
+        window.open(res.signedUrl, '_blank', 'noopener');
+      });
+    }
+    return;
+  }
+
   if(accountingView === "accounting-export-expense" || accountingView === "accounting-export-income"){
     const exportType = accountingView === "accounting-export-expense" ? "expense" : "income";
-    renderAccountingScreen(exportType === "expense" ? "Exportar Gastos" : "Exportar Ingresos", `<div class="notice"><strong>Placeholder</strong><div class="muted">Exportación PDF/Excel se mantiene como siguiente iteración. Usa listado para revisar datos.</div></div>`);
+    renderAccountingScreen(exportType === "expense" ? "Exportar Gastos" : "Exportar Ingresos", `<form id="exportForm" class="acc-form"><label>Desde<input type="date" name="from"></label><label>Hasta<input type="date" name="to"></label><div class="row"><button class="smallbtn" type="button" id="btnExportCsv">Exportar CSV</button><button class="smallbtn" type="button" id="btnExportZip">Exportar CSV + ZIP imágenes</button></div></form>`);
+
+    async function loadForExport(){
+      const fd = new FormData(el('exportForm'));
+      const filters = { type: exportType, date_from: fd.get('from') || null, date_to: fd.get('to') || null };
+      const res = await accountingInvoke('list_invoices', { filters });
+      return res.items || [];
+    }
+
+    el('btnExportCsv').addEventListener('click', async()=>{
+      const items = await loadForExport();
+      const csv = buildInvoiceCsv(items);
+      triggerBlobDownload(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `invoices_${exportType}.csv`);
+    });
+
+    el('btnExportZip').addEventListener('click', async()=>{
+      const items = await loadForExport();
+      const csv = buildInvoiceCsv(items);
+      const JSZip = await ensureJsZip();
+      const zip = new JSZip();
+      zip.file('invoices.csv', csv);
+      const idsWithFile = items.filter((inv)=>inv.file_path).map((inv)=>inv.id);
+      if(idsWithFile.length){
+        const urls = await accountingInvoke('get_download_urls', { invoice_ids: idsWithFile });
+        for(const inv of items){
+          const signedUrl = urls?.items?.[inv.id]?.signedUrl;
+          if(!signedUrl) continue;
+          const response = await fetch(signedUrl);
+          if(!response.ok) continue;
+          const blob = await response.blob();
+          const fname = sanitizeFileName(inv.file_name || (inv.file_path||'').split('/').pop() || 'file.bin');
+          zip.file(`images/${inv.id}_${fname}`, blob);
+        }
+      }
+      const blob = await zip.generateAsync({ type:'blob' });
+      triggerBlobDownload(blob, `invoices_${exportType}.zip`);
+    });
     return;
   }
 
