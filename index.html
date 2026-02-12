@@ -146,6 +146,20 @@ textarea{width:100%;min-height:56px;border-radius:14px;border:1px solid var(--li
 .acc-nav-btn.active{background:var(--ink);color:#fff;border-color:var(--ink)}
 .acc-progress{height:8px;background:#eef2f6;border-radius:999px;overflow:hidden}
 .acc-progress>div{height:100%;width:0%;background:var(--ink);transition:width .2s ease}
+.worker-tabs{display:flex;gap:8px;flex-wrap:wrap}
+.worker-tab-btn{padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;cursor:pointer;font-weight:700}
+.worker-tab-btn.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+.worker-table{display:grid;gap:10px}
+.worker-row{border:1px solid var(--line);border-radius:12px;background:#fbfcfd;padding:10px;display:grid;gap:8px}
+.worker-row .row-two{display:grid;gap:8px;grid-template-columns:1fr 1fr}
+@media(max-width:720px){.worker-row .row-two{grid-template-columns:1fr}}
+.timesheet-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.timesheet-grid-wrap{overflow:auto;border:1px solid var(--line);border-radius:12px}
+.timesheet-grid{width:100%;border-collapse:collapse;min-width:760px;background:#fff}
+.timesheet-grid th,.timesheet-grid td{border-bottom:1px solid var(--line);padding:8px;text-align:center}
+.timesheet-grid th:first-child,.timesheet-grid td:first-child{text-align:left;position:sticky;left:0;background:#fff}
+.ts-cell{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:#fff;cursor:pointer;font-weight:900}
+.ts-cell.active{background:#101828;color:#fff;border-color:#101828}
 
 /* Toast */
 .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#101828;color:#fff;padding:10px 14px;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s ease;z-index:60}
@@ -3483,10 +3497,20 @@ function renderPlanViewer(){
 
 
 const ACCOUNTING_HOME_CARDS = [
-  {id:"accounting-dashboard", title:"Dashboard", desc:"Resumen y exportación"},
-  {id:"accounting-invoices", title:"Facturas", desc:"Alta, listado y exportaciones"},
-  {id:"accounting-workers", title:"Trabajadores", desc:"CRUD de tarifas por día"},
-  {id:"accounting-timesheets", title:"Jornales / Partes", desc:"Parte semanal con coste automático"}
+  {id:"accounting-dashboard", title:"Dashboard", desc:"Resumen + exportación"},
+  {id:"accounting-invoices", title:"Facturas", desc:"Alta + listado + exportaciones"},
+  {id:"accounting-workers", title:"Trabajadores", desc:"Costes + días trabajados"}
+];
+
+const WORKER_PRESETS = [
+  { name:"Jhonatan", pay_type:"day", day_rate:80, ss_day:40 },
+  { name:"Luis", pay_type:"day", day_rate:100, ss_day:40 },
+  { name:"Carlos", pay_type:"day", day_rate:120 },
+  { name:"Daniel", pay_type:"day", day_rate:120 },
+  { name:"Diego", pay_type:"day", day_rate:120 },
+  { name:"Heiler", pay_type:"day", day_rate:120 },
+  { name:"Jorge (autónomo)", pay_type:"day", day_rate:150, notes:"+IVA aparte" },
+  { name:"Chaga (autónomo)", pay_type:"day", day_rate:130, notes:"+IVA aparte" }
 ];
 
 const ACCOUNTING_INVOICE_ACTIONS = [
@@ -3524,7 +3548,8 @@ function accountingViewFromHash(hash){
     "#accounting-export-expense":"accounting-export-expense",
     "#accounting-export-income":"accounting-export-income",
     "#accounting-workers":"accounting-workers",
-    "#accounting-timesheets":"accounting-timesheets"
+    "#accounting-workers-costs":"accounting-workers-costs",
+    "#accounting-workers-timesheets":"accounting-workers-timesheets"
   };
   return map[hash] || null;
 }
@@ -3556,21 +3581,11 @@ async function accountingInvoke(action, payload){
   return data;
 }
 
-function accountingNav(active){
-  const items = ACCOUNTING_HOME_CARDS.map((item)=>`<button class="acc-nav-btn ${active===item.id?"active":""}" type="button" data-acc-goto="${item.id}">${item.title}</button>`).join("");
-  return `<div class="acc-nav"><button class="acc-nav-btn ${active==="accounting-home"?"active":""}" type="button" data-acc-goto="accounting-home">Inicio</button>${items}</div>`;
-}
-
-function bindAccountingNav(){
-  document.querySelectorAll('[data-acc-goto]').forEach((btn)=>btn.addEventListener('click', ()=>setAccountingView(btn.dataset.accGoto)));
-}
-
 function renderAccountingScreen(title, content, withBack=true){
   const body = el("accountingBody");
   if(!body) return;
-  body.innerHTML = `<div class="acc-view"><div class="acc-view-header">${withBack ? '<button class="smallbtn" type="button" id="btnAccountingBack">← Volver</button>' : ''}<h3>${title}</h3></div>${accountingNav(accountingView)}<div>${content}</div></div>`;
+  body.innerHTML = `<div class="acc-view"><div class="acc-view-header">${withBack ? '<button class="smallbtn" type="button" id="btnAccountingBack">← Volver</button>' : ''}<h3>${title}</h3></div><div>${content}</div></div>`;
   if(withBack) el("btnAccountingBack").addEventListener("click", goBackAccounting);
-  bindAccountingNav();
 }
 
 async function runInvoiceOCR(file){
@@ -3597,22 +3612,20 @@ async function renderAccounting(){
 }
 
 async function renderAccountingPanel(){
-  if(!canEditAccounting() && ["accounting-new-expense","accounting-new-income","accounting-workers","accounting-timesheets"].includes(accountingView)){
+  if(!canEditAccounting() && ["accounting-new-expense","accounting-new-income","accounting-workers","accounting-workers-costs","accounting-workers-timesheets"].includes(accountingView)){
     showPinDebugBanner("❌ Permission required");
     setAccountingView("accounting-dashboard", false);
     return;
   }
   if(accountingView === "accounting-home"){
-    const allowedCards = canEditAccounting() ? ACCOUNTING_HOME_CARDS : ACCOUNTING_HOME_CARDS.filter((card)=>["accounting-dashboard","accounting-invoices","accounting-invoice-list","accounting-export-expense","accounting-export-income"].includes(card.id));
-    const cards = allowedCards.map(action=>`<button class="acc-btn" type="button" data-acc-view="${action.id}">${action.title}<small>${action.desc}</small></button>`).join("");
+    const cards = ACCOUNTING_HOME_CARDS.map(action=>`<button class="acc-btn" type="button" data-acc-view="${action.id}">${action.title}<small>${action.desc}</small></button>`).join("");
     renderAccountingScreen("Contabilidad", `<div class="grid accounting-grid">${cards}</div>`, false);
     document.querySelectorAll("[data-acc-view]").forEach(btn=>btn.addEventListener("click", ()=>setAccountingView(btn.dataset.accView)));
     return;
   }
 
   if(accountingView === "accounting-invoices"){
-    const allowedActions = canEditAccounting() ? ACCOUNTING_INVOICE_ACTIONS : ACCOUNTING_INVOICE_ACTIONS.filter((action)=>action.id === "accounting-invoice-list");
-    const items = allowedActions.map(action=>`<button class="acc-menu-item" type="button" data-acc-view="${action.id}">${action.title}<small>${action.desc}</small></button>`).join("");
+    const items = ACCOUNTING_INVOICE_ACTIONS.map(action=>`<button class="acc-menu-item" type="button" data-acc-view="${action.id}">${action.title}<small>${action.desc}</small></button>`).join("");
     renderAccountingScreen("Facturas", `<div class="acc-menu">${items}</div>`);
     document.querySelectorAll("[data-acc-view]").forEach(btn=>btn.addEventListener("click", ()=>setAccountingView(btn.dataset.accView)));
     return;
@@ -3658,7 +3671,7 @@ async function renderAccountingPanel(){
       });
       if(file && file.size){
         const up = await accountingInvoke("get_upload_url", { filename: file.name, contentType: file.type });
-        await fetch(up.uploadUrl, { method:"PUT", headers:{"Content-Type": file.type || "application/octet-stream"}, body: file });
+        await fetch(up.uploadUrl, { method:"PUT", headers:{"content-type": file.type || up.contentType}, body:file });
         await accountingInvoke("confirm_upload", { invoice_id: invoice.item.id, file_path: up.path });
       }
       toast("Factura guardada");
@@ -3668,43 +3681,13 @@ async function renderAccountingPanel(){
   }
 
   if(accountingView === "accounting-workers"){
-    const list = await accountingInvoke("list_workers", {});
-    accountingWorkers = list.items || [];
-    renderAccountingScreen("Trabajadores", `<div class="row"><button class="smallbtn" id="btnNewWorker" type="button">+ Nuevo trabajador</button></div><div id="workerFormWrap"></div><div class="acc-list">${accountingWorkers.map(w=>`<div class="acc-item"><strong>${esc(w.name)}</strong> · ${w.day_rate}€ · ${w.vat_applicable?"IVA":"Sin IVA"} · ${w.active?"Activo":"Inactivo"} <button class="smallbtn" data-worker-id="${w.id}" data-worker-toggle="${w.active?0:1}" type="button">${w.active?"Desactivar":"Activar"}</button></div>`).join("") || '<div class="muted">Sin trabajadores</div>'}</div>`);
-    el("btnNewWorker").addEventListener("click", ()=>{
-      el("workerFormWrap").innerHTML = `<form id="workerForm" class="acc-form"><label>Nombre<input name="name" required></label><label>Precio/día<input type="number" step="0.01" name="day_rate" required></label><label><input type="checkbox" name="vat_applicable"> aplica IVA</label><button class="smallbtn" type="submit">Guardar</button></form>`;
-      el("workerForm").addEventListener("submit", async(ev)=>{ev.preventDefault();const fd=new FormData(ev.target);await accountingInvoke("create_worker",{name:fd.get("name"),day_rate:fd.get("day_rate"),vat_applicable:fd.get("vat_applicable")==="on",active:true});toast("Trabajador guardado");renderAccountingPanel();});
-    });
-    document.querySelectorAll('[data-worker-id]').forEach((btn)=>btn.addEventListener('click', async()=>{ await accountingInvoke('update_worker',{id:btn.dataset.workerId, active: btn.dataset.workerToggle === '1'}); renderAccountingPanel(); }));
+    renderAccountingScreen("Trabajadores", `<div class="worker-tabs"><button class="worker-tab-btn" type="button" data-acc-view="accounting-workers-costs">Costes por persona</button><button class="worker-tab-btn" type="button" data-acc-view="accounting-workers-timesheets">Días trabajados</button></div><div class="notice"><strong>Gestiona personal</strong><div class="muted">Elige entre costes por persona o días trabajados.</div></div>`);
+    document.querySelectorAll("[data-acc-view]").forEach(btn=>btn.addEventListener("click", ()=>setAccountingView(btn.dataset.accView)));
     return;
   }
 
-  if(accountingView === "accounting-timesheets"){
-    const workers = await accountingInvoke("list_workers", { active: true });
-    const workerOpts = (workers.items||[]).map(w=>`<option value="${w.id}" data-rate="${w.day_rate}">${esc(w.name)}</option>`).join("");
-    renderAccountingScreen("Jornales / Partes", `<form id="timesheetForm" class="acc-form"><label>Semana (lunes)<input type="date" name="week_start" required></label><label>Trabajador<select name="worker_id" required>${workerOpts}</select></label><label>Precio día<input type="number" step="0.01" name="day_rate"></label><label>Días trabajados (1-7, separados por coma)<input name="days" placeholder="1,2,3,4,5"></label><label>Horas por día<input type="number" step="0.25" name="hours" value="8"></label><label>Estado<select name="status"><option value="pending">pendiente</option><option value="paid">pagado</option></select></label><label>Notas<textarea name="notes"></textarea></label><button class="smallbtn" type="submit">Guardar parte semanal</button></form><div id="timesheetSummary"></div>`);
-    const body = el("accountingBody");
-    const select = body.querySelector('select[name="worker_id"]');
-    const rateInput = body.querySelector('input[name="day_rate"]');
-    const syncRate=()=>{ const opt=select.selectedOptions[0]; if(opt && !rateInput.value) rateInput.value = opt.dataset.rate || "";};
-    select.addEventListener('change', syncRate); syncRate();
-    el("timesheetForm").addEventListener("submit", async(ev)=>{
-      ev.preventDefault();
-      const fd=new FormData(ev.target);
-      const weekStart = new Date(String(fd.get("week_start")) + "T00:00:00");
-      const days = String(fd.get("days") || "").split(',').map(v=>Number(v.trim())).filter(v=>v>=1 && v<=7);
-      const payloadDays = days.map((d)=>{
-        const date = new Date(weekStart); date.setDate(weekStart.getDate() + (d - 1));
-        return { worker_id: fd.get("worker_id"), date: date.toISOString().slice(0,10), hours: Number(fd.get("hours") || 8), day_rate: Number(fd.get("day_rate") || 0) };
-      });
-      await accountingInvoke("create_timesheet",{ days: payloadDays, worker_id: fd.get("worker_id"), day_rate: fd.get("day_rate"), status: fd.get("status"), notes: fd.get("notes") });
-      toast("Parte semanal guardado");
-      renderAccountingPanel();
-    });
-    const list = await accountingInvoke("list_timesheets", {});
-    el("timesheetSummary").innerHTML = `<div class="acc-list">${(list.items||[]).slice(0,20).map(it=>`<div class="acc-item">${it.date} · ${esc(it.accounting_workers?.name||"")} · ${it.hours}h · ${it.total_cost}€</div>`).join("") || '<div class="muted">Sin jornales</div>'}</div>`;
-    return;
-  }
+  if(accountingView === "accounting-workers-costs") return renderWorkerCostsView();
+  if(accountingView === "accounting-workers-timesheets") return renderWorkerTimesheetsView();
 
   if(accountingView === "accounting-invoice-list"){
     renderAccountingScreen("Listado / Buscar", `<form id="invoiceFilter" class="acc-form"><label>Tipo<select name="type"><option value="">todos</option><option value="expense">gasto</option><option value="income">ingreso</option></select></label><label>Buscar tercero<input name="search"></label><button class="smallbtn" type="submit">Buscar</button></form><div id="invoiceList"></div>`);
@@ -3726,6 +3709,138 @@ async function renderAccountingPanel(){
 
   setAccountingView("accounting-home", false);
 }
+
+function workerDailyCost(worker){
+  if((worker?.pay_type || "day") === "month"){
+    const monthly = Number(worker?.month_rate || 0) + Number(worker?.ss_month || 0) + Number(worker?.other_month || 0);
+    return monthly / 22;
+  }
+  return Number(worker?.day_rate || 0) + Number(worker?.ss_day || 0) + Number(worker?.other_day || 0);
+}
+
+function formatYmd(date){ return date.toISOString().slice(0,10); }
+
+function mondayOf(date){
+  const d = new Date(date);
+  const day = (d.getDay() + 6) % 7;
+  d.setDate(d.getDate() - day);
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+function renderWorkerTabs(active){
+  return `<div class="worker-tabs"><button class="worker-tab-btn ${active==='costs'?'active':''}" type="button" data-worker-tab="costs">Costes por persona</button><button class="worker-tab-btn ${active==='timesheets'?'active':''}" type="button" data-worker-tab="timesheets">Días trabajados</button></div>`;
+}
+
+async function renderWorkerCostsView(){
+  const list = await accountingInvoke("list_workers", {});
+  const workers = list.items || [];
+  const rows = workers.map((w, idx)=>`<div class="worker-row" data-worker-row="${idx}"><div class="row-two"><label>Nombre<input name="name" value="${esc(w.name||'')}" required></label><label>Tipo de coste<select name="pay_type"><option value="day" ${(w.pay_type||'day')==='day'?'selected':''}>por día</option><option value="month" ${(w.pay_type||'day')==='month'?'selected':''}>por mes</option></select></label></div><div class="row-two"><label>Precio día<input type="number" step="0.01" name="day_rate" value="${Number(w.day_rate||0)}"></label><label>Precio mes<input type="number" step="0.01" name="month_rate" value="${Number(w.month_rate||0)}"></label></div><div class="row-two"><label>Seguridad Social / día<input type="number" step="0.01" name="ss_day" value="${Number(w.ss_day||0)}"></label><label>Seguridad Social / mes<input type="number" step="0.01" name="ss_month" value="${Number(w.ss_month||0)}"></label></div><div class="row-two"><label>Otros gastos / día<input type="number" step="0.01" name="other_day" value="${Number(w.other_day||0)}"></label><label>Otros gastos / mes<input type="number" step="0.01" name="other_month" value="${Number(w.other_month||0)}"></label></div><div class="row-two"><label>Notas<input name="notes" value="${esc(w.notes||'')}"></label><label style="display:flex;align-items:end;gap:8px"><input type="checkbox" name="active" ${w.active!==false?'checked':''}> Activo</label></div><input type="hidden" name="id" value="${w.id}"></div>`).join('');
+
+  renderAccountingScreen("Trabajadores · Costes por persona", `${renderWorkerTabs('costs')}<div class="row"><button class="smallbtn" type="button" id="btnPreset">Cargar tarifas NVM (preset)</button><button class="smallbtn" type="button" id="btnAddWorker">Añadir trabajador</button><button class="smallbtn" type="button" id="btnSaveWorkers">Guardar cambios</button></div><div class="worker-table" id="workerTable">${rows || '<div class="muted">Sin trabajadores</div>'}</div>`);
+  bindWorkerTabNav();
+
+  el("btnAddWorker").addEventListener("click", ()=>{
+    const wrap = el("workerTable");
+    const div = document.createElement("div");
+    div.className = "worker-row";
+    div.innerHTML = `<div class="row-two"><label>Nombre<input name="name" required></label><label>Tipo de coste<select name="pay_type"><option value="day">por día</option><option value="month">por mes</option></select></label></div><div class="row-two"><label>Precio día<input type="number" step="0.01" name="day_rate" value="0"></label><label>Precio mes<input type="number" step="0.01" name="month_rate" value="0"></label></div><div class="row-two"><label>Seguridad Social / día<input type="number" step="0.01" name="ss_day" value="0"></label><label>Seguridad Social / mes<input type="number" step="0.01" name="ss_month" value="0"></label></div><div class="row-two"><label>Otros gastos / día<input type="number" step="0.01" name="other_day" value="0"></label><label>Otros gastos / mes<input type="number" step="0.01" name="other_month" value="0"></label></div><div class="row-two"><label>Notas<input name="notes"></label><label style="display:flex;align-items:end;gap:8px"><input type="checkbox" name="active" checked> Activo</label></div><input type="hidden" name="id" value="">`;
+    wrap.appendChild(div);
+  });
+
+  el("btnPreset").addEventListener("click", async()=>{
+    const existing = new Set((await accountingInvoke("list_workers", {})).items.map((w)=>String(w.name||'').trim().toLowerCase()));
+    let added = 0;
+    for(const preset of WORKER_PRESETS){
+      if(existing.has(preset.name.trim().toLowerCase())) continue;
+      await accountingInvoke("upsert_worker", Object.assign({ active:true }, preset));
+      added += 1;
+    }
+    toast(added ? `Preset cargado (${added} añadidos)` : "Preset ya aplicado");
+    renderWorkerCostsView();
+  });
+
+  el("btnSaveWorkers").addEventListener("click", async()=>{
+    const rows = [...document.querySelectorAll('#workerTable .worker-row')];
+    for(const row of rows){
+      const payload = {
+        id: row.querySelector('[name="id"]').value || undefined,
+        name: row.querySelector('[name="name"]').value,
+        pay_type: row.querySelector('[name="pay_type"]').value,
+        day_rate: Number(row.querySelector('[name="day_rate"]').value || 0),
+        month_rate: Number(row.querySelector('[name="month_rate"]').value || 0),
+        ss_day: Number(row.querySelector('[name="ss_day"]').value || 0),
+        ss_month: Number(row.querySelector('[name="ss_month"]').value || 0),
+        other_day: Number(row.querySelector('[name="other_day"]').value || 0),
+        other_month: Number(row.querySelector('[name="other_month"]').value || 0),
+        notes: row.querySelector('[name="notes"]').value || null,
+        active: row.querySelector('[name="active"]').checked
+      };
+      if(!payload.name.trim()) continue;
+      await accountingInvoke("upsert_worker", payload);
+    }
+    toast("Trabajadores guardados");
+    renderWorkerCostsView();
+  });
+}
+
+function bindWorkerTabNav(){
+  document.querySelectorAll('[data-worker-tab="costs"]').forEach((btn)=>btn.addEventListener('click', ()=>setAccountingView('accounting-workers-costs')));
+  document.querySelectorAll('[data-worker-tab="timesheets"]').forEach((btn)=>btn.addEventListener('click', ()=>setAccountingView('accounting-workers-timesheets')));
+}
+
+async function renderWorkerTimesheetsView(){
+  const workersRes = await accountingInvoke("list_workers", { active:true });
+  const workers = (workersRes.items || []).filter((w)=>w.active !== false);
+  const base = mondayOf(new Date());
+  const offset = Number(sessionStorage.getItem('accounting_ts_offset') || '0');
+  const mode = sessionStorage.getItem('accounting_ts_mode') || 'week';
+  const weekStart = new Date(base); weekStart.setDate(base.getDate() + (offset * 7));
+  const days = Array.from({length:7}, (_,i)=>{ const d = new Date(weekStart); d.setDate(weekStart.getDate()+i); return d; });
+  const from = formatYmd(days[0]);
+  const to = formatYmd(days[6]);
+  const tsRes = await accountingInvoke("list_timesheets_range", { from, to });
+  const map = new Set((tsRes.items||[]).filter((r)=>r.present !== false).map((r)=>`${r.worker_id}__${r.work_date || r.date}`));
+
+  const head = days.map((d)=>`<th>${"LMXJVSD"[ (d.getDay()+6)%7 ]}<div class="muted">${formatYmd(d).slice(5)}</div></th>`).join('');
+  const body = workers.map((w)=>{
+    const cells = days.map((d)=>{ const key = `${w.id}__${formatYmd(d)}`; const on = map.has(key); return `<td><button class="ts-cell ${on?'active':''}" type="button" data-worker="${w.id}" data-date="${formatYmd(d)}">${on?'X':''}</button></td>`; }).join('');
+    return `<tr><td>${esc(w.name)}</td>${cells}</tr>`;
+  }).join('');
+
+  renderAccountingScreen("Trabajadores · Días trabajados", `${renderWorkerTabs('timesheets')}<div class="timesheet-controls"><button class="smallbtn" type="button" id="tsPrev">← Semana anterior</button><strong>${from} → ${to}</strong><button class="smallbtn" type="button" id="tsNext">Semana siguiente →</button><label>Periodo<select id="tsMode"><option value="week" ${mode==='week'?'selected':''}>Semana</option><option value="month" ${mode==='month'?'selected':''}>Mes (base MVP)</option></select></label></div><div class="timesheet-grid-wrap"><table class="timesheet-grid"><thead><tr><th>Trabajador</th>${head}</tr></thead><tbody>${body || '<tr><td colspan="8" class="muted">Sin trabajadores activos</td></tr>'}</tbody></table></div><div id="tsTotals"></div>`);
+  bindWorkerTabNav();
+
+  const renderTotals = ()=>{
+    let general = 0;
+    const rows = workers.map((w)=>{
+      let count = 0;
+      days.forEach((d)=>{ if(map.has(`${w.id}__${formatYmd(d)}`)) count += 1; });
+      const total = count * workerDailyCost(w);
+      general += total;
+      return `<div class="acc-item"><strong>${esc(w.name)}</strong>: ${count} días · ${total.toFixed(2)} €</div>`;
+    }).join('');
+    el('tsTotals').innerHTML = `<div class="notice"><strong>Totales de la semana</strong><div class="acc-list" style="margin-top:8px">${rows || '<div class="muted">Sin datos</div>'}</div><div style="margin-top:8px"><strong>Total general: ${general.toFixed(2)} €</strong></div></div>`;
+  };
+  renderTotals();
+
+  el('tsPrev').addEventListener('click', ()=>{ sessionStorage.setItem('accounting_ts_offset', String(offset-1)); renderWorkerTimesheetsView(); });
+  el('tsNext').addEventListener('click', ()=>{ sessionStorage.setItem('accounting_ts_offset', String(offset+1)); renderWorkerTimesheetsView(); });
+  el('tsMode').addEventListener('change', (ev)=>{ sessionStorage.setItem('accounting_ts_mode', ev.target.value); toast('Vista mes en base MVP: se mantiene cálculo semanal'); });
+
+  document.querySelectorAll('.ts-cell').forEach((btn)=>btn.addEventListener('click', async()=>{
+    const worker_id = btn.dataset.worker;
+    const work_date = btn.dataset.date;
+    const present = !btn.classList.contains('active');
+    await accountingInvoke('upsert_timesheet', { worker_id, work_date, present });
+    const key = `${worker_id}__${work_date}`;
+    if(present) map.add(key); else map.delete(key);
+    btn.classList.toggle('active', present);
+    btn.textContent = present ? 'X' : '';
+    renderTotals();
+  }));
+}
+
 
 function showAccountingTab(show){
   const btn = el("tabAccounting");
