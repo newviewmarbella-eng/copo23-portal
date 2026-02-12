@@ -76,6 +76,25 @@ serve(async (req) => {
       return json({ action, item: data });
     }
 
+    if (action === "upsert_worker") {
+      const payload = {
+        id: body?.id || crypto.randomUUID(),
+        name: String(body?.name || "").trim(),
+        pay_type: String(body?.pay_type || "day") === "month" ? "month" : "day",
+        day_rate: parseNumber(body?.day_rate),
+        month_rate: parseNumber(body?.month_rate),
+        ss_day: parseNumber(body?.ss_day),
+        ss_month: parseNumber(body?.ss_month),
+        other_day: parseNumber(body?.other_day),
+        other_month: parseNumber(body?.other_month),
+        notes: body?.notes ?? null,
+        active: body?.active === undefined ? true : Boolean(body?.active),
+      };
+      const { data, error } = await client.from("accounting_workers").upsert(payload, { onConflict: "id" }).select("*").single();
+      if (error) throw error;
+      return json({ action, item: data });
+    }
+
     if (action === "list_workers") {
       let query = client.from("accounting_workers").select("*").order("name", { ascending: true }).limit(500);
       if (body?.active !== undefined) query = query.eq("active", Boolean(body.active));
@@ -121,6 +140,27 @@ serve(async (req) => {
       return json({ action, items: data || [] });
     }
 
+    if (action === "upsert_timesheet") {
+      const worker_id = String(body?.worker_id || "").trim();
+      const work_date = String(body?.work_date || body?.date || "").trim();
+      const present = body?.present === undefined ? true : Boolean(body.present);
+      if (!worker_id || !work_date) throw new Error("worker_id and work_date are required");
+
+      const payload = {
+        worker_id,
+        work_date,
+        date: work_date,
+        present,
+        hours: present ? 8 : 0,
+        day_rate: parseNumber(body?.day_rate),
+        total_cost: 0,
+        status: "pending",
+      };
+      const { data, error } = await client.from("accounting_timesheets").upsert(payload, { onConflict: "worker_id,work_date" }).select("*").single();
+      if (error) throw error;
+      return json({ action, item: data });
+    }
+
     if (action === "list_timesheets") {
       const f = body?.filters || {};
       let query = client.from("accounting_timesheets").select("*, accounting_workers(name)").order("date", { ascending: false }).limit(1000);
@@ -128,6 +168,35 @@ serve(async (req) => {
       if (f.date_to) query = query.lte("date", String(f.date_to));
       if (f.worker_id) query = query.eq("worker_id", String(f.worker_id));
       const { data, error } = await query;
+      if (error) throw error;
+      return json({ action, items: data || [] });
+    }
+
+    if (action === "list_timesheets_range") {
+      const from = String(body?.from || "").trim();
+      const to = String(body?.to || "").trim();
+      if (!from || !to) throw new Error("from and to are required");
+      const { data, error } = await client
+        .from("accounting_timesheets")
+        .select("worker_id, work_date, present")
+        .gte("work_date", from)
+        .lte("work_date", to)
+        .order("work_date", { ascending: true })
+        .limit(5000);
+      if (error) throw error;
+      return json({ action, items: data || [] });
+    }
+
+    if (action === "timesheets_summary") {
+      const from = String(body?.from || "").trim();
+      const to = String(body?.to || "").trim();
+      if (!from || !to) throw new Error("from and to are required");
+      const { data, error } = await client
+        .from("accounting_timesheets")
+        .select("worker_id, work_date, present")
+        .gte("work_date", from)
+        .lte("work_date", to)
+        .eq("present", true);
       if (error) throw error;
       return json({ action, items: data || [] });
     }
