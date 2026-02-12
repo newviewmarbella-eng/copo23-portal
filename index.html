@@ -154,10 +154,14 @@ textarea{width:100%;min-height:56px;border-radius:14px;border:1px solid var(--li
 .worker-row .row-two{display:grid;gap:8px;grid-template-columns:1fr 1fr}
 @media(max-width:720px){.worker-row .row-two{grid-template-columns:1fr}}
 .timesheet-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.timesheet-grid-wrap{overflow:auto;border:1px solid var(--line);border-radius:12px}
-.timesheet-grid{width:100%;border-collapse:collapse;min-width:760px;background:#fff}
+.timesheet-scroll-hint{display:none;font-size:12px;color:var(--muted);font-weight:700;margin-top:4px}
+.timesheet-grid-wrap{width:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-x;border:1px solid var(--line);border-radius:12px;scroll-snap-type:x proximity}
+.timesheet-grid{width:100%;border-collapse:collapse;min-width:650px;background:#fff}
 .timesheet-grid th,.timesheet-grid td{border-bottom:1px solid var(--line);padding:8px;text-align:center}
-.timesheet-grid th:first-child,.timesheet-grid td:first-child{text-align:left;position:sticky;left:0;background:#fff}
+.timesheet-grid thead th{position:sticky;top:0;z-index:5;background:#fff}
+.timesheet-grid th:first-child,.timesheet-grid td:first-child{text-align:left;position:sticky;left:0;z-index:6;background:#fff}
+.timesheet-grid tbody td:first-child{font-weight:700}
+@media(max-width:767px){.timesheet-scroll-hint{display:block}}
 .ts-cell{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:#fff;cursor:pointer;font-weight:900}
 .ts-cell.active{background:#101828;color:#fff;border-color:#101828}
 
@@ -3808,7 +3812,7 @@ async function renderWorkerTimesheetsView(){
     return `<tr><td>${esc(w.name)}</td>${cells}</tr>`;
   }).join('');
 
-  renderAccountingScreen("Trabajadores · Días trabajados", `${renderWorkerTabs('timesheets')}<div class="timesheet-controls"><button class="smallbtn" type="button" id="tsPrev">← Semana anterior</button><strong>${from} → ${to}</strong><button class="smallbtn" type="button" id="tsNext">Semana siguiente →</button><label>Periodo<select id="tsMode"><option value="week" ${mode==='week'?'selected':''}>Semana</option><option value="month" ${mode==='month'?'selected':''}>Mes (base MVP)</option></select></label></div><div class="timesheet-grid-wrap"><table class="timesheet-grid"><thead><tr><th>Trabajador</th>${head}</tr></thead><tbody>${body || '<tr><td colspan="8" class="muted">Sin trabajadores activos</td></tr>'}</tbody></table></div><div id="tsTotals"></div>`);
+  renderAccountingScreen("Trabajadores · Días trabajados", `${renderWorkerTabs('timesheets')}<div class="timesheet-controls"><button class="smallbtn" type="button" id="tsPrev">← Semana anterior</button><strong>${from} → ${to}</strong><button class="smallbtn" type="button" id="tsNext">Semana siguiente →</button><label>Periodo<select id="tsMode"><option value="week" ${mode==='week'?'selected':''}>Semana</option><option value="month" ${mode==='month'?'selected':''}>Mes (base MVP)</option></select></label></div><div class="timesheet-scroll-hint">Desliza →</div><div class="timesheet-grid-wrap"><table class="timesheet-grid"><thead><tr><th>Trabajador</th>${head}</tr></thead><tbody>${body || '<tr><td colspan="8" class="muted">Sin trabajadores activos</td></tr>'}</tbody></table></div><div id="tsTotals"></div>`);
   bindWorkerTabNav();
 
   const renderTotals = ()=>{
