@@ -43,9 +43,11 @@ serve(async (req) => {
         file_type: body?.file_type ?? null,
         notes: body?.notes ?? null,
         ocr_text: body?.ocr_text ?? null,
+        idempotency_key: body?.idempotency_key ? String(body.idempotency_key) : null,
       };
 
-      const { data, error } = await client.from("accounting_invoices").upsert(payload).select("*").single();
+      const options = payload.idempotency_key ? { onConflict: "idempotency_key" } : undefined;
+      const { data, error } = await client.from("accounting_invoices").upsert(payload, options).select("*").single();
       if (error) throw error;
       return json({ action, item: data });
     }
@@ -63,6 +65,36 @@ serve(async (req) => {
       const { data, error } = await query;
       if (error) throw error;
       return json({ action, items: data || [] });
+    }
+
+
+    if (action === "delete_invoices") {
+      const invoiceIds = Array.isArray(body?.invoice_ids) ? body.invoice_ids.map((id: unknown) => String(id).trim()).filter(Boolean) : [];
+      if (!invoiceIds.length) return json({ action, deleted: 0 });
+
+      const { data: invoices, error: invoiceErr } = await client
+        .from("accounting_invoices")
+        .select("id, file_path")
+        .in("id", invoiceIds);
+      if (invoiceErr) throw invoiceErr;
+
+      for (const invoice of invoices || []) {
+        if (invoice?.file_path) {
+          const { error: removeError } = await client.storage.from(BUCKET).remove([String(invoice.file_path)]);
+          if (removeError) {
+            const msg = String(removeError.message || "").toLowerCase();
+            if (!msg.includes("not found")) throw removeError;
+          }
+        }
+      }
+
+      const { error: deleteErr, count } = await client
+        .from("accounting_invoices")
+        .delete({ count: "exact" })
+        .in("id", invoiceIds);
+      if (deleteErr) throw deleteErr;
+
+      return json({ action, deleted: Number(count || 0) });
     }
 
     if (action === "create_worker") {
