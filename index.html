@@ -141,6 +141,10 @@ textarea{width:100%;min-height:56px;border-radius:14px;border:1px solid var(--li
 .acc-form input,.acc-form select,.acc-form textarea{width:100%;padding:10px;border-radius:12px;border:1px solid var(--line)}
 .acc-list{display:grid;gap:10px}
 .acc-item{border:1px solid var(--line);border-radius:12px;padding:10px;background:#fbfcfd}
+.acc-item.selected{border-color:#101828;background:#f2f4f7;box-shadow:0 0 0 1px #1018281f inset}
+.acc-select-toggle{width:24px;height:24px;border:1px solid #344054;border-radius:8px;background:#fff;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:900;cursor:pointer;line-height:1}
+.acc-select-toggle.active{background:#101828;color:#fff}
+.acc-selection-bar{position:sticky;top:0;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;margin-bottom:10px;border:1px solid #1018281f;border-radius:12px;background:#fff;box-shadow:var(--shadow)}
 .acc-nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
 .acc-nav-btn{padding:9px 12px;border:1px solid var(--line);border-radius:12px;background:#fff;cursor:pointer;font-weight:700}
 .acc-nav-btn.active{background:var(--ink);color:#fff;border-color:var(--ink)}
@@ -2226,6 +2230,10 @@ let accountingTimesheets = [];
 let accountingView = "accounting-home";
 let accountingHistory = [];
 let accountingSelectedInvoiceId = null;
+let accountingSelectedInvoiceIds = new Set();
+let accountingInvoiceFilters = {};
+let accountingInvoiceHighlightedId = null;
+let isOcrSaving = false;
 let currentPlan = (DATA.plans || [])[0] || null;
 let noteDraftImage = null;
 let notesCache = {};
@@ -3634,6 +3642,17 @@ async function runInvoiceOCR(file){
   return data?.text || "";
 }
 
+async function getFileIdempotencyKey(file){
+  if(!file) return null;
+  try{
+    if(window.crypto?.subtle?.digest){
+      const buffer = await file.arrayBuffer();
+      const digest = await window.crypto.subtle.digest('SHA-256', buffer);
+      return Array.from(new Uint8Array(digest)).map((b)=>b.toString(16).padStart(2,'0')).join('');
+    }
+  }catch(_){ }
+  return `${file.name}|${file.size}|${file.lastModified}`;
+}
 
 function normalizeOcrText(text){
   const raw = String(text || "");
@@ -3832,9 +3851,19 @@ async function renderAccountingPanel(){
       }catch(err){ alert(err.message || String(err)); }
     });
 
+    const btnOcrDraft = el("btnOcrDraft");
+    const ocrDraftDefaultText = btnOcrDraft ? btnOcrDraft.textContent : "OCR + Guardar borrador";
+
     el("btnOcrDraft").addEventListener("click", async()=>{
+      if(isOcrSaving) return;
+      isOcrSaving = true;
+      if(btnOcrDraft){
+        btnOcrDraft.disabled = true;
+        btnOcrDraft.textContent = "Procesando…";
+      }
       try{
         const { file, normalized, parsed } = await doOcrAndFill();
+        const idempotency_key = await getFileIdempotencyKey(file);
         const invoice = await accountingInvoke("create_invoice", {
           type: isExpense ? "expense" : "income",
           vendor_or_client: parsed.vendor_or_client || "Pendiente OCR",
@@ -3845,14 +3874,26 @@ async function renderAccountingPanel(){
           total: parsed.total === "" ? 0 : parsed.total,
           status: "pending",
           notes: "Creado por OCR (revisar)",
-          ocr_text: normalized.slice(0, 15000)
+          ocr_text: normalized.slice(0, 15000),
+          idempotency_key
         });
-        const up = await accountingInvoke("get_upload_url", { filename: file.name, contentType: file.type });
-        await fetch(up.uploadUrl, { method:"PUT", headers:{"content-type": file.type || up.contentType}, body:file });
-        await accountingInvoke("confirm_upload", { invoice_id: invoice.item.id, file_path: up.path, file_name: file.name, file_type: file.type });
+        const invoiceId = invoice?.item?.id;
+        if(!invoice?.item?.file_path){
+          const up = await accountingInvoke("get_upload_url", { filename: file.name, contentType: file.type });
+          await fetch(up.uploadUrl, { method:"PUT", headers:{"content-type": file.type || up.contentType}, body:file });
+          await accountingInvoke("confirm_upload", { invoice_id: invoiceId, file_path: up.path, file_name: file.name, file_type: file.type });
+        }
         toast("Factura guardada (OCR)");
+        accountingInvoiceHighlightedId = invoiceId || null;
         setAccountingView("accounting-invoice-list");
       }catch(err){ alert(err.message || String(err)); }
+      finally{
+        isOcrSaving = false;
+        if(btnOcrDraft){
+          btnOcrDraft.disabled = false;
+          btnOcrDraft.textContent = ocrDraftDefaultText;
+        }
+      }
     });
 
     form.addEventListener("submit", async(ev)=>{
@@ -3896,10 +3937,52 @@ async function renderAccountingPanel(){
 
   if(accountingView === "accounting-invoice-list"){
     renderAccountingScreen("Listado / Buscar", `<form id="invoiceFilter" class="acc-form"><label>Tipo<select name="type"><option value="">todos</option><option value="expense">gasto</option><option value="income">ingreso</option></select></label><label>Buscar tercero<input name="search"></label><button class="smallbtn" type="submit">Buscar</button></form><div id="invoiceList"></div>`);
-    const load = async(filters={})=>{
-      const list = await accountingInvoke("list_invoices", { filters });
-      accountingInvoices = list.items || [];
-      el("invoiceList").innerHTML = `<div class="acc-list">${accountingInvoices.map(inv=>`<div class="acc-item" data-invoice-id="${inv.id}"><div class="row"><strong>${inv.type}</strong><span>${esc(inv.vendor_or_client||"")} · ${inv.date||""} · ${inv.total||0}€</span>${inv.file_path ? '<span class="pill">📎 archivo</span>' : ''}</div><div class="row" style="margin-top:8px"><button class="smallbtn" type="button" data-open-invoice="${inv.id}">Detalle</button>${inv.file_path ? `<button class="smallbtn" type="button" data-download-invoice="${inv.id}">Descargar</button>` : ''}</div></div>`).join("") || '<div class="muted">Sin facturas</div>'}</div>`;
+
+    function renderInvoiceList(){
+      const selectedCount = accountingSelectedInvoiceIds.size;
+      const selectionBar = selectedCount > 0 ? `<div class="acc-selection-bar"><strong>Seleccionadas: ${selectedCount}</strong><div class="row"><button class="smallbtn" type="button" id="btnDeleteInvoices">Eliminar (${selectedCount})</button><button class="smallbtn" type="button" id="btnCancelInvoiceSelection">Cancelar</button></div></div>` : "";
+      el("invoiceList").innerHTML = `${selectionBar}<div class="acc-list">${accountingInvoices.map(inv=>{
+        const selected = accountingSelectedInvoiceIds.has(inv.id);
+        const highlighted = accountingInvoiceHighlightedId && accountingInvoiceHighlightedId === inv.id;
+        const markClass = selected ? 'selected' : '';
+        const maybeHighlight = highlighted ? ' style="box-shadow:0 0 0 2px #175cd3 inset"' : '';
+        return `<div class="acc-item ${markClass}" data-invoice-id="${inv.id}"${maybeHighlight}><div class="row"><div class="row" style="justify-content:flex-start;gap:8px"><button class="acc-select-toggle ${selected ? 'active' : ''}" type="button" data-select-invoice="${inv.id}" aria-label="Seleccionar factura">${selected ? '✕' : 'X'}</button><strong>${inv.type}</strong></div><span>${esc(inv.vendor_or_client||"")} · ${inv.date||""} · ${inv.total||0}€</span>${inv.file_path ? '<span class="pill">📎 archivo</span>' : ''}</div><div class="row" style="margin-top:8px"><button class="smallbtn" type="button" data-open-invoice="${inv.id}">Detalle</button>${inv.file_path ? `<button class="smallbtn" type="button" data-download-invoice="${inv.id}">Descargar</button>` : ''}</div></div>`;
+      }).join("") || '<div class="muted">Sin facturas</div>'}</div>`;
+
+      document.querySelectorAll('[data-select-invoice]').forEach((btn)=>btn.addEventListener('click', ()=>{
+        const id = btn.dataset.selectInvoice;
+        if(!id) return;
+        if(accountingSelectedInvoiceIds.has(id)) accountingSelectedInvoiceIds.delete(id);
+        else accountingSelectedInvoiceIds.add(id);
+        renderInvoiceList();
+      }));
+
+      const cancelBtn = el('btnCancelInvoiceSelection');
+      if(cancelBtn){
+        cancelBtn.addEventListener('click', ()=>{
+          accountingSelectedInvoiceIds.clear();
+          renderInvoiceList();
+        });
+      }
+
+      const deleteBtn = el('btnDeleteInvoices');
+      if(deleteBtn){
+        deleteBtn.addEventListener('click', async()=>{
+          const ids = [...accountingSelectedInvoiceIds];
+          if(!ids.length) return;
+          const ok = confirm(`¿Eliminar ${ids.length} facturas? Esto también borrará el archivo adjunto si existe.`);
+          if(!ok) return;
+          try{
+            await accountingInvoke('delete_invoices', { invoice_ids: ids });
+            accountingInvoices = accountingInvoices.filter((inv)=>!accountingSelectedInvoiceIds.has(inv.id));
+            accountingSelectedInvoiceIds.clear();
+            toast('Facturas eliminadas');
+            await load(accountingInvoiceFilters);
+          }catch(err){
+            toast(err?.message || 'Error al borrar facturas');
+          }
+        });
+      }
 
       document.querySelectorAll('[data-open-invoice]').forEach((btn)=>btn.addEventListener('click', ()=>{
         accountingSelectedInvoiceId = btn.dataset.openInvoice;
@@ -3910,9 +3993,24 @@ async function renderAccountingPanel(){
         if(!res?.signedUrl) return toast('Archivo no disponible');
         window.open(res.signedUrl, '_blank', 'noopener');
       }));
+    }
+
+    const load = async(filters=accountingInvoiceFilters || {})=>{
+      accountingInvoiceFilters = filters || {};
+      const list = await accountingInvoke("list_invoices", { filters: accountingInvoiceFilters });
+      accountingInvoices = list.items || [];
+      const visible = new Set(accountingInvoices.map((inv)=>inv.id));
+      accountingSelectedInvoiceIds.forEach((id)=>{ if(!visible.has(id)) accountingSelectedInvoiceIds.delete(id); });
+      renderInvoiceList();
+      if(accountingInvoiceHighlightedId && !visible.has(accountingInvoiceHighlightedId)) accountingInvoiceHighlightedId = null;
     };
+
     await load();
-    el("invoiceFilter").addEventListener("submit", async(ev)=>{ev.preventDefault();const fd=new FormData(ev.target);await load({type:fd.get("type"),search:fd.get("search")});});
+    el("invoiceFilter").addEventListener("submit", async(ev)=>{
+      ev.preventDefault();
+      const fd = new FormData(ev.target);
+      await load({type:fd.get("type"),search:fd.get("search")});
+    });
     return;
   }
 
