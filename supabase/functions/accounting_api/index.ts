@@ -104,6 +104,7 @@ serve(async (req) => {
         file_type: body?.file_type ?? null,
         notes: body?.notes ?? null,
         ocr_text: body?.ocr_text ?? null,
+        ai_status: body?.ai_status ? String(body.ai_status) : null,
         idempotency_key: body?.idempotency_key ? String(body.idempotency_key) : null,
       };
 
@@ -314,10 +315,25 @@ serve(async (req) => {
       const invoiceId = String(body?.invoice_id || "").trim();
       const filePath = String(body?.file_path || "").trim();
       if (!invoiceId || !filePath) throw new Error("invoice_id and file_path are required");
-      const updates: Record<string, unknown> = { file_path: filePath };
+      const updates: Record<string, unknown> = {
+        id: invoiceId,
+        type: String(body?.type || "expense"),
+        vendor_or_client: String(body?.vendor_or_client || "Pendiente OCR"),
+        date: String(body?.date || new Date().toISOString().slice(0, 10)),
+        subtotal: parseNumber(body?.subtotal, 0),
+        vat: parseNumber(body?.vat, 0),
+        total: parseNumber(body?.total, 0),
+        status: String(body?.status || "pending"),
+        ai_status: String(body?.ai_status || "pending"),
+        file_path: filePath,
+      };
       if (body?.file_name !== undefined) updates.file_name = body.file_name ?? null;
       if (body?.file_type !== undefined) updates.file_type = body.file_type ?? null;
-      const { data, error } = await client.from("accounting_invoices").update(updates).eq("id", invoiceId).select("*").single();
+      const { data, error } = await client
+        .from("accounting_invoices")
+        .upsert(updates, { onConflict: "id" })
+        .select("*")
+        .single();
       if (error) throw error;
       return json({ action, item: data });
     }
@@ -356,6 +372,27 @@ serve(async (req) => {
         out[String(invoice.id)] = { signedUrl: signed?.signedUrl || null, filename: invoice?.file_name || null };
       }
       return json({ action, items: out });
+    }
+
+    if (action === "get_invoice_detail") {
+      const invoiceId = String(body?.invoice_id || "").trim();
+      if (!invoiceId) throw new Error("invoice_id is required");
+
+      const { data: invoice, error: invoiceError } = await client
+        .from("accounting_invoices")
+        .select("*")
+        .eq("id", invoiceId)
+        .single();
+      if (invoiceError) throw invoiceError;
+
+      const { data: lineItems, error: lineError } = await client
+        .from("accounting_invoice_line_items")
+        .select("*")
+        .eq("invoice_id", invoiceId)
+        .order("created_at", { ascending: true });
+      if (lineError) throw lineError;
+
+      return json({ action, item: invoice, line_items: lineItems || [] });
     }
 
     if (action === "extract_invoice_ai") {

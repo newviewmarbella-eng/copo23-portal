@@ -3660,6 +3660,42 @@ function normalizeOcrText(text){
   return raw.split(`${cr}\n`).join("\n").split(cr).join("\n").trim();
 }
 
+function aiStatusLabel(status){
+  const key = String(status || "pending");
+  if(key === "processing") return "Procesando";
+  if(key === "ready") return "OK";
+  if(key === "needs_review") return "Revisar";
+  if(key === "error") return "Error";
+  return "Pendiente OCR";
+}
+
+function aiStatusClass(status){
+  const key = String(status || "pending");
+  if(key === "processing") return "pill";
+  if(key === "ready") return "pill statusDone";
+  if(key === "needs_review" || key === "error") return "pill pill-warning";
+  return "pill";
+}
+
+function fmtMoney(value){
+  const n = Number(value || 0);
+  return `${Number.isFinite(n) ? n.toFixed(2) : "0.00"} €`;
+}
+
+async function triggerInvoiceAiProcessing(invoiceId){
+  if(!invoiceId) return;
+  toast("Procesando OCR...");
+  setTimeout(async()=>{
+    try{
+      await accountingInvoke("extract_invoice_ai", { invoice_id: invoiceId });
+      if(accountingView === "accounting-invoice-list") await renderAccountingPanel();
+    }catch(err){
+      console.warn("extract_invoice_ai failed", err);
+      toast("OCR encolado con error. Revisa detalle.");
+    }
+  }, 10);
+}
+
 function parseAmount(raw){
   if(raw === null || raw === undefined) return null;
   const cleaned = String(raw).replace(/[^\d,.-]/g, "").trim();
@@ -3875,13 +3911,29 @@ async function renderAccountingPanel(){
           status: "pending",
           notes: "Creado por OCR (revisar)",
           ocr_text: normalized.slice(0, 15000),
+          ai_status: "pending",
           idempotency_key
         });
         const invoiceId = invoice?.item?.id;
-        if(!invoice?.item?.file_path){
+        if(file && file.size && !invoice?.item?.file_path){
           const up = await accountingInvoke("get_upload_url", { filename: file.name, contentType: file.type });
-          await fetch(up.uploadUrl, { method:"PUT", headers:{"content-type": file.type || up.contentType}, body:file });
-          await accountingInvoke("confirm_upload", { invoice_id: invoiceId, file_path: up.path, file_name: file.name, file_type: file.type });
+          const uploadRes = await fetch(up.uploadUrl, { method:"PUT", headers:{"content-type": file.type || up.contentType}, body:file });
+          if(!uploadRes.ok) throw new Error("Error subiendo archivo");
+          await accountingInvoke("confirm_upload", {
+            invoice_id: invoiceId,
+            file_path: up.path,
+            file_name: file.name,
+            file_type: file.type,
+            type: isExpense ? "expense" : "income",
+            vendor_or_client: parsed.vendor_or_client || "Pendiente OCR",
+            date: parsed.date || todayIso(),
+            subtotal: parsed.subtotal === "" ? 0 : parsed.subtotal,
+            vat: parsed.vat === "" ? 0 : parsed.vat,
+            total: parsed.total === "" ? 0 : parsed.total,
+            status: "pending",
+            ai_status: "processing"
+          });
+          triggerInvoiceAiProcessing(invoiceId);
         }
         toast("Factura guardada (OCR)");
         accountingInvoiceHighlightedId = invoiceId || null;
@@ -3900,25 +3952,43 @@ async function renderAccountingPanel(){
       ev.preventDefault();
       const fd = new FormData(ev.target);
       const file = fd.get("file");
-      const invoice = await accountingInvoke("create_invoice", {
-        type: isExpense ? "expense" : "income",
-        vendor_or_client: fd.get("vendor_or_client") || "Pendiente OCR",
-        date: fd.get("date") || todayIso(),
-        invoice_number: fd.get("invoice_number"),
-        subtotal: fd.get("subtotal") || 0,
-        vat: fd.get("vat") || 0,
-        total: fd.get("total") || 0,
-        category: fd.get("category") || null,
-        subcategory: fd.get("subcategory"),
-        payment_method: fd.get("payment_method"),
-        status: fd.get("status") || "pending",
-        notes: fd.get("notes"),
-        ocr_text: normalizeOcrText(fd.get("ocr_text") || "").slice(0, 15000) || null
-      });
       if(file && file.size){
+        const invoice = await accountingInvoke("create_invoice", {
+          type: isExpense ? "expense" : "income",
+          vendor_or_client: fd.get("vendor_or_client") || "Pendiente OCR",
+          date: fd.get("date") || todayIso(),
+          invoice_number: fd.get("invoice_number"),
+          subtotal: fd.get("subtotal") || 0,
+          vat: fd.get("vat") || 0,
+          total: fd.get("total") || 0,
+          category: fd.get("category") || null,
+          subcategory: fd.get("subcategory"),
+          payment_method: fd.get("payment_method"),
+          status: fd.get("status") || "pending",
+          notes: fd.get("notes"),
+          ai_status: "pending",
+          ocr_text: normalizeOcrText(fd.get("ocr_text") || "").slice(0, 15000) || null
+        });
         const up = await accountingInvoke("get_upload_url", { filename: file.name, contentType: file.type });
-        await fetch(up.uploadUrl, { method:"PUT", headers:{"content-type": file.type || up.contentType}, body:file });
-        await accountingInvoke("confirm_upload", { invoice_id: invoice.item.id, file_path: up.path, file_name: file.name, file_type: file.type });
+        const uploadRes = await fetch(up.uploadUrl, { method:"PUT", headers:{"content-type": file.type || up.contentType}, body:file });
+        if(!uploadRes.ok) throw new Error("Error subiendo archivo");
+        await accountingInvoke("confirm_upload", {
+          invoice_id: invoice.item.id,
+          file_path: up.path,
+          file_name: file.name,
+          file_type: file.type,
+          type: isExpense ? "expense" : "income",
+          vendor_or_client: fd.get("vendor_or_client") || "Pendiente OCR",
+          date: fd.get("date") || todayIso(),
+          subtotal: fd.get("subtotal") || 0,
+          vat: fd.get("vat") || 0,
+          total: fd.get("total") || 0,
+          status: fd.get("status") || "pending",
+          ai_status: "processing"
+        });
+        triggerInvoiceAiProcessing(invoice.item.id);
+      }else{
+        throw new Error("Debes adjuntar archivo para crear factura definitiva");
       }
       toast("Factura guardada");
       setAccountingView("accounting-invoice-list");
@@ -3940,13 +4010,15 @@ async function renderAccountingPanel(){
 
     function renderInvoiceList(){
       const selectedCount = accountingSelectedInvoiceIds.size;
-      const selectionBar = selectedCount > 0 ? `<div class="acc-selection-bar"><strong>Seleccionadas: ${selectedCount}</strong><div class="row"><button class="smallbtn" type="button" id="btnDeleteInvoices">Eliminar (${selectedCount})</button><button class="smallbtn" type="button" id="btnCancelInvoiceSelection">Cancelar</button></div></div>` : "";
+      const selectionBar = selectedCount > 0 ? `<div class="acc-selection-bar"><strong>Seleccionadas: ${selectedCount}</strong><div class="row"><button class="smallbtn" type="button" id="btnDeleteInvoices">Borrar seleccionadas (${selectedCount})</button><button class="smallbtn" type="button" id="btnCancelInvoiceSelection">Cancelar</button></div></div>` : "";
       el("invoiceList").innerHTML = `${selectionBar}<div class="acc-list">${accountingInvoices.map(inv=>{
         const selected = accountingSelectedInvoiceIds.has(inv.id);
         const highlighted = accountingInvoiceHighlightedId && accountingInvoiceHighlightedId === inv.id;
         const markClass = selected ? 'selected' : '';
         const maybeHighlight = highlighted ? ' style="box-shadow:0 0 0 2px #175cd3 inset"' : '';
-        return `<div class="acc-item ${markClass}" data-invoice-id="${inv.id}"${maybeHighlight}><div class="row"><div class="row" style="justify-content:flex-start;gap:8px"><button class="acc-select-toggle ${selected ? 'active' : ''}" type="button" data-select-invoice="${inv.id}" aria-label="Seleccionar factura">${selected ? '✕' : 'X'}</button><strong>${inv.type}</strong></div><span>${esc(inv.vendor_or_client||"")} · ${inv.date||""} · ${inv.total||0}€</span>${inv.file_path ? '<span class="pill">📎 archivo</span>' : ''}</div><div class="row" style="margin-top:8px"><button class="smallbtn" type="button" data-open-invoice="${inv.id}">Detalle</button>${inv.file_path ? `<button class="smallbtn" type="button" data-download-invoice="${inv.id}">Descargar</button>` : ''}</div></div>`;
+        const status = aiStatusLabel(inv.ai_status);
+        const statusClass = aiStatusClass(inv.ai_status);
+        return `<div class="acc-item ${markClass}" data-invoice-id="${inv.id}"${maybeHighlight}><div class="row"><div class="row" style="justify-content:flex-start;gap:8px"><button class="acc-select-toggle ${selected ? 'active' : ''}" type="button" data-select-invoice="${inv.id}" aria-label="Seleccionar factura">${selected ? '✕' : '☐'}</button><strong>${inv.type}</strong></div><span class="${statusClass}">${status}</span></div><div class="muted" style="margin-top:6px">${esc(inv.vendor_name || inv.vendor_or_client || "")} · ${esc(inv.issue_date || inv.date || "")} · ${fmtMoney(inv.total)}</div><div class="row" style="margin-top:8px">${inv.file_path ? '<span class="pill">📎 archivo</span>' : '<span class="pill pill-warning">Sin archivo</span>'}<button class="smallbtn" type="button" data-open-invoice="${inv.id}">Detalle</button>${inv.file_path ? `<button class="smallbtn" type="button" data-download-invoice="${inv.id}">Descargar</button>` : ''}</div></div>`;
       }).join("") || '<div class="muted">Sin facturas</div>'}</div>`;
 
       document.querySelectorAll('[data-select-invoice]').forEach((btn)=>btn.addEventListener('click', ()=>{
@@ -4015,12 +4087,22 @@ async function renderAccountingPanel(){
   }
 
   if(accountingView === "accounting-invoice-detail"){
-    const invoice = (accountingInvoices || []).find((inv)=>inv.id === accountingSelectedInvoiceId);
+    const invoiceRes = await accountingInvoke('get_invoice_detail', { invoice_id: accountingSelectedInvoiceId });
+    const invoice = invoiceRes?.item;
+    const lineItems = invoiceRes?.line_items || [];
     if(!invoice){
       renderAccountingScreen('Detalle factura', '<div class="muted">Factura no encontrada.</div>');
       return;
     }
-    renderAccountingScreen('Detalle factura', `<div class="acc-form"><label>Tercero<input value="${esc(invoice.vendor_or_client||'')}" readonly></label><label>Fecha<input value="${esc(invoice.date||'')}" readonly></label><label>Nº factura<input value="${esc(invoice.invoice_number||'')}" readonly></label><label>Base<input value="${Number(invoice.subtotal||0)}" readonly></label><label>IVA<input value="${Number(invoice.vat||0)}" readonly></label><label>Total<input value="${Number(invoice.total||0)}" readonly></label><label>OCR<textarea readonly>${esc(invoice.ocr_text||'')}</textarea></label>${invoice.file_path ? '<button class="smallbtn" type="button" id="btnDetailDownload">Descargar archivo</button>' : '<div class="muted">Sin archivo adjunto</div>'}</div>`);
+    const warningText = Array.isArray(invoice.ai_warnings) && invoice.ai_warnings.length ? `<ul>${invoice.ai_warnings.map((w)=>`<li>${esc(w)}</li>`).join('')}</ul>` : '<div class="muted">Sin warnings</div>';
+    const aiReason = (invoice.ai_status === 'needs_review' || invoice.ai_status === 'error')
+      ? `<div class="notice" style="margin-bottom:10px"><strong>Motivo:</strong> ${esc((invoice.ai_warnings||[]).join(' | ') || 'Revisar extracción AI')}</div>`
+      : '';
+    renderAccountingScreen('Detalle factura', `<div class="acc-form">${aiReason}<label>Proveedor<input value="${esc(invoice.vendor_name||invoice.vendor_or_client||'')}" readonly></label><label>NIF proveedor<input value="${esc(invoice.vendor_tax_id||'')}" readonly></label><label>Nº factura<input value="${esc(invoice.invoice_number||'')}" readonly></label><label>Fecha emisión<input value="${esc(invoice.issue_date||invoice.date||'')}" readonly></label><label>Moneda<input value="${esc(invoice.currency||'EUR')}" readonly></label><label>Subtotal<input value="${Number(invoice.subtotal||0).toFixed(2)}" readonly></label><label>IVA total<input value="${Number(invoice.vat_total ?? invoice.vat ?? 0).toFixed(2)}" readonly></label><label>Total<input value="${Number(invoice.total||0).toFixed(2)}" readonly></label><label>Desglose IVA<textarea readonly>${esc(JSON.stringify(invoice.vat_breakdown || [], null, 2))}</textarea></label><div><strong>Líneas</strong><div style="overflow:auto"><table style="width:100%;border-collapse:collapse"><thead><tr><th>Descripción</th><th>Qty</th><th>P.Unit</th><th>Total</th><th>IVA %</th><th>Categoría</th></tr></thead><tbody>${lineItems.map((line)=>`<tr><td>${esc(line.description||'')}</td><td>${Number(line.qty||0)}</td><td>${Number(line.unit_price||0).toFixed(2)}</td><td>${Number(line.line_total||0).toFixed(2)}</td><td>${Number(line.vat_rate||0)}</td><td>${esc(line.category||'other')}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">Sin líneas detectadas</td></tr>'}</tbody></table></div></div><div><strong>Warnings</strong>${warningText}</div><label>Edición manual OCR<textarea>${esc(invoice.ocr_text||'')}</textarea></label><div class="row"><button class="smallbtn" type="button" id="btnReExtractAI">Rehacer OCR</button>${invoice.file_path ? '<button class="smallbtn" type="button" id="btnDetailDownload">Descargar archivo</button>' : '<div class="muted">Sin archivo adjunto</div>'}</div></div>`);
+    el('btnReExtractAI').addEventListener('click', async()=>{
+      await triggerInvoiceAiProcessing(invoice.id);
+      await renderAccountingPanel();
+    });
     if(invoice.file_path){
       el('btnDetailDownload').addEventListener('click', async()=>{
         const res = await accountingInvoke('get_download_url', { invoice_id: invoice.id });
