@@ -2,10 +2,71 @@ import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { cleanName, corsHeaders, getAdminClient, json, requireEditorPin } from "../_accounting_shared/utils.ts";
 
 const BUCKET = "copo23-invoices";
+const GEMINI_MODEL = "gemini-2.5-flash-lite";
+const ALLOWED_CATEGORIES = new Set([
+  "labor",
+  "materials",
+  "tools",
+  "machinery_rental",
+  "transport_fuel",
+  "services",
+  "permits_fees",
+  "accommodation_food",
+  "other",
+]);
 
 function parseNumber(value: unknown, fallback = 0) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
+}
+
+function toBase64(bytes: Uint8Array) {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
+function extractJsonText(raw: string) {
+  const trimmed = raw.trim();
+  if (trimmed.startsWith("```")) {
+    return trimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  }
+  return trimmed;
+}
+
+function asIsoDate(value: unknown): string | null {
+  const text = String(value || "").trim();
+  if (!text) return null;
+  const exact = text.match(/^\d{4}-\d{2}-\d{2}$/);
+  if (exact) return text;
+  const date = new Date(text);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 10);
+}
+
+function sanitizeCategory(value: unknown) {
+  const category = String(value || "").trim().toLowerCase();
+  return ALLOWED_CATEGORIES.has(category) ? category : "other";
+}
+
+function inferMainCategory(lines: Array<{ category: string }>) {
+  const counts = new Map<string, number>();
+  for (const line of lines) {
+    counts.set(line.category, (counts.get(line.category) || 0) + 1);
+  }
+  let winner = "other";
+  let max = 0;
+  for (const [category, count] of counts.entries()) {
+    if (count > max) {
+      winner = category;
+      max = count;
+    }
+  }
+  return winner;
 }
 
 serve(async (req) => {
@@ -295,6 +356,169 @@ serve(async (req) => {
         out[String(invoice.id)] = { signedUrl: signed?.signedUrl || null, filename: invoice?.file_name || null };
       }
       return json({ action, items: out });
+    }
+
+    if (action === "extract_invoice_ai") {
+      const invoiceId = String(body?.invoice_id || "").trim();
+      if (!invoiceId) throw new Error("invoice_id is required");
+
+      const { data: invoice, error: invoiceError } = await client
+        .from("accounting_invoices")
+        .select("id, file_path, file_type, file_name, invoice_number, subtotal, total")
+        .eq("id", invoiceId)
+        .single();
+      if (invoiceError) throw invoiceError;
+      if (!invoice?.file_path) throw new Error("La factura no tiene archivo adjunto (file_path)");
+
+      await client
+        .from("accounting_invoices")
+        .update({ ai_status: "processing", ai_provider: "gemini", ai_model: GEMINI_MODEL })
+        .eq("id", invoiceId);
+
+      const { data: fileBlob, error: fileError } = await client.storage.from(BUCKET).download(String(invoice.file_path));
+      if (fileError) throw fileError;
+
+      const bytes = new Uint8Array(await fileBlob.arrayBuffer());
+      const base64Data = toBase64(bytes);
+      const mimeType = String(invoice.file_type || "").startsWith("image/")
+        ? String(invoice.file_type)
+        : (String(invoice.file_name || "").toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg");
+
+      const geminiKey = Deno.env.get("GEMINI_API_KEY") || "";
+      if (!geminiKey) throw new Error("Missing GEMINI_API_KEY");
+
+      const prompt = `Extrae datos contables de esta factura en español (ES).
+Devuelve SIEMPRE SOLO JSON válido (sin markdown ni texto adicional) con este schema exacto:
+{
+  "vendor":{"name":"","tax_id":"","address":""},
+  "invoice":{"number":"","issue_date":"YYYY-MM-DD","currency":"EUR"},
+  "totals":{"subtotal":0,"vat_total":0,"total":0,"vat_breakdown":[{"rate":0,"base":0,"vat":0}]},
+  "lines":[{"description":"","qty":0,"unit_price":0,"line_total":0,"vat_rate":0,"category":"other","tags":[]}],
+  "confidence":{"overall":0},
+  "warnings":[]
+}
+Reglas:
+- category debe ser una de: labor, materials, tools, machinery_rental, transport_fuel, services, permits_fees, accommodation_food, other.
+- Usa números en formato decimal con punto.
+- Si un dato falta, usa null o cadena vacía según corresponda y añade un warning.
+- Responde únicamente con JSON parseable.`;
+
+      const geminiResp = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(geminiKey)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{
+              role: "user",
+              parts: [
+                { text: prompt },
+                {
+                  inline_data: {
+                    mime_type: mimeType,
+                    data: base64Data,
+                  },
+                },
+              ],
+            }],
+            generationConfig: {
+              responseMimeType: "application/json",
+            },
+          }),
+        },
+      );
+
+      if (!geminiResp.ok) {
+        const errText = await geminiResp.text();
+        await client
+          .from("accounting_invoices")
+          .update({ ai_status: "error", ai_warnings: [errText.slice(0, 500)], ai_processed_at: new Date().toISOString() })
+          .eq("id", invoiceId);
+        throw new Error(`Gemini error: ${errText}`);
+      }
+
+      const geminiData = await geminiResp.json();
+      const textCandidate = String(
+        geminiData?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || "").join("\n") || "",
+      );
+      if (!textCandidate) throw new Error("Gemini returned empty response");
+
+      const parsed = JSON.parse(extractJsonText(textCandidate));
+      const linesInput = Array.isArray(parsed?.lines) ? parsed.lines : [];
+      const normalizedLines = linesInput.map((line: Record<string, unknown>) => ({
+        invoice_id: invoiceId,
+        description: String(line?.description || "").trim(),
+        qty: parseNumber(line?.qty, 0),
+        unit_price: parseNumber(line?.unit_price, 0),
+        line_total: parseNumber(line?.line_total, 0),
+        vat_rate: parseNumber(line?.vat_rate, 0),
+        category: sanitizeCategory(line?.category),
+        tags: Array.isArray(line?.tags) ? line.tags.map((t: unknown) => String(t)).filter(Boolean) : [],
+        raw: line,
+      }));
+
+      const warnings = Array.isArray(parsed?.warnings)
+        ? parsed.warnings.map((w: unknown) => String(w)).filter(Boolean)
+        : [];
+
+      const subtotal = parseNumber(parsed?.totals?.subtotal, 0);
+      const vatTotal = parseNumber(parsed?.totals?.vat_total, 0);
+      const total = parseNumber(parsed?.totals?.total, 0);
+      const invoiceNumber = String(parsed?.invoice?.number || "").trim();
+      const issueDate = asIsoDate(parsed?.invoice?.issue_date);
+      const totalsDelta = Math.abs((subtotal + vatTotal) - total);
+
+      let aiStatus: "ready" | "needs_review" = "ready";
+      if (totalsDelta > Math.max(1, total * 0.03)) {
+        warnings.push("Inconsistencia de totales: subtotal + IVA difiere del total");
+        aiStatus = "needs_review";
+      }
+      if (!invoiceNumber || !issueDate || total <= 0) {
+        warnings.push("Faltan campos críticos (número, fecha o total)");
+        aiStatus = "needs_review";
+      }
+
+      const invoiceUpdates: Record<string, unknown> = {
+        ai_status: aiStatus,
+        ai_provider: "gemini",
+        ai_model: GEMINI_MODEL,
+        ai_extracted_json: parsed,
+        ai_confidence: parseNumber(parsed?.confidence?.overall, 0),
+        ai_warnings: warnings,
+        ai_processed_at: new Date().toISOString(),
+        vendor_name: String(parsed?.vendor?.name || "").trim() || null,
+        vendor_tax_id: String(parsed?.vendor?.tax_id || "").trim() || null,
+        issue_date: issueDate,
+        currency: String(parsed?.invoice?.currency || "").trim().toUpperCase() || null,
+        vat_total: vatTotal,
+        vat_breakdown: Array.isArray(parsed?.totals?.vat_breakdown) ? parsed.totals.vat_breakdown : [],
+        category_main: inferMainCategory(normalizedLines.map((line) => ({ category: line.category }))),
+      };
+
+      if (!String(invoice.invoice_number || "").trim() && invoiceNumber) invoiceUpdates.invoice_number = invoiceNumber;
+      if (parseNumber(invoice.subtotal, 0) <= 0 && subtotal > 0) invoiceUpdates.subtotal = subtotal;
+      if (parseNumber(invoice.total, 0) <= 0 && total > 0) invoiceUpdates.total = total;
+
+      const { error: invoiceUpdateError } = await client
+        .from("accounting_invoices")
+        .update(invoiceUpdates)
+        .eq("id", invoiceId);
+      if (invoiceUpdateError) throw invoiceUpdateError;
+
+      const { error: deleteLinesError } = await client
+        .from("accounting_invoice_line_items")
+        .delete()
+        .eq("invoice_id", invoiceId);
+      if (deleteLinesError) throw deleteLinesError;
+
+      if (normalizedLines.length) {
+        const { error: insertLinesError } = await client
+          .from("accounting_invoice_line_items")
+          .insert(normalizedLines);
+        if (insertLinesError) throw insertLinesError;
+      }
+
+      return json({ ok: true, invoice_id: invoiceId, ai_status: aiStatus });
     }
 
     return json({ error: "Invalid action" }, 400);
