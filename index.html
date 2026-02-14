@@ -82,14 +82,14 @@ select{padding:10px;border-radius:14px;border:1px solid var(--line)}
 textarea{width:100%;min-height:56px;border-radius:14px;border:1px solid var(--line);padding:10px}
 .smallbtn{padding:9px 12px;border-radius:14px;border:1px solid var(--line);background:#fff;color:var(--ink);font-weight:800;cursor:pointer}
 .smallbtn:active{transform:scale(.98)}
-.animated-progress-btn{position:relative;overflow:hidden;isolation:isolate;color:#111}
-.animated-progress-btn .btn-content{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;white-space:pre;pointer-events:none}
-.animated-progress-btn .btn-content .ch{display:inline-block}
-.animated-progress-btn .btn-content--base{color:#111;z-index:2}
-.animated-progress-btn .btn-fill{position:absolute;inset:0;width:0%;overflow:hidden;background:var(--primary);z-index:1}
-.animated-progress-btn .btn-content--fill{color:#fff}
+.animated-progress-btn{position:relative;width:100%;min-height:48px;padding:14px 18px;border-radius:999px;border:1px solid rgba(0,0,0,.15);background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;isolation:isolate;color:#111}
+.animated-progress-btn .btn-label{display:inline-flex;white-space:pre;position:relative;z-index:2;pointer-events:none}
+.animated-progress-btn .btn-label .ch{display:inline-block}
+.animated-progress-btn .btn-label--base{color:#111}
+.animated-progress-btn .btn-fill{position:absolute;inset:0;width:0%;background:var(--primary);border-radius:inherit;overflow:hidden;z-index:1;pointer-events:none}
+.animated-progress-btn .btn-label--fill{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;z-index:2}
 .animated-progress-btn.is-saving .btn-fill{animation:pseudoProgress 5.5s linear forwards}
-.animated-progress-btn.is-done .btn-fill{animation:none;width:100%;transition:width .18s ease}
+.animated-progress-btn.is-done .btn-fill{animation:none;width:100%;transition:width 200ms ease}
 .animated-progress-btn:disabled{cursor:not-allowed;opacity:.85}
 .statusDone{border-color:#abefc6;background:#ecfdf3}
 .statusBlocked{border-color:#fda29b;background:#fff5f5}
@@ -3783,7 +3783,7 @@ async function renderAccountingPanel(){
 
   if(accountingView === "accounting-new-expense" || accountingView === "accounting-new-income"){
     const isExpense = accountingView === "accounting-new-expense";
-    renderAccountingScreen(isExpense ? "Añadir Gasto" : "Añadir Ingreso", `<form id="accInvoiceForm" class="acc-form"><label>${isExpense?"Proveedor":"Cliente / pagador"}<input name="vendor_or_client"></label><label>Fecha<input type="date" name="date"></label><label>${isExpense?"Nº factura":"Referencia"}<input name="invoice_number"></label><label>Base<input type="number" step="0.01" name="subtotal"></label><label>IVA<input type="number" step="0.01" name="vat" value="0"></label><label>Total<input type="number" step="0.01" name="total"></label><label>Categoría (1-5)<input type="number" min="1" max="5" name="category"></label><label>Subcategoría<input name="subcategory"></label><label>Método pago<input name="payment_method"></label><label>Estado<select name="status"><option value="pending">pendiente</option><option value="paid">pagada</option></select></label><label>Archivo (imagen/PDF)<input type="file" name="file" id="invoiceFile" accept="image/*,application/pdf"></label><img id="invoicePreview" alt="Vista previa" style="max-width:280px;display:none;border:1px solid var(--line);border-radius:12px;padding:4px"/><label>Texto OCR<textarea name="ocr_text" id="ocrText"></textarea></label><label>Notas<textarea name="notes"></textarea></label><div class="row"><button class="smallbtn animated-progress-btn" id="invoiceSaveBtn" type="submit"><span class="btn-content btn-content--base" data-save-label></span><span class="btn-fill" aria-hidden="true"><span class="btn-content btn-content--fill" data-save-label-fill></span></span></button></div></form>`);
+    renderAccountingScreen(isExpense ? "Añadir Gasto" : "Añadir Ingreso", `<form id="accInvoiceForm" class="acc-form"><label>${isExpense?"Proveedor":"Cliente / pagador"}<input name="vendor_or_client"></label><label>Fecha<input type="date" name="date"></label><label>${isExpense?"Nº factura":"Referencia"}<input name="invoice_number"></label><label>Base<input type="number" step="0.01" name="subtotal"></label><label>IVA<input type="number" step="0.01" name="vat" value="0"></label><label>Total<input type="number" step="0.01" name="total"></label><label>Categoría (1-5)<input type="number" min="1" max="5" name="category"></label><label>Subcategoría<input name="subcategory"></label><label>Método pago<input name="payment_method"></label><label>Estado<select name="status"><option value="pending">pendiente</option><option value="paid">pagada</option></select></label><label>Archivo (imagen/PDF)<input type="file" name="file" id="invoiceFile" accept="image/*,application/pdf"></label><img id="invoicePreview" alt="Vista previa" style="max-width:280px;display:none;border:1px solid var(--line);border-radius:12px;padding:4px"/><label>Texto OCR<textarea name="ocr_text" id="ocrText"></textarea></label><label>Notas<textarea name="notes"></textarea></label><div class="row"><button class="smallbtn animated-progress-btn" id="invoiceSaveBtn" type="submit"><span class="btn-label btn-label--base" data-save-label></span><span class="btn-fill" aria-hidden="true"><span class="btn-label btn-label--fill" data-save-label-fill></span></span></button></div></form>`);
     const form = el("accInvoiceForm");
     const fileInput = el("invoiceFile");
     const preview = el("invoicePreview");
@@ -3823,63 +3823,66 @@ async function renderAccountingPanel(){
       renderAnimatedLabel(saveBtnFillLabel, t("saving"));
       form?.setAttribute("aria-busy", "true");
       try{
-      const fd = new FormData(ev.target);
-      const file = fd.get("file");
-      if(file && file.size){
-        const invoice = await accountingInvoke("create_invoice", {
-          type: isExpense ? "expense" : "income",
-          vendor_or_client: fd.get("vendor_or_client") || "Pendiente OCR",
-          date: fd.get("date") || todayIso(),
-          invoice_number: fd.get("invoice_number"),
-          subtotal: fd.get("subtotal") || 0,
-          vat: fd.get("vat") || 0,
-          total: fd.get("total") || 0,
-          category: fd.get("category") || null,
-          subcategory: fd.get("subcategory"),
-          payment_method: fd.get("payment_method"),
-          status: fd.get("status") || "pending",
-          notes: fd.get("notes"),
-          ai_status: "pending",
-          ocr_text: normalizeOcrText(fd.get("ocr_text") || "").slice(0, 15000) || null
-        });
-        const up = await accountingInvoke("get_upload_url", { filename: file.name, contentType: file.type });
-        const uploadRes = await fetch(up.uploadUrl, { method:"PUT", headers:{"content-type": file.type || up.contentType}, body:file });
-        if(!uploadRes.ok) throw new Error("Error subiendo archivo");
-        await accountingInvoke("confirm_upload", {
-          invoice_id: invoice.item.id,
-          file_path: up.path,
-          file_name: file.name,
-          file_type: file.type,
-          type: isExpense ? "expense" : "income",
-          vendor_or_client: fd.get("vendor_or_client") || "Pendiente OCR",
-          date: fd.get("date") || todayIso(),
-          subtotal: fd.get("subtotal") || 0,
-          vat: fd.get("vat") || 0,
-          total: fd.get("total") || 0,
-          status: fd.get("status") || "pending",
-          ai_status: "processing"
-        });
-        triggerInvoiceAiProcessing(invoice.item.id);
-      }else{
-        throw new Error("Debes adjuntar archivo para crear factura definitiva");
-      }
-      toast("Factura guardada");
-      saveBtn?.classList.add("is-done");
-      if(saveBtnFill){
-        saveBtnFill.style.width = "100%";
-      }
-      await new Promise((resolve)=>setTimeout(resolve, 200));
-      setAccountingView("accounting-invoice-list");
+        const fd = new FormData(ev.target);
+        const file = fd.get("file");
+        if(file && file.size){
+          const invoice = await accountingInvoke("create_invoice", {
+            type: isExpense ? "expense" : "income",
+            vendor_or_client: fd.get("vendor_or_client") || "Pendiente OCR",
+            date: fd.get("date") || todayIso(),
+            invoice_number: fd.get("invoice_number"),
+            subtotal: fd.get("subtotal") || 0,
+            vat: fd.get("vat") || 0,
+            total: fd.get("total") || 0,
+            category: fd.get("category") || null,
+            subcategory: fd.get("subcategory"),
+            payment_method: fd.get("payment_method"),
+            status: fd.get("status") || "pending",
+            notes: fd.get("notes"),
+            ai_status: "pending",
+            ocr_text: normalizeOcrText(fd.get("ocr_text") || "").slice(0, 15000) || null
+          });
+          const up = await accountingInvoke("get_upload_url", { filename: file.name, contentType: file.type });
+          const uploadRes = await fetch(up.uploadUrl, { method:"PUT", headers:{"content-type": file.type || up.contentType}, body:file });
+          if(!uploadRes.ok) throw new Error("Error subiendo archivo");
+          await accountingInvoke("confirm_upload", {
+            invoice_id: invoice.item.id,
+            file_path: up.path,
+            file_name: file.name,
+            file_type: file.type,
+            type: isExpense ? "expense" : "income",
+            vendor_or_client: fd.get("vendor_or_client") || "Pendiente OCR",
+            date: fd.get("date") || todayIso(),
+            subtotal: fd.get("subtotal") || 0,
+            vat: fd.get("vat") || 0,
+            total: fd.get("total") || 0,
+            status: fd.get("status") || "pending",
+            ai_status: "processing"
+          });
+          triggerInvoiceAiProcessing(invoice.item.id);
+        }else{
+          throw new Error("Debes adjuntar archivo para crear factura definitiva");
+        }
+        toast("Factura guardada");
+        saveBtn?.classList.remove("is-saving");
+        saveBtn?.classList.add("is-done");
+        if(saveBtnFill){
+          saveBtnFill.style.width = "100%";
+        }
+        await new Promise((resolve)=>setTimeout(resolve, 200));
+        setAccountingView("accounting-invoice-list");
+      }catch(err){
+        saveBtn?.classList.remove("is-saving", "is-done");
+        if(saveBtnFill){
+          saveBtnFill.style.width = "0%";
+        }
+        throw err;
       }finally{
         isSaving = false;
-        saveBtn?.classList.remove("is-saving", "is-done");
         if(saveBtn){
           saveBtn.disabled = false;
           saveBtn.removeAttribute("aria-busy");
           saveBtn.removeAttribute("title");
-        }
-        if(saveBtnFill){
-          saveBtnFill.style.width = "0%";
         }
         renderAnimatedLabel(saveBtnBaseLabel, t("save"));
         renderAnimatedLabel(saveBtnFillLabel, t("save"));
