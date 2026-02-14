@@ -202,7 +202,6 @@ textarea{width:100%;min-height:56px;border-radius:14px;border:1px solid var(--li
 code{background:#10182810;padding:2px 6px;border-radius:8px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
 <header>
@@ -2233,7 +2232,6 @@ let accountingSelectedInvoiceId = null;
 let accountingSelectedInvoiceIds = new Set();
 let accountingInvoiceFilters = {};
 let accountingInvoiceHighlightedId = null;
-let isOcrSaving = false;
 let currentPlan = (DATA.plans || [])[0] || null;
 let noteDraftImage = null;
 let notesCache = {};
@@ -3629,31 +3627,6 @@ function renderAccountingScreen(title, content, withBack=true){
   if(withBack) el("btnAccountingBack").addEventListener("click", goBackAccounting);
 }
 
-async function runInvoiceOCR(file){
-  if(!window.Tesseract) throw new Error("Tesseract no disponible");
-  const { data } = await window.Tesseract.recognize(file, 'spa+eng', {
-    logger: (m)=>{
-      if(m.status === 'recognizing text' && el('ocrBar')){
-        el('ocrBar').style.width = `${Math.round((m.progress||0)*100)}%`;
-      }
-      if(el('ocrStatus')) el('ocrStatus').textContent = `${m.status || 'procesando'} ${Math.round((m.progress||0)*100)}%`;
-    }
-  });
-  return data?.text || "";
-}
-
-async function getFileIdempotencyKey(file){
-  if(!file) return null;
-  try{
-    if(window.crypto?.subtle?.digest){
-      const buffer = await file.arrayBuffer();
-      const digest = await window.crypto.subtle.digest('SHA-256', buffer);
-      return Array.from(new Uint8Array(digest)).map((b)=>b.toString(16).padStart(2,'0')).join('');
-    }
-  }catch(_){ }
-  return `${file.name}|${file.size}|${file.lastModified}`;
-}
-
 function normalizeOcrText(text){
   const raw = String(text || "");
   const cr = String.fromCharCode(13);
@@ -3694,83 +3667,6 @@ async function triggerInvoiceAiProcessing(invoiceId){
       toast("OCR encolado con error. Revisa detalle.");
     }
   }, 10);
-}
-
-function parseAmount(raw){
-  if(raw === null || raw === undefined) return null;
-  const cleaned = String(raw).replace(/[^\d,.-]/g, "").trim();
-  if(!cleaned) return null;
-  const normalized = cleaned.includes(",") ? cleaned.replace(/\./g, "").replace(",", ".") : cleaned;
-  const n = Number(normalized);
-  return Number.isFinite(n) ? Number(n.toFixed(2)) : null;
-}
-
-function findAmountInLine(line){
-  const matches = String(line || "").match(/-?\d{1,3}(?:[\.\s]\d{3})*(?:[\.,]\d{2})|-?\d+[\.,]\d{2}/g);
-  if(!matches || !matches.length) return null;
-  for(let i = matches.length - 1; i >= 0; i -= 1){
-    const n = parseAmount(matches[i]);
-    if(n !== null) return n;
-  }
-  return null;
-}
-
-function toIsoDate(raw){
-  const m = String(raw || "").match(/\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})\b/);
-  if(!m) return "";
-  const dd = Number(m[1]);
-  const mm = Number(m[2]);
-  let yyyy = Number(m[3]);
-  if(yyyy < 100) yyyy += 2000;
-  if(!dd || !mm || yyyy < 2000 || yyyy > 2100) return "";
-  return `${String(yyyy).padStart(4, "0")}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
-}
-
-function parseInvoiceFromOcr(text, isExpense){
-  const normalized = normalizeOcrText(text);
-  const lines = normalized.split("\n").map((line)=>line.trim()).filter(Boolean);
-  const out = { vendor_or_client:"", date:"", invoice_number:"", subtotal:"", vat:"", total:"", confidence:0.2 };
-
-  for(const line of lines){
-    if(!out.date){
-      const iso = toIsoDate(line);
-      if(iso) out.date = iso;
-    }
-    if(!out.invoice_number){
-      const m = line.match(/(?:factura|n[ºo°]|núm(?:ero)?|num(?:ero)?|f\/|no\.?|nº)\s*[:#-]?\s*([A-Z0-9\/-]{3,})/i);
-      if(m) out.invoice_number = m[1].trim();
-    }
-    if(out.total === "" && /(importe\s+total|total\s+a\s+pagar|\btotal\b)/i.test(line)){
-      const amount = findAmountInLine(line);
-      if(amount !== null) out.total = amount;
-    }
-    if(out.vat === "" && /\biva\b/i.test(line)){
-      const amount = findAmountInLine(line);
-      if(amount !== null) out.vat = amount;
-    }
-    if(out.subtotal === "" && /(base\s+imponible|\bbase\b|subtotal)/i.test(line)){
-      const amount = findAmountInLine(line);
-      if(amount !== null) out.subtotal = amount;
-    }
-  }
-
-  const vendorLine = lines.find((line)=>/\b(s\.?l\.?|s\.?a\.?|cif|nif)\b/i.test(line)) || lines.find((line)=>line.length > 4 && !/\d{2}[\/\-.]\d{2}[\/\-.]\d{2,4}/.test(line));
-  out.vendor_or_client = vendorLine || "";
-  if(!out.vendor_or_client && !isExpense && lines.length) out.vendor_or_client = lines[0];
-
-  const found = [out.vendor_or_client, out.date, out.invoice_number, out.subtotal, out.vat, out.total].filter((v)=>v !== "" && v !== null && v !== undefined).length;
-  out.confidence = Math.min(0.95, 0.15 + found * 0.12);
-  return out;
-}
-
-function fillInvoiceForm(form, parsed){
-  if(!form || !parsed) return;
-  if(parsed.vendor_or_client) form.elements.vendor_or_client.value = parsed.vendor_or_client;
-  if(parsed.date) form.elements.date.value = parsed.date;
-  if(parsed.invoice_number) form.elements.invoice_number.value = parsed.invoice_number;
-  if(parsed.subtotal !== "") form.elements.subtotal.value = parsed.subtotal;
-  if(parsed.vat !== "") form.elements.vat.value = parsed.vat;
-  if(parsed.total !== "") form.elements.total.value = parsed.total;
 }
 
 function todayIso(){ return new Date().toISOString().slice(0,10); }
@@ -3853,7 +3749,7 @@ async function renderAccountingPanel(){
 
   if(accountingView === "accounting-new-expense" || accountingView === "accounting-new-income"){
     const isExpense = accountingView === "accounting-new-expense";
-    renderAccountingScreen(isExpense ? "Añadir Gasto" : "Añadir Ingreso", `<form id="accInvoiceForm" class="acc-form"><label>${isExpense?"Proveedor":"Cliente / pagador"}<input name="vendor_or_client"></label><label>Fecha<input type="date" name="date"></label><label>${isExpense?"Nº factura":"Referencia"}<input name="invoice_number"></label><label>Base<input type="number" step="0.01" name="subtotal"></label><label>IVA<input type="number" step="0.01" name="vat" value="0"></label><label>Total<input type="number" step="0.01" name="total"></label><label>Categoría (1-5)<input type="number" min="1" max="5" name="category"></label><label>Subcategoría<input name="subcategory"></label><label>Método pago<input name="payment_method"></label><label>Estado<select name="status"><option value="pending">pendiente</option><option value="paid">pagada</option></select></label><label>Archivo (imagen/PDF)<input type="file" name="file" id="invoiceFile" accept="image/*,application/pdf"></label><img id="invoicePreview" alt="Vista previa" style="max-width:280px;display:none;border:1px solid var(--line);border-radius:12px;padding:4px"/><div class="acc-progress"><div id="ocrBar"></div></div><div class="muted" id="ocrStatus">OCR no iniciado</div><label>Texto OCR<textarea name="ocr_text" id="ocrText"></textarea></label><label>Notas<textarea name="notes"></textarea></label><div class="row"><button class="smallbtn" type="submit">Guardar</button><button class="smallbtn" type="button" id="btnOcrFill">OCR + Autorrellenar</button><button class="smallbtn" type="button" id="btnOcrDraft">OCR + Guardar borrador</button></div></form>`);
+    renderAccountingScreen(isExpense ? "Añadir Gasto" : "Añadir Ingreso", `<form id="accInvoiceForm" class="acc-form"><label>${isExpense?"Proveedor":"Cliente / pagador"}<input name="vendor_or_client"></label><label>Fecha<input type="date" name="date"></label><label>${isExpense?"Nº factura":"Referencia"}<input name="invoice_number"></label><label>Base<input type="number" step="0.01" name="subtotal"></label><label>IVA<input type="number" step="0.01" name="vat" value="0"></label><label>Total<input type="number" step="0.01" name="total"></label><label>Categoría (1-5)<input type="number" min="1" max="5" name="category"></label><label>Subcategoría<input name="subcategory"></label><label>Método pago<input name="payment_method"></label><label>Estado<select name="status"><option value="pending">pendiente</option><option value="paid">pagada</option></select></label><label>Archivo (imagen/PDF)<input type="file" name="file" id="invoiceFile" accept="image/*,application/pdf"></label><img id="invoicePreview" alt="Vista previa" style="max-width:280px;display:none;border:1px solid var(--line);border-radius:12px;padding:4px"/><label>Texto OCR<textarea name="ocr_text" id="ocrText"></textarea></label><label>Notas<textarea name="notes"></textarea></label><div class="row"><button class="smallbtn" type="submit">Guardar</button></div></form>`);
     const form = el("accInvoiceForm");
     const fileInput = el("invoiceFile");
     const preview = el("invoicePreview");
@@ -3866,86 +3762,6 @@ async function renderAccountingPanel(){
       }
       preview.src = URL.createObjectURL(file);
       preview.style.display = "block";
-    });
-
-    async function doOcrAndFill(){
-      const file = fileInput.files?.[0];
-      if(!file) throw new Error("Selecciona un archivo");
-      if(!file.type.startsWith("image/")) throw new Error("OCR v1 solo imagen");
-      const text = await runInvoiceOCR(file);
-      const normalized = normalizeOcrText(text);
-      el("ocrText").value = normalized.slice(0, 15000);
-      const parsed = parseInvoiceFromOcr(normalized, isExpense);
-      fillInvoiceForm(form, parsed);
-      return { file, normalized, parsed };
-    }
-
-    el("btnOcrFill").addEventListener("click", async()=>{
-      try{
-        await doOcrAndFill();
-        toast("Autorrellenado (revisar campos)");
-      }catch(err){ alert(err.message || String(err)); }
-    });
-
-    const btnOcrDraft = el("btnOcrDraft");
-    const ocrDraftDefaultText = btnOcrDraft ? btnOcrDraft.textContent : "OCR + Guardar borrador";
-
-    el("btnOcrDraft").addEventListener("click", async()=>{
-      if(isOcrSaving) return;
-      isOcrSaving = true;
-      if(btnOcrDraft){
-        btnOcrDraft.disabled = true;
-        btnOcrDraft.textContent = "Procesando…";
-      }
-      try{
-        const { file, normalized, parsed } = await doOcrAndFill();
-        const idempotency_key = await getFileIdempotencyKey(file);
-        const invoice = await accountingInvoke("create_invoice", {
-          type: isExpense ? "expense" : "income",
-          vendor_or_client: parsed.vendor_or_client || "Pendiente OCR",
-          date: parsed.date || todayIso(),
-          invoice_number: parsed.invoice_number || null,
-          subtotal: parsed.subtotal === "" ? 0 : parsed.subtotal,
-          vat: parsed.vat === "" ? 0 : parsed.vat,
-          total: parsed.total === "" ? 0 : parsed.total,
-          status: "pending",
-          notes: "Creado por OCR (revisar)",
-          ocr_text: normalized.slice(0, 15000),
-          ai_status: "pending",
-          idempotency_key
-        });
-        const invoiceId = invoice?.item?.id;
-        if(file && file.size && !invoice?.item?.file_path){
-          const up = await accountingInvoke("get_upload_url", { filename: file.name, contentType: file.type });
-          const uploadRes = await fetch(up.uploadUrl, { method:"PUT", headers:{"content-type": file.type || up.contentType}, body:file });
-          if(!uploadRes.ok) throw new Error("Error subiendo archivo");
-          await accountingInvoke("confirm_upload", {
-            invoice_id: invoiceId,
-            file_path: up.path,
-            file_name: file.name,
-            file_type: file.type,
-            type: isExpense ? "expense" : "income",
-            vendor_or_client: parsed.vendor_or_client || "Pendiente OCR",
-            date: parsed.date || todayIso(),
-            subtotal: parsed.subtotal === "" ? 0 : parsed.subtotal,
-            vat: parsed.vat === "" ? 0 : parsed.vat,
-            total: parsed.total === "" ? 0 : parsed.total,
-            status: "pending",
-            ai_status: "processing"
-          });
-          triggerInvoiceAiProcessing(invoiceId);
-        }
-        toast("Factura guardada (OCR)");
-        accountingInvoiceHighlightedId = invoiceId || null;
-        setAccountingView("accounting-invoice-list");
-      }catch(err){ alert(err.message || String(err)); }
-      finally{
-        isOcrSaving = false;
-        if(btnOcrDraft){
-          btnOcrDraft.disabled = false;
-          btnOcrDraft.textContent = ocrDraftDefaultText;
-        }
-      }
     });
 
     form.addEventListener("submit", async(ev)=>{
