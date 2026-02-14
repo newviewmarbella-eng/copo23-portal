@@ -8,6 +8,7 @@
 <style>
 :root{
   --ink:#0b2a3a;
+  --primary:#101828;
   --bg:#f6f7f9;
   --card:#ffffff;
   --muted:#667085;
@@ -81,6 +82,13 @@ select{padding:10px;border-radius:14px;border:1px solid var(--line)}
 textarea{width:100%;min-height:56px;border-radius:14px;border:1px solid var(--line);padding:10px}
 .smallbtn{padding:9px 12px;border-radius:14px;border:1px solid var(--line);background:#fff;color:var(--ink);font-weight:800;cursor:pointer}
 .smallbtn:active{transform:scale(.98)}
+.animated-progress-btn{position:relative;overflow:hidden;isolation:isolate;color:#111}
+.animated-progress-btn::before{content:"";position:absolute;inset:0;background:var(--primary);border-radius:inherit;transform:translateX(-100%);opacity:0;z-index:0}
+.animated-progress-btn .btn-label{position:relative;z-index:1;display:inline-flex;white-space:pre}
+.animated-progress-btn .btn-label .ch{display:inline-block;color:#111}
+.animated-progress-btn.btn-saving::before{opacity:1;animation:fillSweep 1.4s linear infinite}
+.animated-progress-btn.btn-saving .btn-label .ch{animation:charToWhite 1.2s linear infinite alternate;animation-delay:calc(var(--char-index, 0) * 70ms)}
+.animated-progress-btn:disabled{cursor:not-allowed;opacity:.85}
 .statusDone{border-color:#abefc6;background:#ecfdf3}
 .statusBlocked{border-color:#fda29b;background:#fff5f5}
 .badge{font-weight:900}
@@ -200,6 +208,14 @@ textarea{width:100%;min-height:56px;border-radius:14px;border:1px solid var(--li
 .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#101828;color:#fff;padding:10px 14px;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s ease;z-index:60}
 .toast.show{opacity:1}
 code{background:#10182810;padding:2px 6px;border-radius:8px}
+@keyframes fillSweep{
+  0%{transform:translateX(-100%)}
+  100%{transform:translateX(100%)}
+}
+@keyframes charToWhite{
+  0%{color:#111}
+  100%{color:#fff}
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 </head>
@@ -509,6 +525,8 @@ const I18N = {
     notes_meta: "{count} messages",
     write_note: "Write a note...",
     send: "Send",
+    save: "Save",
+    saving: "Saving...",
     attach: "Attach photo",
     pins_warning: "Pins not configured",
     inbox: "Inbox",
@@ -616,6 +634,8 @@ const I18N = {
     notes_meta: "{count} mensajes",
     write_note: "Escribe una nota...",
     send: "Enviar",
+    save: "Guardar",
+    saving: "Guardando...",
     attach: "Adjuntar foto",
     pins_warning: "Pins no configurados",
     inbox: "Buzón",
@@ -723,6 +743,8 @@ const I18N = {
     notes_meta: "{count} berichten",
     write_note: "Schrijf een notitie...",
     send: "Versturen",
+    save: "Opslaan",
+    saving: "Opslaan...",
     attach: "Foto toevoegen",
     pins_warning: "Pincodes niet geconfigureerd",
     inbox: "Inbox",
@@ -3633,6 +3655,18 @@ function normalizeOcrText(text){
   return raw.split(`${cr}\n`).join("\n").split(cr).join("\n").trim();
 }
 
+function renderAnimatedLabel(container, text){
+  if(!container) return;
+  container.innerHTML = "";
+  for(const [idx, ch] of Array.from(String(text || "")).entries()){
+    const span = document.createElement("span");
+    span.className = "ch";
+    span.style.setProperty("--char-index", String(idx));
+    span.textContent = ch;
+    container.appendChild(span);
+  }
+}
+
 function aiStatusLabel(status){
   const key = String(status || "pending");
   if(key === "processing") return "Procesando";
@@ -3749,10 +3783,14 @@ async function renderAccountingPanel(){
 
   if(accountingView === "accounting-new-expense" || accountingView === "accounting-new-income"){
     const isExpense = accountingView === "accounting-new-expense";
-    renderAccountingScreen(isExpense ? "Añadir Gasto" : "Añadir Ingreso", `<form id="accInvoiceForm" class="acc-form"><label>${isExpense?"Proveedor":"Cliente / pagador"}<input name="vendor_or_client"></label><label>Fecha<input type="date" name="date"></label><label>${isExpense?"Nº factura":"Referencia"}<input name="invoice_number"></label><label>Base<input type="number" step="0.01" name="subtotal"></label><label>IVA<input type="number" step="0.01" name="vat" value="0"></label><label>Total<input type="number" step="0.01" name="total"></label><label>Categoría (1-5)<input type="number" min="1" max="5" name="category"></label><label>Subcategoría<input name="subcategory"></label><label>Método pago<input name="payment_method"></label><label>Estado<select name="status"><option value="pending">pendiente</option><option value="paid">pagada</option></select></label><label>Archivo (imagen/PDF)<input type="file" name="file" id="invoiceFile" accept="image/*,application/pdf"></label><img id="invoicePreview" alt="Vista previa" style="max-width:280px;display:none;border:1px solid var(--line);border-radius:12px;padding:4px"/><label>Texto OCR<textarea name="ocr_text" id="ocrText"></textarea></label><label>Notas<textarea name="notes"></textarea></label><div class="row"><button class="smallbtn" type="submit">Guardar</button></div></form>`);
+    renderAccountingScreen(isExpense ? "Añadir Gasto" : "Añadir Ingreso", `<form id="accInvoiceForm" class="acc-form"><label>${isExpense?"Proveedor":"Cliente / pagador"}<input name="vendor_or_client"></label><label>Fecha<input type="date" name="date"></label><label>${isExpense?"Nº factura":"Referencia"}<input name="invoice_number"></label><label>Base<input type="number" step="0.01" name="subtotal"></label><label>IVA<input type="number" step="0.01" name="vat" value="0"></label><label>Total<input type="number" step="0.01" name="total"></label><label>Categoría (1-5)<input type="number" min="1" max="5" name="category"></label><label>Subcategoría<input name="subcategory"></label><label>Método pago<input name="payment_method"></label><label>Estado<select name="status"><option value="pending">pendiente</option><option value="paid">pagada</option></select></label><label>Archivo (imagen/PDF)<input type="file" name="file" id="invoiceFile" accept="image/*,application/pdf"></label><img id="invoicePreview" alt="Vista previa" style="max-width:280px;display:none;border:1px solid var(--line);border-radius:12px;padding:4px"/><label>Texto OCR<textarea name="ocr_text" id="ocrText"></textarea></label><label>Notas<textarea name="notes"></textarea></label><div class="row"><button class="smallbtn animated-progress-btn" id="invoiceSaveBtn" type="submit"><span class="btn-label"></span></button></div></form>`);
     const form = el("accInvoiceForm");
     const fileInput = el("invoiceFile");
     const preview = el("invoicePreview");
+    const saveBtn = el("invoiceSaveBtn");
+    const saveBtnLabel = saveBtn?.querySelector(".btn-label");
+    let isSaving = false;
+    renderAnimatedLabel(saveBtnLabel, t("save"));
     fileInput.addEventListener("change", ()=>{
       const file = fileInput.files?.[0];
       if(!file || !file.type.startsWith("image/")){
@@ -3766,6 +3804,16 @@ async function renderAccountingPanel(){
 
     form.addEventListener("submit", async(ev)=>{
       ev.preventDefault();
+      if(isSaving) return;
+      isSaving = true;
+      saveBtn?.classList.add("btn-saving");
+      if(saveBtn){
+        saveBtn.disabled = true;
+        saveBtn.setAttribute("aria-busy", "true");
+        saveBtn.title = t("saving");
+      }
+      form?.setAttribute("aria-busy", "true");
+      try{
       const fd = new FormData(ev.target);
       const file = fd.get("file");
       if(file && file.size){
@@ -3808,6 +3856,16 @@ async function renderAccountingPanel(){
       }
       toast("Factura guardada");
       setAccountingView("accounting-invoice-list");
+      }finally{
+        isSaving = false;
+        saveBtn?.classList.remove("btn-saving");
+        if(saveBtn){
+          saveBtn.disabled = false;
+          saveBtn.removeAttribute("aria-busy");
+          saveBtn.removeAttribute("title");
+        }
+        form?.removeAttribute("aria-busy");
+      }
     });
     return;
   }
