@@ -604,6 +604,10 @@ const I18N = {
     vat_charged: "Output VAT",
     period_loading: "Loading…",
     wages_cost: "Wages cost",
+    expense_invoices_total: "Expense invoices",
+    dashboard_invoices_error: "Could not load invoices: {error}",
+    dashboard_timesheets_error: "Could not load workdays: {error}",
+    dashboard_invoice_loader_mismatch: "Invoice mismatch: Dashboard {dashboardCount} / Invoices {invoiceCount}",
     total_job_cost: "Total job cost",
     avg_daily_cost: "Average daily cost",
     most_expensive_day: "Most expensive day",
@@ -769,6 +773,10 @@ const I18N = {
     vat_charged: "IVA repercutido",
     period_loading: "Cargando…",
     wages_cost: "Coste jornales",
+    expense_invoices_total: "Facturas de gasto",
+    dashboard_invoices_error: "No se pudieron cargar facturas: {error}",
+    dashboard_timesheets_error: "No se pudieron cargar jornales: {error}",
+    dashboard_invoice_loader_mismatch: "Desajuste de facturas: Dashboard {dashboardCount} / Facturas {invoiceCount}",
     total_job_cost: "Coste total obra",
     avg_daily_cost: "Coste medio por día",
     most_expensive_day: "Día más caro",
@@ -934,6 +942,10 @@ const I18N = {
     vat_charged: "Uitgaande btw",
     period_loading: "Laden…",
     wages_cost: "Loonkosten",
+    expense_invoices_total: "Uitgavefacturen",
+    dashboard_invoices_error: "Facturen konden niet worden geladen: {error}",
+    dashboard_timesheets_error: "Werkdagen konden niet worden geladen: {error}",
+    dashboard_invoice_loader_mismatch: "Factuurverschil: Dashboard {dashboardCount} / Facturen {invoiceCount}",
     total_job_cost: "Totale werkkosten",
     avg_daily_cost: "Gemiddelde kosten per dag",
     most_expensive_day: "Duurste dag",
@@ -2459,6 +2471,8 @@ let accountingSelectedInvoiceIds = new Set();
 let accountingInvoiceFilters = {};
 let accountingInvoiceHighlightedId = null;
 let accountingDashboardPeriod = "month";
+let accountingInvoicesCache = [];
+let accountingInvoicesCacheAt = 0;
 let currentPlan = (DATA.plans || [])[0] || null;
 let noteDraftImage = null;
 let notesCache = {};
@@ -3953,6 +3967,10 @@ function parseNumberSafe(x){
   return Number.isFinite(n) ? n : 0;
 }
 
+function parseAmount(value){
+  return parseNumberSafe(value);
+}
+
 function formatEUR(n){
   return `${parseNumberSafe(n).toFixed(2).replace(".", ",")} €`;
 }
@@ -3961,45 +3979,107 @@ function normalizeText(s){
   return String(s || "").replace(/\s+/g, " ").trim();
 }
 
+function normalizeType(v){
+  const type = normalizeText(v).toLowerCase();
+  if(["income", "ingreso"].includes(type)) return "income";
+  if(["expense", "gasto"].includes(type)) return "expense";
+  return type;
+}
+
+function normalizeCategory(v){
+  const raw = normalizeText(v).toLowerCase();
+  if(["1", "materiales", "materials"].includes(raw)) return { id: 1, issue: false };
+  if(["2", "mano de obra", "labor", "labour"].includes(raw)) return { id: 2, issue: false };
+  if(["3", "subcontrata", "subcontract"].includes(raw)) return { id: 3, issue: false };
+  if(["4", "alquiler", "rent", "rental"].includes(raw)) return { id: 4, issue: false };
+  if(["5", "otros", "other"].includes(raw)) return { id: 5, issue: false };
+  return { id: 5, issue: true };
+}
+
+function parseDateISO(value){
+  const iso = normalizeText(value).slice(0, 10);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+  const [year, month, day] = iso.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if(date.getUTCFullYear() !== year || (date.getUTCMonth() + 1) !== month || date.getUTCDate() !== day) return null;
+  return iso;
+}
+
+function dateIsoToUtcDate(iso){
+  if(!iso) return null;
+  const [year, month, day] = iso.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
 function dateRangeFor(period){
   if(period === "all") return {from:null, to:null};
   const now = new Date();
-  now.setHours(23,59,59,999);
-  const to = new Date(now);
-  const from = new Date(now);
-  if(period === "today") from.setHours(0,0,0,0);
-  else if(period === "week") from.setDate(from.getDate()-6), from.setHours(0,0,0,0);
-  else { from.setDate(1); from.setHours(0,0,0,0); }
-  return {from, to};
+  const toIso = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(now.getUTCDate()).padStart(2, "0")}`;
+  let fromIso = toIso;
+  if(period === "week"){
+    const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    from.setUTCDate(from.getUTCDate() - 6);
+    fromIso = `${from.getUTCFullYear()}-${String(from.getUTCMonth() + 1).padStart(2, "0")}-${String(from.getUTCDate()).padStart(2, "0")}`;
+  }else if(period === "month"){
+    fromIso = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`;
+  }
+  return {from:dateIsoToUtcDate(fromIso), to:dateIsoToUtcDate(toIso), fromIso, toIso};
 }
 
 function invoiceDateValue(inv){
-  const d = normalizeText(inv?.invoice_date || inv?.issue_date || inv?.date);
-  if(!d) return null;
-  const parsed = new Date(`${d.slice(0,10)}T12:00:00`);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
+  const iso = parseDateISO(inv?.invoice_date || inv?.issue_date || inv?.date);
+  return dateIsoToUtcDate(iso);
 }
 
 function filterInvoicesByPeriod(invoices, range){
   if(!range?.from || !range?.to) return invoices.slice();
   return invoices.filter((inv)=>{
-    const d = invoiceDateValue(inv);
-    if(!d) return false;
-    return d >= range.from && d <= range.to;
+    const iso = inv?.invoice_date_iso || parseDateISO(inv?.invoice_date || inv?.issue_date || inv?.date);
+    if(!iso) return false;
+    return iso >= range.fromIso && iso <= range.toIso;
   });
 }
 
 function filterInvoicesByType(invoices, mode){
-  if(mode === "expenses") return invoices.filter((inv)=> normalizeInvoiceType(inv?.type) === "expense");
-  if(mode === "income") return invoices.filter((inv)=> normalizeInvoiceType(inv?.type) === "income");
+  if(mode === "expenses") return invoices.filter((inv)=> normalizeType(inv?.type) === "expense");
+  if(mode === "income") return invoices.filter((inv)=> normalizeType(inv?.type) === "income");
   return invoices.slice();
 }
 
 function normalizeInvoiceType(rawType){
-  const type = String(rawType || "").trim().toLowerCase();
-  if(["income", "ingreso"].includes(type)) return "income";
-  if(["expense", "gasto"].includes(type)) return "expense";
-  return type;
+  return normalizeType(rawType);
+}
+
+function normalizeInvoiceForAccounting(inv){
+  const category = normalizeCategory(inv?.category);
+  return {
+    ...inv,
+    type: normalizeType(inv?.type),
+    total: parseAmount(inv?.total),
+    subtotal: parseAmount(inv?.subtotal),
+    vat: parseAmount(inv?.vat_total ?? inv?.vat),
+    category: category.id,
+    categoryIssue: category.issue,
+    invoice_date_iso: parseDateISO(inv?.invoice_date || inv?.issue_date || inv?.date)
+  };
+}
+
+function isAccountingDebugEnabled(){
+  return new URLSearchParams(location.search).get("accounting_debug") === "1";
+}
+
+function debugAccounting(...args){
+  if(isAccountingDebugEnabled()) console.info("[accounting]", ...args);
+}
+
+async function loadAccountingInvoices(filters = {}, options = {}){
+  const list = await accountingInvoke("list_invoices", { filters });
+  const items = (list.items || []).map(normalizeInvoiceForAccounting);
+  if(options.cache !== false){
+    accountingInvoicesCache = items.slice();
+    accountingInvoicesCacheAt = Date.now();
+  }
+  return items;
 }
 
 function invoiceIssues(inv){
@@ -4037,12 +4117,7 @@ function categoryLabel(raw){
 }
 
 function categoryIdFromInvoice(raw){
-  const v = String(raw || "").trim().toLowerCase();
-  if(["1","materiales","materials"].includes(v)) return 1;
-  if(["2","mano de obra","labor","labour"].includes(v)) return 2;
-  if(["3","subcontrata","subcontract"].includes(v)) return 3;
-  if(["4","alquiler","rent","rental"].includes(v)) return 4;
-  return 5;
+  return normalizeCategory(raw).id;
 }
 
 async function getWorkdaysSummary(range){
@@ -4117,48 +4192,60 @@ async function renderAccountingPanel(){
     const renderDash = async()=>{
       const range = dateRangeFor(accountingDashboardPeriod);
       const [invRes, wdRes] = await Promise.allSettled([
-        accountingInvoke("list_invoices", {}),
+        loadAccountingInvoices(accountingInvoiceFilters || {}),
         getWorkdaysSummary(range)
       ]);
-      const invoices = invRes.status === "fulfilled" ? (invRes.value?.items || []) : [];
+      const invoices = invRes.status === "fulfilled" ? (invRes.value || []) : [];
       const workdaysSummary = wdRes.status === "fulfilled" ? wdRes.value : { total: 0, perWorker: [] };
       const wagesTotal = workdaysSummary.total || 0;
       const dashboardWarnings = [];
 
       if(invRes.status === "rejected"){
         console.error("Dashboard invoices load failed", invRes.reason);
-        dashboardWarnings.push("No se pudieron cargar facturas (ver logs)");
-        toast("No se pudieron cargar facturas (ver logs)");
+        const detail = normalizeText(invRes.reason?.message || invRes.reason || "unknown error");
+        dashboardWarnings.push(fmt(t("dashboard_invoices_error"), { error: detail }));
+        if(accountingInvoicesCache.length){
+          dashboardWarnings.push(`Usando caché local (${accountingInvoicesCache.length})`);
+        }
       }
       if(wdRes.status === "rejected"){
         console.error("Dashboard workdays load failed", wdRes.reason);
-        dashboardWarnings.push("No se pudieron cargar jornales (ver logs)");
-        toast("No se pudieron cargar jornales (ver logs)");
+        const detail = normalizeText(wdRes.reason?.message || wdRes.reason || "unknown error");
+        dashboardWarnings.push(fmt(t("dashboard_timesheets_error"), { error: detail }));
       }
 
-      const periodInvoices = filterInvoicesByPeriod(invoices, range);
+      if(dashboardWarnings.length) toast(dashboardWarnings[0]);
+
+      const loadedInvoices = invRes.status === "fulfilled" ? invoices : accountingInvoicesCache.slice();
+      const periodInvoices = filterInvoicesByPeriod(loadedInvoices, range);
+      const invoiceListCount = accountingInvoices.length;
+      if(periodInvoices.length === 0 && invoiceListCount > 0){
+        dashboardWarnings.push(fmt(t("dashboard_invoice_loader_mismatch"), { dashboardCount: periodInvoices.length, invoiceCount: invoiceListCount }));
+      }
       const incomeInvoices = filterInvoicesByType(periodInvoices, "income");
       const expenseInvoices = filterInvoicesByType(periodInvoices, "expenses");
-      console.info("Dashboard invoices:", periodInvoices.length, "workdays:", (workdaysSummary.workdays || []).length);
-      const incomeTotal = incomeInvoices.reduce((a,i)=>a+parseNumberSafe(i.total),0);
-      const expenseInvoicesTotal = expenseInvoices.reduce((a,i)=>a+parseNumberSafe(i.total),0);
+      debugAccounting("dashboard", { period: accountingDashboardPeriod, totalInvoices: loadedInvoices.length, periodInvoices: periodInvoices.length, incomeInvoices: incomeInvoices.length, expenseInvoices: expenseInvoices.length, workdays: (workdaysSummary.workdays || []).length });
+      const incomeTotal = incomeInvoices.reduce((a,i)=>a + parseAmount(i.total),0);
+      const expenseInvoicesTotal = expenseInvoices.reduce((a,i)=>a + parseAmount(i.total),0);
       const expenseTotal = expenseInvoicesTotal + wagesTotal;
       const netTotal = incomeTotal - expenseTotal;
       const expenseByCategory = Object.fromEntries(categoryRows.map((r)=>[r.id, 0]));
 
       expenseInvoices.forEach((inv)=>{
         const categoryId = categoryIdFromInvoice(inv.category);
-        expenseByCategory[categoryId] += parseNumberSafe(inv.total);
+        expenseByCategory[categoryId] += parseAmount(inv.total);
       });
       expenseByCategory[2] += wagesTotal;
 
       renderAccountingScreen(t("dashboard_title"), `<div class="acc-view">
         <div class="acc-chip-group">${periodButtons.map((p)=>`<button class="acc-chip ${accountingDashboardPeriod===p.id?'active':''}" type="button" data-period="${p.id}">${p.label}</button>`).join("")}</div>
-        ${dashboardWarnings.length ? `<div class="notice" style="border-color:#fed7aa;background:#fffbeb;color:#b54708"><strong>Advertencias</strong><div>${dashboardWarnings.map((msg)=>`<div>${msg}</div>`).join("")}</div></div>` : ""}
+        ${dashboardWarnings.length ? `<div class="notice" style="border-color:#fed7aa;background:#fffbeb;color:#b54708"><strong>Advertencias</strong><div>${dashboardWarnings.map((msg)=>`<div>${esc(msg)}</div>`).join("")}</div></div>` : ""}
 
         <div class="acc-grid-2">
           <div class="kpi"><div class="muted">${t("income_total")}</div><div class="acc-big-number">${formatEUR(incomeTotal)}</div></div>
           <div class="kpi"><div class="muted">${t("expense_total")}</div><div class="acc-big-number">${formatEUR(expenseTotal)}</div></div>
+          <div class="kpi"><div class="muted">${t("expense_invoices_total")}</div><div class="acc-big-number">${formatEUR(expenseInvoicesTotal)}</div></div>
+          <div class="kpi"><div class="muted">${t("wages_cost")}</div><div class="acc-big-number">${formatEUR(wagesTotal)}</div></div>
           <div class="kpi" style="grid-column:1/-1;border-color:#101828"><div class="muted">${t("net_total")}</div><div class="acc-big-number">${formatEUR(netTotal)}</div></div>
         </div>
 
@@ -4402,8 +4489,7 @@ async function renderAccountingPanel(){
 
     const load = async(filters=accountingInvoiceFilters || {})=>{
       accountingInvoiceFilters = filters || {};
-      const list = await accountingInvoke("list_invoices", { filters: accountingInvoiceFilters });
-      let items = list.items || [];
+      let items = await loadAccountingInvoices(accountingInvoiceFilters);
       const issueKey = accountingInvoiceFilters?.issueKey;
       if(accountingInvoiceFilters?.issuesOnly){
         items = items.filter((inv)=>{
