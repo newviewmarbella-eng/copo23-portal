@@ -20,6 +20,12 @@ function parseNumber(value: unknown, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function parseNullableNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
 function toBase64(bytes: Uint8Array) {
   let binary = "";
   const chunkSize = 0x8000;
@@ -36,6 +42,44 @@ function extractJsonText(raw: string) {
     return trimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
   }
   return trimmed;
+}
+
+function sanitizeShortConcept(value: unknown) {
+  return String(value || "").trim().slice(0, 80);
+}
+
+function normalizeWarnings(input: unknown[]) {
+  const out: string[] = [];
+  for (const item of input || []) {
+    const text = String(item || "").trim();
+    if (text) out.push(text);
+  }
+  return Array.from(new Set(out));
+}
+
+async function callGeminiJson(geminiKey: string, contents: unknown[]) {
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(geminiKey)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents,
+        generationConfig: {
+          responseMimeType: "application/json",
+        },
+      }),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(`Gemini error: ${await response.text()}`);
+  }
+  const payload = await response.json();
+  const textCandidate = String(
+    payload?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || "").join("\n") || "",
+  );
+  if (!textCandidate) throw new Error("Gemini returned empty response");
+  return JSON.parse(extractJsonText(textCandidate));
 }
 
 function asIsoDate(value: unknown): string | null {
@@ -104,6 +148,10 @@ serve(async (req) => {
         file_type: body?.file_type ?? null,
         notes: body?.notes ?? null,
         ocr_text: body?.ocr_text ?? null,
+        ocr_status: body?.ocr_status ? String(body.ocr_status) : "pending",
+        review_status: body?.review_status ? String(body.review_status) : "needs_review",
+        warnings: Array.isArray(body?.warnings) ? body.warnings : [],
+        concept: body?.concept ?? null,
         ai_status: body?.ai_status ? String(body.ai_status) : null,
         idempotency_key: body?.idempotency_key ? String(body.idempotency_key) : null,
       };
@@ -122,7 +170,7 @@ serve(async (req) => {
       if (f.category) query = query.eq("category", Number(f.category));
       if (f.date_from) query = query.gte("date", String(f.date_from));
       if (f.date_to) query = query.lte("date", String(f.date_to));
-      if (f.search) query = query.ilike("vendor_or_client", `%${String(f.search)}%`);
+      if (f.search) query = query.or(`vendor_or_client.ilike.%${String(f.search)}%,counterparty_name.ilike.%${String(f.search)}%,vendor_name.ilike.%${String(f.search)}%`);
 
       const { data, error } = await query;
       if (error) throw error;
@@ -318,13 +366,15 @@ serve(async (req) => {
       const updates: Record<string, unknown> = {
         id: invoiceId,
         type: String(body?.type || "expense"),
-        vendor_or_client: String(body?.vendor_or_client || "Pendiente OCR"),
+        vendor_or_client: String(body?.vendor_or_client || ""),
         date: String(body?.date || new Date().toISOString().slice(0, 10)),
         subtotal: parseNumber(body?.subtotal, 0),
         vat: parseNumber(body?.vat, 0),
         total: parseNumber(body?.total, 0),
         status: String(body?.status || "pending"),
         ai_status: String(body?.ai_status || "pending"),
+        ocr_status: String(body?.ocr_status || "pending"),
+        review_status: "needs_review",
         file_path: filePath,
       };
       if (body?.file_name !== undefined) updates.file_name = body.file_name ?? null;
@@ -401,7 +451,7 @@ serve(async (req) => {
 
       const { data: invoice, error: invoiceError } = await client
         .from("accounting_invoices")
-        .select("id, file_path, file_type, file_name, invoice_number, subtotal, total")
+        .select("id, type, file_path, file_type, file_name")
         .eq("id", invoiceId)
         .single();
       if (invoiceError) throw invoiceError;
@@ -409,7 +459,7 @@ serve(async (req) => {
 
       await client
         .from("accounting_invoices")
-        .update({ ai_status: "processing", ai_provider: "gemini", ai_model: GEMINI_MODEL })
+        .update({ ai_status: "processing", ai_provider: "gemini", ai_model: GEMINI_MODEL, ocr_status: "processing" })
         .eq("id", invoiceId);
 
       const { data: fileBlob, error: fileError } = await client.storage.from(BUCKET).download(String(invoice.file_path));
@@ -417,145 +467,179 @@ serve(async (req) => {
 
       const bytes = new Uint8Array(await fileBlob.arrayBuffer());
       const base64Data = toBase64(bytes);
-      const mimeType = String(invoice.file_type || "").startsWith("image/")
-        ? String(invoice.file_type)
+      const mimeType = String(invoice.file_type || "").startsWith("image/") || String(invoice.file_type || "").includes("pdf")
+        ? String(invoice.file_type || "application/pdf")
         : (String(invoice.file_name || "").toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg");
 
       const geminiKey = Deno.env.get("GEMINI_API_KEY") || "";
       if (!geminiKey) throw new Error("Missing GEMINI_API_KEY");
 
-      const prompt = `Extrae datos contables de esta factura en español (ES).
-Devuelve SIEMPRE SOLO JSON válido (sin markdown ni texto adicional) con este schema exacto:
+      try {
+        const ocrStep = await callGeminiJson(geminiKey, [{
+          role: "user",
+          parts: [
+            {
+              text: `Eres un OCR para facturas de España. Devuelve SOLO JSON válido con este schema exacto:
 {
-  "vendor":{"name":"","tax_id":"","address":""},
-  "invoice":{"number":"","issue_date":"YYYY-MM-DD","currency":"EUR"},
-  "totals":{"subtotal":0,"vat_total":0,"total":0,"vat_breakdown":[{"rate":0,"base":0,"vat":0}]},
-  "lines":[{"description":"","qty":0,"unit_price":0,"line_total":0,"vat_rate":0,"category":"other","tags":[]}],
-  "confidence":{"overall":0},
-  "warnings":[]
+  "ocr_text": "texto completo extraído en plano"
+}
+No añadas markdown ni texto fuera del JSON.`,
+            },
+            {
+              inline_data: {
+                mime_type: mimeType,
+                data: base64Data,
+              },
+            },
+          ],
+        }]);
+
+        const ocrText = normalizeWarnings([ocrStep?.ocr_text]).join("
+");
+
+        const structured = await callGeminiJson(geminiKey, [{
+          role: "user",
+          parts: [
+            {
+              text: `Transforma el OCR de una factura en JSON ESTRICTO para contabilidad en España.
+Devuelve SOLO JSON válido con este schema exacto:
+{
+  "counterparty_name": "",
+  "counterparty_nif": "",
+  "invoice_number": "",
+  "document_date": "YYYY-MM-DD",
+  "currency": "EUR",
+  "base_imponible": 0.00,
+  "iva_amount": 0.00,
+  "total": 0.00,
+  "vat_breakdown": [{"percent": 21, "base": 0.00, "vat": 0.00}],
+  "lines": [{"description":"", "qty":1, "unit_price":0.00, "total":0.00, "vat_percent":21}],
+  "concept": "texto corto max 80 chars",
+  "category": "",
+  "subcategory": "",
+  "warnings": [""]
 }
 Reglas:
-- category debe ser una de: labor, materials, tools, machinery_rental, transport_fuel, services, permits_fees, accommodation_food, other.
-- Usa números en formato decimal con punto.
-- Si un dato falta, usa null o cadena vacía según corresponda y añade un warning.
-- Responde únicamente con JSON parseable.`;
-
-      const geminiResp = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(geminiKey)}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{
-              role: "user",
-              parts: [
-                { text: prompt },
-                {
-                  inline_data: {
-                    mime_type: mimeType,
-                    data: base64Data,
-                  },
-                },
-              ],
-            }],
-            generationConfig: {
-              responseMimeType: "application/json",
+- NO inventar datos. Si falta, usa null o "" y añade warning missing_x.
+- invoice_number debe mantenerse como string literal.
+- Importes como números con punto decimal.
+- Si hay varios IVAs, rellena vat_breakdown y añade warning multi_vat.
+- Responde únicamente con JSON parseable.
+OCR:
+${ocrText}`,
             },
-          }),
-        },
-      );
+          ],
+        }]);
 
-      if (!geminiResp.ok) {
-        const errText = await geminiResp.text();
+        const baseImponible = parseNullableNumber(structured?.base_imponible);
+        const ivaAmount = parseNullableNumber(structured?.iva_amount);
+        const total = parseNullableNumber(structured?.total);
+        const vatBreakdown = Array.isArray(structured?.vat_breakdown)
+          ? structured.vat_breakdown.map((row: Record<string, unknown>) => ({
+            percent: parseNullableNumber(row?.percent),
+            base: parseNullableNumber(row?.base),
+            vat: parseNullableNumber(row?.vat),
+          }))
+          : [];
+
+        const normalizedLines = (Array.isArray(structured?.lines) ? structured.lines : [])
+          .map((line: Record<string, unknown>) => ({
+            invoice_id: invoiceId,
+            description: String(line?.description || "").trim() || null,
+            qty: parseNullableNumber(line?.qty),
+            unit_price: parseNullableNumber(line?.unit_price),
+            line_total: parseNullableNumber(line?.total),
+            vat_rate: parseNullableNumber(line?.vat_percent),
+            category: sanitizeCategory(structured?.category),
+            tags: [],
+            raw: line,
+          }));
+
+        const warnings = normalizeWarnings(Array.isArray(structured?.warnings) ? structured.warnings : []);
+        if (vatBreakdown.length > 1 && !warnings.includes("multi_vat")) warnings.push("multi_vat");
+
+        if (
+          baseImponible !== null
+          && ivaAmount !== null
+          && total !== null
+          && Math.abs((baseImponible + ivaAmount) - total) > Math.max(0.02, Math.abs(total) * 0.01)
+        ) {
+          warnings.push("totals_mismatch");
+        }
+
+        const reviewStatus = warnings.includes("totals_mismatch") ? "needs_review" : "ok";
+        const aiStatus = reviewStatus === "needs_review" ? "needs_review" : "ready";
+
+        const invoiceUpdates: Record<string, unknown> = {
+          ai_status: aiStatus,
+          ai_provider: "gemini",
+          ai_model: GEMINI_MODEL,
+          ai_extracted_json: structured,
+          ai_warnings: warnings,
+          ai_processed_at: new Date().toISOString(),
+          ocr_text: ocrText || null,
+          ocr_status: "done",
+          review_status: reviewStatus,
+          warnings,
+          processed_at: new Date().toISOString(),
+          counterparty_name: String(structured?.counterparty_name || "").trim() || null,
+          counterparty_nif: String(structured?.counterparty_nif || "").trim() || null,
+          vendor_name: String(structured?.counterparty_name || "").trim() || null,
+          vendor_tax_id: String(structured?.counterparty_nif || "").trim() || null,
+          invoice_number: String(structured?.invoice_number || "").trim() || null,
+          document_date: asIsoDate(structured?.document_date),
+          issue_date: asIsoDate(structured?.document_date),
+          date: asIsoDate(structured?.document_date),
+          currency: String(structured?.currency || "EUR").trim().toUpperCase() || "EUR",
+          base_imponible: baseImponible,
+          subtotal: baseImponible,
+          iva_amount: ivaAmount,
+          vat_total: ivaAmount,
+          total,
+          vat_breakdown_json: vatBreakdown,
+          vat_breakdown: vatBreakdown,
+          concept: sanitizeShortConcept(structured?.concept) || null,
+          category_main: String(structured?.category || "").trim() || null,
+          category: parseNullableNumber(structured?.category),
+          subcategory: String(structured?.subcategory || "").trim() || null,
+        };
+
+        const { error: invoiceUpdateError } = await client
+          .from("accounting_invoices")
+          .update(invoiceUpdates)
+          .eq("id", invoiceId);
+        if (invoiceUpdateError) throw invoiceUpdateError;
+
+        const { error: deleteLinesError } = await client
+          .from("accounting_invoice_line_items")
+          .delete()
+          .eq("invoice_id", invoiceId);
+        if (deleteLinesError) throw deleteLinesError;
+
+        if (normalizedLines.length) {
+          const { error: insertLinesError } = await client
+            .from("accounting_invoice_line_items")
+            .insert(normalizedLines);
+          if (insertLinesError) throw insertLinesError;
+        }
+
+        return json({ ok: true, invoice_id: invoiceId, ai_status: aiStatus, review_status: reviewStatus });
+      } catch (err) {
+        const msg = String((err as Error)?.message || "AI processing error").slice(0, 500);
         await client
           .from("accounting_invoices")
-          .update({ ai_status: "error", ai_warnings: [errText.slice(0, 500)], ai_processed_at: new Date().toISOString() })
+          .update({
+            ai_status: "error",
+            ocr_status: "error",
+            review_status: "needs_review",
+            ai_warnings: [msg],
+            warnings: [msg],
+            ai_processed_at: new Date().toISOString(),
+            processed_at: new Date().toISOString(),
+          })
           .eq("id", invoiceId);
-        throw new Error(`Gemini error: ${errText}`);
+        throw err;
       }
-
-      const geminiData = await geminiResp.json();
-      const textCandidate = String(
-        geminiData?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || "").join("\n") || "",
-      );
-      if (!textCandidate) throw new Error("Gemini returned empty response");
-
-      const parsed = JSON.parse(extractJsonText(textCandidate));
-      const linesInput = Array.isArray(parsed?.lines) ? parsed.lines : [];
-      const normalizedLines = linesInput.map((line: Record<string, unknown>) => ({
-        invoice_id: invoiceId,
-        description: String(line?.description || "").trim(),
-        qty: parseNumber(line?.qty, 0),
-        unit_price: parseNumber(line?.unit_price, 0),
-        line_total: parseNumber(line?.line_total, 0),
-        vat_rate: parseNumber(line?.vat_rate, 0),
-        category: sanitizeCategory(line?.category),
-        tags: Array.isArray(line?.tags) ? line.tags.map((t: unknown) => String(t)).filter(Boolean) : [],
-        raw: line,
-      }));
-
-      const warnings = Array.isArray(parsed?.warnings)
-        ? parsed.warnings.map((w: unknown) => String(w)).filter(Boolean)
-        : [];
-
-      const subtotal = parseNumber(parsed?.totals?.subtotal, 0);
-      const vatTotal = parseNumber(parsed?.totals?.vat_total, 0);
-      const total = parseNumber(parsed?.totals?.total, 0);
-      const invoiceNumber = String(parsed?.invoice?.number || "").trim();
-      const issueDate = asIsoDate(parsed?.invoice?.issue_date);
-      const totalsDelta = Math.abs((subtotal + vatTotal) - total);
-
-      let aiStatus: "ready" | "needs_review" = "ready";
-      if (totalsDelta > Math.max(1, total * 0.03)) {
-        warnings.push("Inconsistencia de totales: subtotal + IVA difiere del total");
-        aiStatus = "needs_review";
-      }
-      if (!invoiceNumber || !issueDate || total <= 0) {
-        warnings.push("Faltan campos críticos (número, fecha o total)");
-        aiStatus = "needs_review";
-      }
-
-      const invoiceUpdates: Record<string, unknown> = {
-        ai_status: aiStatus,
-        ai_provider: "gemini",
-        ai_model: GEMINI_MODEL,
-        ai_extracted_json: parsed,
-        ai_confidence: parseNumber(parsed?.confidence?.overall, 0),
-        ai_warnings: warnings,
-        ai_processed_at: new Date().toISOString(),
-        vendor_name: String(parsed?.vendor?.name || "").trim() || null,
-        vendor_tax_id: String(parsed?.vendor?.tax_id || "").trim() || null,
-        issue_date: issueDate,
-        currency: String(parsed?.invoice?.currency || "").trim().toUpperCase() || null,
-        vat_total: vatTotal,
-        vat_breakdown: Array.isArray(parsed?.totals?.vat_breakdown) ? parsed.totals.vat_breakdown : [],
-        category_main: inferMainCategory(normalizedLines.map((line) => ({ category: line.category }))),
-      };
-
-      if (!String(invoice.invoice_number || "").trim() && invoiceNumber) invoiceUpdates.invoice_number = invoiceNumber;
-      if (parseNumber(invoice.subtotal, 0) <= 0 && subtotal > 0) invoiceUpdates.subtotal = subtotal;
-      if (parseNumber(invoice.total, 0) <= 0 && total > 0) invoiceUpdates.total = total;
-
-      const { error: invoiceUpdateError } = await client
-        .from("accounting_invoices")
-        .update(invoiceUpdates)
-        .eq("id", invoiceId);
-      if (invoiceUpdateError) throw invoiceUpdateError;
-
-      const { error: deleteLinesError } = await client
-        .from("accounting_invoice_line_items")
-        .delete()
-        .eq("invoice_id", invoiceId);
-      if (deleteLinesError) throw deleteLinesError;
-
-      if (normalizedLines.length) {
-        const { error: insertLinesError } = await client
-          .from("accounting_invoice_line_items")
-          .insert(normalizedLines);
-        if (insertLinesError) throw insertLinesError;
-      }
-
-      return json({ ok: true, invoice_id: invoiceId, ai_status: aiStatus });
     }
 
     return json({ error: "Invalid action" }, 400);
