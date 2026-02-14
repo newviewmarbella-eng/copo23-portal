@@ -170,6 +170,28 @@ textarea{width:100%;min-height:56px;border-radius:14px;border:1px solid var(--li
 .acc-nav-btn.active{background:var(--ink);color:#fff;border-color:var(--ink)}
 .acc-progress{height:8px;background:#eef2f6;border-radius:999px;overflow:hidden}
 .acc-progress>div{height:100%;width:0%;background:var(--ink);transition:width .2s ease}
+.acc-chip-group{display:flex;gap:8px;flex-wrap:wrap}
+.acc-chip{padding:8px 12px;border:1px solid var(--line);border-radius:999px;background:#fff;cursor:pointer;font-weight:700}
+.acc-chip.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+.acc-big-number{font-size:32px;font-weight:900;line-height:1.1;margin-top:4px}
+.acc-mini-line{font-size:13px;color:var(--muted);margin-top:4px}
+.acc-grid-2{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+.acc-quality-state{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-weight:700}
+.acc-quality-dot{width:10px;height:10px;border-radius:999px;background:#12b76a}
+.acc-quality-dot.yellow{background:#f79009}
+.acc-quality-dot.red{background:#f04438}
+.acc-check-list{display:grid;gap:8px}
+.acc-check-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:#fbfcfd}
+.acc-category-list{display:grid;gap:8px}
+.acc-bar{height:9px;border-radius:999px;background:#eaecf0;overflow:hidden}
+.acc-bar > div{height:100%;background:var(--primary)}
+.acc-quick-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.acc-seven-day{display:grid;gap:6px;margin-top:8px}
+.acc-day-line{display:flex;justify-content:space-between;gap:8px;font-size:13px}
+@media(max-width:560px){
+  .acc-grid-2,
+  .acc-quick-actions{grid-template-columns:1fr}
+}
 .worker-tabs{display:flex;gap:8px;flex-wrap:wrap}
 .worker-tab-btn{padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;cursor:pointer;font-weight:700}
 .worker-tab-btn.active{background:var(--ink);color:#fff;border-color:var(--ink)}
@@ -536,7 +558,48 @@ const I18N = {
     pins_warning: "Pins not configured",
     inbox: "Inbox",
     new_label: "New",
-    new_only: "Only new"
+    new_only: "Only new",
+    dashboard_title: "Dashboard",
+    period_today: "Today",
+    period_week: "Week",
+    period_month: "Month",
+    period_all: "All",
+    mode_expenses: "Expenses",
+    mode_income: "Income",
+    mode_net: "Net",
+    summary_title: "Period summary",
+    data_quality_title: "Data quality",
+    category_breakdown_title: "Category breakdown",
+    top_suppliers_title: "Top suppliers",
+    job_control_title: "Job control",
+    quick_actions_title: "Quick actions",
+    missing_supplier: "Missing supplier/counterpart",
+    missing_invoice_number: "Missing invoice number",
+    missing_date: "Missing date",
+    missing_concept: "Missing concept",
+    missing_category: "Missing category",
+    missing_subcategory: "Missing subcategory",
+    total_mismatch: "Total mismatch",
+    vat_zero_suspicious: "VAT = 0 suspicious",
+    possible_wrong_supplier: "Possible wrong supplier",
+    review_pending: "Review pending",
+    wages_no_data: "(no data yet)",
+    pending_label: "Pending",
+    count_invoices: "Invoices",
+    taxable_base: "Taxable base",
+    vat_paid: "Input VAT",
+    vat_charged: "Output VAT",
+    period_loading: "Loading…",
+    wages_cost: "Wages cost",
+    total_job_cost: "Total job cost",
+    avg_daily_cost: "Average daily cost",
+    most_expensive_day: "Most expensive day",
+    last_7_days: "Last 7 days",
+    add_expense: "Add expense",
+    add_income: "Add income",
+    export_csv: "Export CSV",
+    coming_soon: "Coming soon",
+    no_data: "No data"
   },
   es: {
     project_title: "Copo 23 (El Saladillo) – Portal de progreso",
@@ -645,7 +708,48 @@ const I18N = {
     pins_warning: "Pins no configurados",
     inbox: "Buzón",
     new_label: "Nuevas",
-    new_only: "Solo nuevas"
+    new_only: "Solo nuevas",
+    dashboard_title: "Dashboard",
+    period_today: "Hoy",
+    period_week: "Semana",
+    period_month: "Mes",
+    period_all: "Todo",
+    mode_expenses: "Gastos",
+    mode_income: "Ingresos",
+    mode_net: "Neto",
+    summary_title: "Resumen del periodo",
+    data_quality_title: "Calidad de datos",
+    category_breakdown_title: "Distribución por categoría",
+    top_suppliers_title: "Top proveedores",
+    job_control_title: "Control de obra",
+    quick_actions_title: "Acciones rápidas",
+    missing_supplier: "Falta proveedor/contraparte",
+    missing_invoice_number: "Falta nº factura",
+    missing_date: "Falta fecha",
+    missing_concept: "Falta concepto",
+    missing_category: "Falta categoría",
+    missing_subcategory: "Falta subcategoría",
+    total_mismatch: "Total no cuadra",
+    vat_zero_suspicious: "IVA = 0 sospechoso",
+    possible_wrong_supplier: "Posible proveedor incorrecto",
+    review_pending: "Revisar pendientes",
+    wages_no_data: "(sin datos aún)",
+    pending_label: "Pendientes",
+    count_invoices: "Nº facturas",
+    taxable_base: "Base imponible",
+    vat_paid: "IVA soportado",
+    vat_charged: "IVA repercutido",
+    period_loading: "Cargando…",
+    wages_cost: "Coste jornales",
+    total_job_cost: "Coste total obra",
+    avg_daily_cost: "Coste medio por día",
+    most_expensive_day: "Día más caro",
+    last_7_days: "Últimos 7 días",
+    add_expense: "Añadir gasto",
+    add_income: "Añadir ingreso",
+    export_csv: "Exportar CSV",
+    coming_soon: "Próximamente",
+    no_data: "Sin datos"
   },
   nl: {
     project_title: "Copo 23 (El Saladillo) – Voortgangsportaal",
@@ -754,7 +858,48 @@ const I18N = {
     pins_warning: "Pincodes niet geconfigureerd",
     inbox: "Inbox",
     new_label: "Nieuw",
-    new_only: "Alleen nieuw"
+    new_only: "Alleen nieuw",
+    dashboard_title: "Dashboard",
+    period_today: "Vandaag",
+    period_week: "Week",
+    period_month: "Maand",
+    period_all: "Alles",
+    mode_expenses: "Uitgaven",
+    mode_income: "Inkomsten",
+    mode_net: "Netto",
+    summary_title: "Periodeoverzicht",
+    data_quality_title: "Datakwaliteit",
+    category_breakdown_title: "Verdeling per categorie",
+    top_suppliers_title: "Top leveranciers",
+    job_control_title: "Werkcontrole",
+    quick_actions_title: "Snelle acties",
+    missing_supplier: "Leverancier/tegenwoordpartij ontbreekt",
+    missing_invoice_number: "Factuurnummer ontbreekt",
+    missing_date: "Datum ontbreekt",
+    missing_concept: "Concept ontbreekt",
+    missing_category: "Categorie ontbreekt",
+    missing_subcategory: "Subcategorie ontbreekt",
+    total_mismatch: "Totaal klopt niet",
+    vat_zero_suspicious: "BTW = 0 verdacht",
+    possible_wrong_supplier: "Mogelijk verkeerde leverancier",
+    review_pending: "Openstaande controleren",
+    wages_no_data: "(nog geen gegevens)",
+    pending_label: "Openstaand",
+    count_invoices: "Aantal facturen",
+    taxable_base: "Belastbare basis",
+    vat_paid: "Inkomende btw",
+    vat_charged: "Uitgaande btw",
+    period_loading: "Laden…",
+    wages_cost: "Loonkosten",
+    total_job_cost: "Totale werkkosten",
+    avg_daily_cost: "Gemiddelde kosten per dag",
+    most_expensive_day: "Duurste dag",
+    last_7_days: "Laatste 7 dagen",
+    add_expense: "Uitgave toevoegen",
+    add_income: "Inkomst toevoegen",
+    export_csv: "CSV exporteren",
+    coming_soon: "Binnenkort",
+    no_data: "Geen gegevens"
   }
 };
 
@@ -2259,6 +2404,8 @@ let accountingSelectedInvoiceId = null;
 let accountingSelectedInvoiceIds = new Set();
 let accountingInvoiceFilters = {};
 let accountingInvoiceHighlightedId = null;
+let accountingDashboardPeriod = "month";
+let accountingDashboardMode = "expenses";
 let currentPlan = (DATA.plans || [])[0] || null;
 let noteDraftImage = null;
 let notesCache = {};
@@ -3743,6 +3890,90 @@ function buildInvoiceCsv(items){
   return window.AccountingCsvUtils.buildManagerInvoiceCsv(items, { project: "Copo 23" });
 }
 
+function parseNumberSafe(x){
+  if(typeof x === "number") return Number.isFinite(x) ? x : 0;
+  if(x == null) return 0;
+  const cleaned = String(x).trim().replace(/\s+/g, "").replace(",", ".");
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function formatEUR(n){
+  return `${parseNumberSafe(n).toFixed(2).replace(".", ",")} €`;
+}
+
+function normalizeText(s){
+  return String(s || "").replace(/\s+/g, " ").trim();
+}
+
+function dateRangeFor(period){
+  if(period === "all") return {from:null, to:null};
+  const now = new Date();
+  now.setHours(23,59,59,999);
+  const to = new Date(now);
+  const from = new Date(now);
+  if(period === "today") from.setHours(0,0,0,0);
+  else if(period === "week") from.setDate(from.getDate()-6), from.setHours(0,0,0,0);
+  else { from.setDate(1); from.setHours(0,0,0,0); }
+  return {from, to};
+}
+
+function invoiceDateValue(inv){
+  const d = normalizeText(inv?.invoice_date || inv?.issue_date || inv?.date);
+  if(!d) return null;
+  const parsed = new Date(`${d.slice(0,10)}T12:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function filterInvoicesByPeriod(invoices, range){
+  if(!range?.from || !range?.to) return invoices.slice();
+  return invoices.filter((inv)=>{
+    const d = invoiceDateValue(inv);
+    if(!d) return false;
+    return d >= range.from && d <= range.to;
+  });
+}
+
+function filterInvoicesByType(invoices, mode){
+  if(mode === "expenses") return invoices.filter((inv)=> String(inv.type||"").toLowerCase() === "expense");
+  if(mode === "income") return invoices.filter((inv)=> String(inv.type||"").toLowerCase() === "income");
+  return invoices.slice();
+}
+
+function invoiceIssues(inv){
+  const subtotal = parseNumberSafe(inv.subtotal);
+  const vat = parseNumberSafe(inv.vat_total ?? inv.vat);
+  const total = parseNumberSafe(inv.total);
+  const counterpart = normalizeText(inv.counterpart_name || inv.vendor_name || inv.vendor_or_client);
+  const concept = normalizeText(inv.concept || inv.description);
+  const category = normalizeText(inv.category);
+  const subcategory = normalizeText(inv.subcategory);
+  const status = normalizeText(inv.status).toLowerCase();
+  const ocrText = normalizeText(inv.ocr_text);
+  const out = {
+    missing_supplier: !counterpart,
+    missing_invoice_number: !normalizeText(inv.invoice_number),
+    missing_date: !invoiceDateValue(inv),
+    missing_concept: !concept,
+    missing_category: !category,
+    missing_subcategory: !subcategory,
+    total_mismatch: Math.abs((subtotal + vat) - total) > 0.02,
+    vat_zero_suspicious: subtotal > 0 && Math.abs(vat) < 0.0001,
+    possible_wrong_supplier: String(inv.type||"").toLowerCase() === "expense" && /JESUS|MORENO/i.test(counterpart),
+    needs_ocr: status.includes("pending") || status.includes("pendiente ocr") || !ocrText
+  };
+  return out;
+}
+
+function categoryLabel(raw){
+  const v = String(raw || "").trim().toLowerCase();
+  if(["1","materiales","materials"].includes(v)) return "Materiales";
+  if(["2","mano de obra","labor","labour"].includes(v)) return "Mano de obra";
+  if(["3","subcontrata","subcontract"].includes(v)) return "Subcontrata";
+  if(["4","alquiler","rent","rental"].includes(v)) return "Alquiler";
+  return "Otros";
+}
+
 async function renderAccounting(){
   if(!canAccessAccounting()){
     showPinDebugBanner("❌ Permission required");
@@ -3774,12 +4005,120 @@ async function renderAccountingPanel(){
   }
 
   if(accountingView === "accounting-dashboard"){
-    const invoiceRes = await accountingInvoke("list_invoices", {});
-    const workerRes = await accountingInvoke("list_workers", {});
-    const tsRes = await accountingInvoke("list_timesheets", {});
-    const invoiceTotal = (invoiceRes.items||[]).reduce((acc, row)=>acc + Number(row.total||0), 0);
-    const timesheetTotal = (tsRes.items||[]).reduce((acc, row)=>acc + Number(row.total_cost||0), 0);
-    renderAccountingScreen("Dashboard", `<div class="kpis"><div class="kpi"><div class="muted">Facturas</div><div class="big">${(invoiceRes.items||[]).length}</div></div><div class="kpi"><div class="muted">Trabajadores</div><div class="big">${(workerRes.items||[]).length}</div></div><div class="kpi"><div class="muted">Jornales</div><div class="big">${(tsRes.items||[]).length}</div></div></div><div class="notice" style="margin-top:10px"><strong>Total facturas: ${invoiceTotal.toFixed(2)} €</strong><div class="muted">Coste jornales: ${timesheetTotal.toFixed(2)} €</div><div class="row" style="margin-top:8px"><button class="smallbtn" type="button">Exportar PDF (placeholder)</button><button class="smallbtn" type="button">Exportar Excel (placeholder)</button></div></div>`);
+    renderAccountingScreen(t("dashboard_title"), `<div class="acc-view"><div class="notice">${t("period_loading")}</div></div>`);
+    const [invoiceRes, tsRes] = await Promise.all([
+      accountingInvoke("list_invoices", {}),
+      accountingInvoke("list_timesheets", {})
+    ]);
+    const allInvoices = invoiceRes.items || [];
+    const allTimesheets = tsRes.items || [];
+
+    const periodButtons = [
+      {id:"today", label:t("period_today")},
+      {id:"week", label:t("period_week")},
+      {id:"month", label:t("period_month")},
+      {id:"all", label:t("period_all")}
+    ];
+    const modeButtons = [
+      {id:"expenses", label:t("mode_expenses")},
+      {id:"income", label:t("mode_income")},
+      {id:"net", label:t("mode_net")}
+    ];
+
+    const renderDash = ()=>{
+      const range = dateRangeFor(accountingDashboardPeriod);
+      const periodInvoices = filterInvoicesByPeriod(allInvoices, range);
+      const shownInvoices = filterInvoicesByType(periodInvoices, accountingDashboardMode);
+      const issueKeys = ["missing_supplier","missing_invoice_number","missing_date","missing_concept","missing_category","missing_subcategory","total_mismatch","vat_zero_suspicious","possible_wrong_supplier"];
+      const issueCounts = Object.fromEntries(issueKeys.map((k)=>[k,0]));
+
+      shownInvoices.forEach((inv)=>{
+        const issues = invoiceIssues(inv);
+        issueKeys.forEach((k)=>{ if(issues[k]) issueCounts[k] += 1; });
+      });
+
+      const totalIssues = Object.values(issueCounts).reduce((a,b)=>a+b,0);
+      const ocrPending = shownInvoices.filter((inv)=>invoiceIssues(inv).needs_ocr).length;
+      const totals = shownInvoices.reduce((acc, inv)=>{
+        const subtotal = parseNumberSafe(inv.subtotal);
+        const vat = parseNumberSafe(inv.vat_total ?? inv.vat);
+        const total = parseNumberSafe(inv.total);
+        acc.subtotal += subtotal;
+        acc.vat += vat;
+        acc.total += total;
+        return acc;
+      }, {subtotal:0, vat:0, total:0});
+
+      if(accountingDashboardMode === "net"){
+        const exp = filterInvoicesByType(periodInvoices, "expenses").reduce((a,i)=>a+parseNumberSafe(i.total),0);
+        const inc = filterInvoicesByType(periodInvoices, "income").reduce((a,i)=>a+parseNumberSafe(i.total),0);
+        totals.total = inc-exp;
+      }
+
+      const qualityClass = totalIssues === 0 ? "" : (totalIssues <= 3 ? "yellow" : "red");
+      const qualityText = totalIssues === 0 ? "OK" : `${totalIssues} issues`;
+
+      const categoryNames = ["Materiales","Mano de obra","Subcontrata","Alquiler","Otros"];
+      const categoryTotals = Object.fromEntries(categoryNames.map((c)=>[c,0]));
+      shownInvoices.forEach((inv)=>{
+        const cat = categoryLabel(inv.category);
+        categoryTotals[cat] += parseNumberSafe(inv.total);
+      });
+      const categoryTotalAmount = Object.values(categoryTotals).reduce((a,b)=>a+b,0) || 1;
+
+      const supplierMap = new Map();
+      shownInvoices.forEach((inv)=>{
+        const name = normalizeText(inv.counterpart_name || inv.vendor_name || inv.vendor_or_client) || "—";
+        if(!supplierMap.has(name)) supplierMap.set(name, {name, total:0, count:0});
+        const row = supplierMap.get(name);
+        row.total += parseNumberSafe(inv.total);
+        row.count += 1;
+      });
+      const topSuppliers = [...supplierMap.values()].sort((a,b)=>b.total-a.total).slice(0,5);
+
+      const expenseInvoices = filterInvoicesByType(periodInvoices, "expenses");
+      const expenseTotal = expenseInvoices.reduce((a,i)=>a+parseNumberSafe(i.total),0);
+      const wagesTotal = allTimesheets.reduce((a,row)=>a+parseNumberSafe(row.total_cost),0);
+      const byDay = new Map();
+      expenseInvoices.forEach((inv)=>{
+        const d = invoiceDateValue(inv);
+        if(!d) return;
+        const key = d.toISOString().slice(0,10);
+        byDay.set(key, (byDay.get(key)||0) + parseNumberSafe(inv.total));
+      });
+      const dayRows = [...byDay.entries()].sort((a,b)=>b[0].localeCompare(a[0]));
+      const avgDay = byDay.size ? expenseTotal / byDay.size : 0;
+      const maxDay = dayRows.slice().sort((a,b)=>b[1]-a[1])[0];
+
+      renderAccountingScreen(t("dashboard_title"), `<div class="acc-view">
+        <div class="acc-chip-group">${periodButtons.map((p)=>`<button class="acc-chip ${accountingDashboardPeriod===p.id?'active':''}" type="button" data-period="${p.id}">${p.label}</button>`).join("")}</div>
+        <div class="acc-chip-group">${modeButtons.map((m)=>`<button class="acc-chip ${accountingDashboardMode===m.id?'active':''}" type="button" data-mode="${m.id}">${m.label}</button>`).join("")}</div>
+
+        <div class="notice"><strong>${t("summary_title")}</strong><div class="acc-big-number">${formatEUR(totals.total)}</div><div class="acc-grid-2"><div>${t("taxable_base")}: <strong>${formatEUR(totals.subtotal)}</strong></div><div>${accountingDashboardMode==='income'?t("vat_charged"):t("vat_paid")}: <strong>${formatEUR(totals.vat)}</strong></div><div>${t("count_invoices")}: <strong>${shownInvoices.length}</strong></div><div class="acc-mini-line">${t("pending_label")}: ${ocrPending}</div></div></div>
+
+        <div class="notice"><strong>${t("data_quality_title")}</strong><div class="acc-quality-state"><span class="acc-quality-dot ${qualityClass}"></span><span>${qualityText}</span></div><div class="acc-check-list">${issueKeys.map((k)=>`<button class="acc-check-item smallbtn" type="button" data-issue-key="${k}"><span>${t(k)}</span><strong>${issueCounts[k]}</strong></button>`).join("")}</div><div class="row" style="margin-top:8px"><button class="smallbtn" type="button" id="btnReviewPending">${t("review_pending")}</button></div></div>
+
+        <div class="notice"><strong>${t("category_breakdown_title")}</strong><div class="acc-category-list">${categoryNames.map((name)=>{ const amount = categoryTotals[name]||0; const pct = Math.max(0, Math.min(100, (amount/categoryTotalAmount)*100)); return `<div><div class="row"><span>${name}</span><span>${formatEUR(amount)} · ${pct.toFixed(1)}%</span></div><div class="acc-bar"><div style="width:${pct}%"></div></div></div>`; }).join("")}</div></div>
+
+        <div class="notice"><strong>${t("top_suppliers_title")}</strong><div class="acc-list">${topSuppliers.map((s)=>`<button class="acc-item smallbtn" type="button" data-supplier="${esc(s.name)}"><div class="row"><strong>${esc(s.name)}</strong><span>${formatEUR(s.total)}</span></div><div class="muted">${s.count} ${t("count_invoices")}</div></button>`).join("") || `<div class="muted">${t("no_data")}</div>`}</div></div>
+
+        <div class="notice"><strong>${t("job_control_title")}</strong><div class="acc-grid-2"><div>${t("mode_expenses")}: <strong>${formatEUR(expenseTotal)}</strong></div><div>${t("wages_cost")}: <strong>${formatEUR(wagesTotal)}</strong> ${wagesTotal ? '' : `<span class="muted">${t("wages_no_data")}</span>`}</div><div>${t("total_job_cost")}: <strong>${formatEUR(expenseTotal+wagesTotal)}</strong></div><div>${t("avg_daily_cost")}: <strong>${formatEUR(avgDay)}</strong></div><div>${t("most_expensive_day")}: <strong>${maxDay ? `${maxDay[0]} · ${formatEUR(maxDay[1])}` : t("no_data")}</strong></div></div><div class="acc-seven-day"><strong>${t("last_7_days")}</strong>${dayRows.slice(0,7).map((row)=>`<div class="acc-day-line"><span>${row[0]}</span><strong>${formatEUR(row[1])}</strong></div>`).join("") || `<div class="muted">${t("no_data")}</div>`}</div></div>
+
+        <div class="notice"><strong>${t("quick_actions_title")}</strong><div class="acc-quick-actions"><button class="smallbtn" id="btnQaExpense" type="button">${t("add_expense")}</button><button class="smallbtn" id="btnQaIncome" type="button">${t("add_income")}</button><button class="smallbtn" id="btnQaCsv" type="button">${t("export_csv")}</button><button class="smallbtn" type="button" disabled>${t("coming_soon")} PDF/Excel</button></div></div>
+      </div>`);
+
+      document.querySelectorAll('[data-period]').forEach((btn)=>btn.addEventListener('click', ()=>{ accountingDashboardPeriod = btn.dataset.period || 'month'; renderDash(); }));
+      document.querySelectorAll('[data-mode]').forEach((btn)=>btn.addEventListener('click', ()=>{ accountingDashboardMode = btn.dataset.mode || 'expenses'; renderDash(); }));
+      document.querySelectorAll('[data-supplier]').forEach((btn)=>btn.addEventListener('click', async()=>{ accountingInvoiceHighlightedId = null; accountingInvoiceFilters = { search: btn.dataset.supplier || '' }; setAccountingView('accounting-invoice-list'); }));
+      document.querySelectorAll('[data-issue-key]').forEach((btn)=>btn.addEventListener('click', ()=>{ accountingInvoiceFilters = { issuesOnly:true, issueKey: btn.dataset.issueKey || '' }; setAccountingView('accounting-invoice-list'); }));
+      const reviewBtn = el('btnReviewPending');
+      if(reviewBtn) reviewBtn.addEventListener('click', ()=>{ accountingInvoiceFilters = { issuesOnly:true }; setAccountingView('accounting-invoice-list'); });
+      const qaExpense = el('btnQaExpense'); if(qaExpense) qaExpense.addEventListener('click', ()=>setAccountingView('accounting-new-expense'));
+      const qaIncome = el('btnQaIncome'); if(qaIncome) qaIncome.addEventListener('click', ()=>setAccountingView('accounting-new-income'));
+      const qaCsv = el('btnQaCsv'); if(qaCsv) qaCsv.addEventListener('click', ()=>setAccountingView('accounting-export-expense'));
+    };
+
+    renderDash();
     return;
   }
 
@@ -3963,7 +4302,16 @@ async function renderAccountingPanel(){
     const load = async(filters=accountingInvoiceFilters || {})=>{
       accountingInvoiceFilters = filters || {};
       const list = await accountingInvoke("list_invoices", { filters: accountingInvoiceFilters });
-      accountingInvoices = list.items || [];
+      let items = list.items || [];
+      const issueKey = accountingInvoiceFilters?.issueKey;
+      if(accountingInvoiceFilters?.issuesOnly){
+        items = items.filter((inv)=>{
+          const issues = invoiceIssues(inv);
+          if(issueKey) return !!issues[issueKey];
+          return Object.entries(issues).some(([key, value])=> key !== "needs_ocr" && value);
+        });
+      }
+      accountingInvoices = items;
       const visible = new Set(accountingInvoices.map((inv)=>inv.id));
       accountingSelectedInvoiceIds.forEach((id)=>{ if(!visible.has(id)) accountingSelectedInvoiceIds.delete(id); });
       renderInvoiceList();
