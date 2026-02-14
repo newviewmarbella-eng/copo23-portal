@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { cleanName, corsHeaders, getAdminClient, json, requireEditorPin } from "../_accounting_shared/utils.ts";
+import { criticalWarnings, maybeSwapSupplierCustomer, normalizeCategory, normalizeCategoryLabel, normalizeTotals, round2 } from "./helpers.ts";
 
 const BUCKET = "copo23-invoices";
 const GEMINI_MODEL = "gemini-2.5-flash-lite";
@@ -503,77 +504,125 @@ No añadas markdown ni texto fuera del JSON.`,
               text: `Transforma el OCR de una factura en JSON ESTRICTO para contabilidad en España.
 Devuelve SOLO JSON válido con este schema exacto:
 {
-  "counterparty_name": "",
-  "counterparty_nif": "",
+  "doc_type": "expense" | "income",
+  "supplier": {"name": "", "nif": "", "address": ""},
+  "customer": {"name": "", "nif": "", "address": ""},
   "invoice_number": "",
-  "document_date": "YYYY-MM-DD",
+  "issue_date": "YYYY-MM-DD",
   "currency": "EUR",
-  "base_imponible": 0.00,
-  "iva_amount": 0.00,
-  "total": 0.00,
-  "vat_breakdown": [{"percent": 21, "base": 0.00, "vat": 0.00}],
-  "lines": [{"description":"", "qty":1, "unit_price":0.00, "total":0.00, "vat_percent":21}],
-  "concept": "texto corto max 80 chars",
-  "category": "",
+  "totals": {"subtotal": 0, "vat_total": 0, "total": 0},
+  "vat_breakdown": [{"rate": 21, "base": 0, "vat": 0, "total": 0}],
+  "concept": "",
+  "category": 1,
+  "category_label": "Materiales",
   "subcategory": "",
-  "warnings": [""]
+  "lines": [
+    {"description": "", "qty": 1, "unit_price": 0, "line_total": 0, "vat_percent": 21, "category": "materiales|mano_obra|subcontrata|alquiler|otros"}
+  ],
+  "confidence": {"supplier": 0, "invoice_number": 0, "totals": 0}
 }
 Reglas:
-- NO inventar datos. Si falta, usa null o "" y añade warning missing_x.
-- invoice_number debe mantenerse como string literal.
-- Importes como números con punto decimal.
-- Si hay varios IVAs, rellena vat_breakdown y añade warning multi_vat.
-- Responde únicamente con JSON parseable.
+- Para expense: supplier = emisor (OBRAMAT, BigMat, Leroy Merlin, etc), customer = receptor (Jesús / NVM si aparece).
+- Si hay duda: proveedor suele ir arriba izquierda con logo/marca; cliente suele ir como “SR ...” o “Cliente”.
+- concept obligatorio, entre 5 y 12 palabras.
+- category y subcategory obligatorias. Si no se sabe: category=5, category_label="Otros", subcategory="Sin clasificar".
+- Números siempre como number (no strings), con punto decimal.
+- Mantén invoice_number como string literal.
+- Responde ÚNICAMENTE JSON parseable.
 OCR:
 ${ocrText}`,
             },
           ],
         }]);
 
-        const baseImponible = parseNullableNumber(structured?.base_imponible);
-        const ivaAmount = parseNullableNumber(structured?.iva_amount);
-        const total = parseNullableNumber(structured?.total);
+        const docType = String(structured?.doc_type || invoice?.type || "expense").trim() === "income" ? "income" : "expense";
+        const supplierRaw = {
+          name: String(structured?.supplier?.name || "").trim(),
+          nif: String(structured?.supplier?.nif || "").trim(),
+          address: String(structured?.supplier?.address || "").trim(),
+        };
+        const customerRaw = {
+          name: String(structured?.customer?.name || "").trim(),
+          nif: String(structured?.customer?.nif || "").trim(),
+          address: String(structured?.customer?.address || "").trim(),
+        };
+        const swapResult = maybeSwapSupplierCustomer(supplierRaw, customerRaw);
+        const supplier = swapResult.supplier;
+        const customer = swapResult.customer;
+
+        const rawLines = Array.isArray(structured?.lines) ? structured.lines : [];
+        const normalizedLines = rawLines.map((line: Record<string, unknown>) => ({
+          invoice_id: invoiceId,
+          description: String(line?.description || "").trim() || null,
+          qty: round2(parseNullableNumber(line?.qty) ?? 0),
+          unit_price: round2(parseNullableNumber(line?.unit_price) ?? 0),
+          line_total: round2(parseNullableNumber(line?.line_total) ?? ((parseNullableNumber(line?.qty) ?? 0) * (parseNullableNumber(line?.unit_price) ?? 0))),
+          vat_rate: round2(parseNullableNumber(line?.vat_percent) ?? 0),
+          category: String(line?.category || "otros").trim().toLowerCase(),
+          tags: [],
+          raw: line,
+        }));
+
         const vatBreakdown = Array.isArray(structured?.vat_breakdown)
-          ? structured.vat_breakdown.map((row: Record<string, unknown>) => ({
-            percent: parseNullableNumber(row?.percent),
-            base: parseNullableNumber(row?.base),
-            vat: parseNullableNumber(row?.vat),
-          }))
+          ? structured.vat_breakdown.map((row: Record<string, unknown>) => {
+            const base = round2(parseNullableNumber(row?.base) ?? 0);
+            const vat = round2(parseNullableNumber(row?.vat) ?? 0);
+            const totalValue = round2(parseNullableNumber(row?.total) ?? (base + vat));
+            return {
+              rate: round2(parseNullableNumber(row?.rate ?? row?.percent) ?? 0),
+              percent: round2(parseNullableNumber(row?.rate ?? row?.percent) ?? 0),
+              base,
+              vat,
+              total: totalValue,
+            };
+          })
           : [];
 
-        const normalizedLines = (Array.isArray(structured?.lines) ? structured.lines : [])
-          .map((line: Record<string, unknown>) => ({
-            invoice_id: invoiceId,
-            description: String(line?.description || "").trim() || null,
-            qty: parseNullableNumber(line?.qty),
-            unit_price: parseNullableNumber(line?.unit_price),
-            line_total: parseNullableNumber(line?.total),
-            vat_rate: parseNullableNumber(line?.vat_percent),
-            category: sanitizeCategory(structured?.category),
-            tags: [],
-            raw: line,
-          }));
+        const totals = normalizeTotals({
+          lines: normalizedLines,
+          vatBreakdown,
+          subtotal: structured?.totals?.subtotal,
+          vatTotal: structured?.totals?.vat_total,
+          total: structured?.totals?.total,
+        });
 
-        const warnings = normalizeWarnings(Array.isArray(structured?.warnings) ? structured.warnings : []);
-        if (vatBreakdown.length > 1 && !warnings.includes("multi_vat")) warnings.push("multi_vat");
+        const category = normalizeCategory(structured?.category);
+        const categoryLabel = normalizeCategoryLabel(category, structured?.category_label);
+        const concept = sanitizeShortConcept(structured?.concept) || `${supplier.name || "Proveedor"} - gastos`;
+        const subcategory = String(structured?.subcategory || "").trim() || "Sin clasificar";
 
-        if (
-          baseImponible !== null
-          && ivaAmount !== null
-          && total !== null
-          && Math.abs((baseImponible + ivaAmount) - total) > Math.max(0.02, Math.abs(total) * 0.01)
-        ) {
-          warnings.push("totals_mismatch");
-        }
+        const issueDate = asIsoDate(structured?.issue_date);
+        const invoiceNumber = String(structured?.invoice_number || "").trim() || null;
 
-        const reviewStatus = warnings.includes("totals_mismatch") ? "needs_review" : "ok";
+        const aiWarningsRaw = normalizeWarnings(Array.isArray(structured?.warnings) ? structured.warnings : []);
+        const warnings = criticalWarnings(aiWarningsRaw, String(invoice.file_path || ""));
+        if (!issueDate && !warnings.includes("missing_issue_date")) warnings.push("missing_issue_date");
+        if (totals.total <= 0 && !warnings.includes("missing_total")) warnings.push("missing_total");
+
+        const reviewStatus = warnings.length ? "needs_review" : "ok";
         const aiStatus = reviewStatus === "needs_review" ? "needs_review" : "ready";
+
+        const counterpartyName = docType === "expense" ? (supplier.name || null) : (customer.name || null);
+        const counterpartyNif = docType === "expense" ? (supplier.nif || null) : (customer.nif || null);
 
         const invoiceUpdates: Record<string, unknown> = {
           ai_status: aiStatus,
           ai_provider: "gemini",
           ai_model: GEMINI_MODEL,
-          ai_extracted_json: structured,
+          ai_extracted_json: {
+            ...structured,
+              supplier,
+            customer,
+            category,
+            category_label: categoryLabel,
+            subcategory,
+            concept,
+            totals: {
+              subtotal: totals.subtotal,
+              vat_total: totals.vatTotal,
+              total: totals.total,
+            },
+          },
           ai_warnings: warnings,
           ai_processed_at: new Date().toISOString(),
           ocr_text: ocrText || null,
@@ -581,26 +630,26 @@ ${ocrText}`,
           review_status: reviewStatus,
           warnings,
           processed_at: new Date().toISOString(),
-          counterparty_name: String(structured?.counterparty_name || "").trim() || null,
-          counterparty_nif: String(structured?.counterparty_nif || "").trim() || null,
-          vendor_name: String(structured?.counterparty_name || "").trim() || null,
-          vendor_tax_id: String(structured?.counterparty_nif || "").trim() || null,
-          invoice_number: String(structured?.invoice_number || "").trim() || null,
-          document_date: asIsoDate(structured?.document_date),
-          issue_date: asIsoDate(structured?.document_date),
-          date: asIsoDate(structured?.document_date),
+          counterparty_name: counterpartyName,
+          counterparty_nif: counterpartyNif,
+          vendor_name: supplier.name || null,
+          vendor_tax_id: supplier.nif || null,
+          invoice_number: invoiceNumber,
+          document_date: issueDate,
+          issue_date: issueDate,
+          date: issueDate,
           currency: String(structured?.currency || "EUR").trim().toUpperCase() || "EUR",
-          base_imponible: baseImponible,
-          subtotal: baseImponible,
-          iva_amount: ivaAmount,
-          vat_total: ivaAmount,
-          total,
+          base_imponible: totals.subtotal,
+          subtotal: totals.subtotal,
+          iva_amount: totals.vatTotal,
+          vat_total: totals.vatTotal,
+          total: totals.total,
           vat_breakdown_json: vatBreakdown,
           vat_breakdown: vatBreakdown,
-          concept: sanitizeShortConcept(structured?.concept) || null,
-          category_main: String(structured?.category || "").trim() || null,
-          category: parseNullableNumber(structured?.category),
-          subcategory: String(structured?.subcategory || "").trim() || null,
+          concept,
+          category_main: categoryLabel,
+          category,
+          subcategory,
         };
 
         const { error: invoiceUpdateError } = await client
