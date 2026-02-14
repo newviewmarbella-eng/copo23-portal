@@ -3677,7 +3677,7 @@ function aiStatusLabel(status){
   if(key === "ready") return "OK";
   if(key === "needs_review") return "Revisar";
   if(key === "error") return "Error";
-  return "Pendiente OCR";
+  return "Pendiente IA";
 }
 
 function aiStatusClass(status){
@@ -3695,7 +3695,7 @@ function fmtMoney(value){
 
 async function triggerInvoiceAiProcessing(invoiceId){
   if(!invoiceId) return;
-  toast("Procesando OCR...");
+  toast("Procesando IA (OCR + estructurado)...");
   setTimeout(async()=>{
     try{
       await accountingInvoke("extract_invoice_ai", { invoice_id: invoiceId });
@@ -3735,15 +3735,46 @@ async function ensureJsZip(){
   return window.JSZip;
 }
 
-function buildInvoiceCsv(items){
-  const headers = ["id","type","vendor_or_client","date","invoice_number","subtotal","vat","total","status","file_path","file_name","file_type"];
-  const rows = [headers.join(",")];
-  for(const inv of items || []){
-    const row = headers.map((h)=>`"${String(inv?.[h] ?? "").replaceAll('"','""')}"`);
-    rows.push(row.join(","));
-  }
-  return rows.join("\n");
+function formatEsDecimal(value){
+  const n = Number(value);
+  const safe = Number.isFinite(n) ? n : 0;
+  return safe.toFixed(2).replace(".", ",");
 }
+
+function csvEscape(value){
+  return `"${String(value ?? "").replaceAll('"','""')}"`;
+}
+
+function buildInvoiceCsv(items){
+  const headers = ["project","id","type","counterparty_name","counterparty_nif","document_date","invoice_number","currency","base_imponible","iva_amount","total","concept","category","subcategory","ocr_status","review_status","warnings"];
+  const rows = [headers.join(";")];
+  for(const inv of items || []){
+    const warnings = Array.isArray(inv?.warnings) ? inv.warnings.join("|") : (Array.isArray(inv?.ai_warnings) ? inv.ai_warnings.join("|") : "");
+    const row = [
+      "Copo 23 (El Saladillo)",
+      inv?.id || "",
+      inv?.type || "",
+      inv?.counterparty_name || inv?.vendor_name || inv?.vendor_or_client || "",
+      inv?.counterparty_nif || inv?.vendor_tax_id || "",
+      inv?.document_date || inv?.issue_date || inv?.date || "",
+      inv?.invoice_number || "",
+      inv?.currency || "EUR",
+      formatEsDecimal(inv?.base_imponible ?? inv?.subtotal),
+      formatEsDecimal(inv?.iva_amount ?? inv?.vat_total ?? inv?.vat),
+      formatEsDecimal(inv?.total),
+      inv?.concept || "",
+      inv?.category_main || inv?.category || "",
+      inv?.subcategory || "",
+      inv?.ocr_status || "pending",
+      inv?.review_status || "needs_review",
+      warnings,
+    ].map(csvEscape);
+    rows.push(row.join(";"));
+  }
+return `\uFEFF${rows.join("\n")}`;
+}
+
+
 
 async function renderAccounting(){
   if(!canAccessAccounting()){
@@ -3827,7 +3858,7 @@ async function renderAccountingPanel(){
         if(file && file.size){
           const invoice = await accountingInvoke("create_invoice", {
             type: isExpense ? "expense" : "income",
-            vendor_or_client: fd.get("vendor_or_client") || "Pendiente OCR",
+            vendor_or_client: fd.get("vendor_or_client") || "",
             date: fd.get("date") || todayIso(),
             invoice_number: fd.get("invoice_number"),
             subtotal: fd.get("subtotal") || 0,
@@ -3839,6 +3870,8 @@ async function renderAccountingPanel(){
             status: fd.get("status") || "pending",
             notes: fd.get("notes"),
             ai_status: "pending",
+            ocr_status: "pending",
+            review_status: "needs_review",
             ocr_text: normalizeOcrText(fd.get("ocr_text") || "").slice(0, 15000) || null
           });
           const up = await accountingInvoke("get_upload_url", { filename: file.name, contentType: file.type });
@@ -3850,13 +3883,14 @@ async function renderAccountingPanel(){
             file_name: file.name,
             file_type: file.type,
             type: isExpense ? "expense" : "income",
-            vendor_or_client: fd.get("vendor_or_client") || "Pendiente OCR",
+            vendor_or_client: fd.get("vendor_or_client") || "",
             date: fd.get("date") || todayIso(),
             subtotal: fd.get("subtotal") || 0,
             vat: fd.get("vat") || 0,
             total: fd.get("total") || 0,
             status: fd.get("status") || "pending",
-            ai_status: "processing"
+            ai_status: "processing",
+            ocr_status: "processing"
           });
           triggerInvoiceAiProcessing(invoice.item.id);
         }else{
@@ -4013,7 +4047,10 @@ async function renderAccountingPanel(){
       const fd = new FormData(el('exportForm'));
       const filters = { type: exportType, date_from: fd.get('from') || null, date_to: fd.get('to') || null };
       const res = await accountingInvoke('list_invoices', { filters });
-      return res.items || [];
+      return (res.items || []).filter((inv)=>{
+        const hasStructured = Boolean(inv?.counterparty_name || inv?.invoice_number || inv?.base_imponible !== null || inv?.total);
+        return inv?.ocr_status === 'done' || hasStructured;
+      });
     }
 
     el('btnExportCsv').addEventListener('click', async()=>{
