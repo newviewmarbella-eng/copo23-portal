@@ -82,22 +82,23 @@ select{padding:10px;border-radius:14px;border:1px solid var(--line)}
 textarea{width:100%;min-height:56px;border-radius:14px;border:1px solid var(--line);padding:10px}
 .smallbtn{padding:9px 12px;border-radius:14px;border:1px solid var(--line);background:#fff;color:var(--ink);font-weight:800;cursor:pointer}
 .smallbtn:active{transform:scale(.98)}
-.progress-btn{position:relative;width:100%;min-height:48px;padding:14px 18px;border-radius:999px;border:1px solid rgba(0,0,0,.15);background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;color:#111}
-.progress-btn::before{content:"";position:absolute;inset:0;background:var(--primary);transform:scaleX(0);transform-origin:left center;transition:none;z-index:0}
+.progress-btn{position:relative;width:100%;height:48px;min-height:48px;padding:14px 18px;border-radius:999px;border:1px solid rgba(0,0,0,.15);background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;color:#111;flex-shrink:0}
+.progress-btn::before{content:"";position:absolute;inset:0;background:var(--primary);transform:scaleX(0);transform-origin:left center;transition:transform 220ms ease;z-index:0}
 .progress-label{position:relative;z-index:1;display:inline-flex;white-space:pre;pointer-events:none}
-.progress-label .ch{display:inline-block;color:#111;transition:color 220ms ease;transition-delay:calc(var(--i) * 45ms)}
-.progress-btn.is-saving::before{animation:fillOnce 5.5s linear forwards}
-.progress-btn.is-saving .progress-label .ch{color:#fff}
-.progress-btn.is-done::before{animation:none;transform:scaleX(1);transition:transform 180ms ease}
+.progress-label .ch{display:inline-block;color:#111;transition:color 180ms ease}
+.progress-btn.is-saving::before{animation:fillIndeterminate 7s linear forwards}
+.progress-btn.is-saving .progress-label .ch{color:#fff;transition-delay:calc(var(--i) * 300ms)}
+.progress-btn.is-done::before{animation:none;transform:scaleX(1);transition:transform 200ms ease-out}
+.progress-btn.is-done .progress-label .ch{color:#fff;transition-delay:0ms}
 .progress-btn:disabled{cursor:not-allowed;opacity:.85}
-@keyframes fillOnce{
+@keyframes fillIndeterminate{
   0%{transform:scaleX(0)}
   60%{transform:scaleX(.75)}
   85%{transform:scaleX(.90)}
-  100%{transform:scaleX(.95)}
+  100%{transform:scaleX(.96)}
 }
 @media (prefers-reduced-motion: reduce){
-  .progress-btn.is-saving::before{animation:none;transform:scaleX(.95)}
+  .progress-btn.is-saving::before{animation:none;transform:scaleX(.96)}
   .progress-label .ch{transition:none}
 }
 .statusDone{border-color:#abefc6;background:#ecfdf3}
@@ -3793,6 +3794,7 @@ async function renderAccountingPanel(){
     const saveBtn = el("invoiceSaveBtn");
     const saveBtnLabel = saveBtn?.querySelector("[data-progress-label]");
     let isSaving = false;
+    let didNavigate = false;
     renderProgressLabel(saveBtnLabel, t("save"));
     fileInput.addEventListener("change", ()=>{
       const file = fileInput.files?.[0];
@@ -3809,6 +3811,7 @@ async function renderAccountingPanel(){
       ev.preventDefault();
       if(isSaving) return;
       isSaving = true;
+      didNavigate = false;
       saveBtn?.classList.remove("is-done");
       saveBtn?.classList.add("is-saving");
       if(saveBtn){
@@ -3862,20 +3865,23 @@ async function renderAccountingPanel(){
         toast("Factura guardada");
         saveBtn?.classList.remove("is-saving");
         saveBtn?.classList.add("is-done");
-        await new Promise((resolve)=>setTimeout(resolve, 200));
+        await new Promise((resolve)=>setTimeout(resolve, 220));
+        didNavigate = true;
         setAccountingView("accounting-invoice-list");
       }catch(err){
         saveBtn?.classList.remove("is-saving", "is-done");
         throw err;
       }finally{
         isSaving = false;
-        if(saveBtn){
+        if(!didNavigate && saveBtn){
           saveBtn.disabled = false;
           saveBtn.removeAttribute("aria-busy");
           saveBtn.removeAttribute("title");
         }
-        saveBtn?.classList.remove("is-saving", "is-done");
-        renderProgressLabel(saveBtnLabel, t("save"));
+        if(!didNavigate){
+          saveBtn?.classList.remove("is-saving", "is-done");
+          renderProgressLabel(saveBtnLabel, t("save"));
+        }
         form?.removeAttribute("aria-busy");
       }
     });
