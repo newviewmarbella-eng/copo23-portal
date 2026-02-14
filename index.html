@@ -3990,9 +3990,16 @@ function filterInvoicesByPeriod(invoices, range){
 }
 
 function filterInvoicesByType(invoices, mode){
-  if(mode === "expenses") return invoices.filter((inv)=> String(inv.type||"").toLowerCase() === "expense");
-  if(mode === "income") return invoices.filter((inv)=> String(inv.type||"").toLowerCase() === "income");
+  if(mode === "expenses") return invoices.filter((inv)=> normalizeInvoiceType(inv?.type) === "expense");
+  if(mode === "income") return invoices.filter((inv)=> normalizeInvoiceType(inv?.type) === "income");
   return invoices.slice();
+}
+
+function normalizeInvoiceType(rawType){
+  const type = String(rawType || "").trim().toLowerCase();
+  if(["income", "ingreso"].includes(type)) return "income";
+  if(["expense", "gasto"].includes(type)) return "expense";
+  return type;
 }
 
 function invoiceIssues(inv){
@@ -4014,7 +4021,7 @@ function invoiceIssues(inv){
     missing_subcategory: !subcategory,
     total_mismatch: Math.abs((subtotal + vat) - total) > 0.02,
     vat_zero_suspicious: subtotal > 0 && Math.abs(vat) < 0.0001,
-    possible_wrong_supplier: String(inv.type||"").toLowerCase() === "expense" && /JESUS|MORENO/i.test(counterpart),
+    possible_wrong_supplier: normalizeInvoiceType(inv.type) === "expense" && /JESUS|MORENO/i.test(counterpart),
     needs_ocr: status.includes("pending") || status.includes("pendiente ocr") || !ocrText
   };
   return out;
@@ -4058,7 +4065,7 @@ async function getWorkdaysSummary(range){
   });
   const perWorker = [...summary.values()].sort((a,b)=>b.total-a.total);
   const total = perWorker.reduce((acc,row)=>acc + row.total, 0);
-  return { total, perWorker };
+  return { total, perWorker, workdays: presentRows };
 }
 
 async function renderAccounting(){
@@ -4093,8 +4100,6 @@ async function renderAccountingPanel(){
 
   if(accountingView === "accounting-dashboard"){
     renderAccountingScreen(t("dashboard_title"), `<div class="acc-view"><div class="notice">${t("period_loading")}</div></div>`);
-    const invoiceRes = await accountingInvoke("list_invoices", {});
-    const allInvoices = invoiceRes.items || [];
     const periodButtons = [
       {id:"today", label:t("period_today")},
       {id:"week", label:t("period_week")},
@@ -4111,12 +4116,31 @@ async function renderAccountingPanel(){
 
     const renderDash = async()=>{
       const range = dateRangeFor(accountingDashboardPeriod);
-      const periodInvoices = filterInvoicesByPeriod(allInvoices, range);
+      const [invRes, wdRes] = await Promise.allSettled([
+        accountingInvoke("list_invoices", {}),
+        getWorkdaysSummary(range)
+      ]);
+      const invoices = invRes.status === "fulfilled" ? (invRes.value?.items || []) : [];
+      const workdaysSummary = wdRes.status === "fulfilled" ? wdRes.value : { total: 0, perWorker: [] };
+      const wagesTotal = workdaysSummary.total || 0;
+      const dashboardWarnings = [];
+
+      if(invRes.status === "rejected"){
+        console.error("Dashboard invoices load failed", invRes.reason);
+        dashboardWarnings.push("No se pudieron cargar facturas (ver logs)");
+        toast("No se pudieron cargar facturas (ver logs)");
+      }
+      if(wdRes.status === "rejected"){
+        console.error("Dashboard workdays load failed", wdRes.reason);
+        dashboardWarnings.push("No se pudieron cargar jornales (ver logs)");
+        toast("No se pudieron cargar jornales (ver logs)");
+      }
+
+      const periodInvoices = filterInvoicesByPeriod(invoices, range);
       const incomeInvoices = filterInvoicesByType(periodInvoices, "income");
       const expenseInvoices = filterInvoicesByType(periodInvoices, "expenses");
+      console.info("Dashboard invoices:", periodInvoices.length, "workdays:", (workdaysSummary.workdays || []).length);
       const incomeTotal = incomeInvoices.reduce((a,i)=>a+parseNumberSafe(i.total),0);
-      const workdaysSummary = await getWorkdaysSummary(range);
-      const wagesTotal = workdaysSummary.total;
       const expenseInvoicesTotal = expenseInvoices.reduce((a,i)=>a+parseNumberSafe(i.total),0);
       const expenseTotal = expenseInvoicesTotal + wagesTotal;
       const netTotal = incomeTotal - expenseTotal;
@@ -4130,6 +4154,7 @@ async function renderAccountingPanel(){
 
       renderAccountingScreen(t("dashboard_title"), `<div class="acc-view">
         <div class="acc-chip-group">${periodButtons.map((p)=>`<button class="acc-chip ${accountingDashboardPeriod===p.id?'active':''}" type="button" data-period="${p.id}">${p.label}</button>`).join("")}</div>
+        ${dashboardWarnings.length ? `<div class="notice" style="border-color:#fed7aa;background:#fffbeb;color:#b54708"><strong>Advertencias</strong><div>${dashboardWarnings.map((msg)=>`<div>${msg}</div>`).join("")}</div></div>` : ""}
 
         <div class="acc-grid-2">
           <div class="kpi"><div class="muted">${t("income_total")}</div><div class="acc-big-number">${formatEUR(incomeTotal)}</div></div>
