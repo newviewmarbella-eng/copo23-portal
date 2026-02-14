@@ -494,8 +494,7 @@ No añadas markdown ni texto fuera del JSON.`,
           ],
         }]);
 
-        const ocrText = normalizeWarnings([ocrStep?.ocr_text]).join("
-");
+        const ocrText = normalizeWarnings([ocrStep?.ocr_text]).join("\n");
 
         const structured = await callGeminiJson(geminiKey, [{
           role: "user",
