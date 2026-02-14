@@ -4115,19 +4115,18 @@ async function renderAccountingPanel(){
       const incomeInvoices = filterInvoicesByType(periodInvoices, "income");
       const expenseInvoices = filterInvoicesByType(periodInvoices, "expenses");
       const incomeTotal = incomeInvoices.reduce((a,i)=>a+parseNumberSafe(i.total),0);
-      const expenseTotal = expenseInvoices.reduce((a,i)=>a+parseNumberSafe(i.total),0);
-      const netTotal = incomeTotal - expenseTotal;
-      const byCategory = Object.fromEntries(categoryRows.map((r)=>[r.id, {income:0, expense:0}]));
-
-      periodInvoices.forEach((inv)=>{
-        const categoryId = categoryIdFromInvoice(inv.category);
-        const type = String(inv.type||"").toLowerCase();
-        if(type === "income") byCategory[categoryId].income += parseNumberSafe(inv.total);
-        if(type === "expense") byCategory[categoryId].expense += parseNumberSafe(inv.total);
-      });
-
       const workdaysSummary = await getWorkdaysSummary(range);
       const wagesTotal = workdaysSummary.total;
+      const expenseInvoicesTotal = expenseInvoices.reduce((a,i)=>a+parseNumberSafe(i.total),0);
+      const expenseTotal = expenseInvoicesTotal + wagesTotal;
+      const netTotal = incomeTotal - expenseTotal;
+      const expenseByCategory = Object.fromEntries(categoryRows.map((r)=>[r.id, 0]));
+
+      expenseInvoices.forEach((inv)=>{
+        const categoryId = categoryIdFromInvoice(inv.category);
+        expenseByCategory[categoryId] += parseNumberSafe(inv.total);
+      });
+      expenseByCategory[2] += wagesTotal;
 
       renderAccountingScreen(t("dashboard_title"), `<div class="acc-view">
         <div class="acc-chip-group">${periodButtons.map((p)=>`<button class="acc-chip ${accountingDashboardPeriod===p.id?'active':''}" type="button" data-period="${p.id}">${p.label}</button>`).join("")}</div>
@@ -4138,9 +4137,9 @@ async function renderAccountingPanel(){
           <div class="kpi" style="grid-column:1/-1;border-color:#101828"><div class="muted">${t("net_total")}</div><div class="acc-big-number">${formatEUR(netTotal)}</div></div>
         </div>
 
-        <div class="notice"><strong>${t("category_breakdown_title")}</strong><div class="acc-breakdown-list">${categoryRows.map((row)=>{ const data = byCategory[row.id] || {income:0,expense:0}; const net = data.income - data.expense; return `<div class="acc-breakdown-row"><strong>${t(row.key)}</strong><div class="acc-breakdown-metrics"><div>${t("mode_income")}<strong>${formatEUR(data.income)}</strong></div><div>${t("mode_expenses")}<strong>${formatEUR(data.expense)}</strong></div><div>${t("mode_net")}<strong>${formatEUR(net)}</strong></div></div></div>`; }).join("")}</div></div>
+        <div class="notice"><strong>${t("category_breakdown_title")}</strong><div class="acc-breakdown-list">${categoryRows.map((row)=>{ const totalExpense = expenseByCategory[row.id] || 0; return `<div class="acc-breakdown-row"><strong>${t(row.key)}</strong><div class="acc-breakdown-metrics"><div>${t("mode_expenses")}<strong>${formatEUR(totalExpense)}</strong></div><div>${t("mode_net")}<strong>${formatEUR(-totalExpense)}</strong></div></div></div>`; }).join("")}</div></div>
 
-        <div class="notice"><strong>${t("job_control_title")}</strong><div class="acc-grid-2"><div>${t("expense_total")}: <strong>${formatEUR(expenseTotal)}</strong></div><div>${t("wages_cost")}: <strong>${formatEUR(wagesTotal)}</strong></div><div>${t("total_job_cost")}: <strong>${formatEUR(expenseTotal+wagesTotal)}</strong></div><div>${t("net_after_wages")}: <strong>${formatEUR(netTotal-wagesTotal)}</strong></div></div></div>
+        <div class="notice"><strong>${t("job_control_title")}</strong><div class="acc-grid-2"><div>${t("expense_total")}: <strong>${formatEUR(expenseTotal)}</strong></div><div>${t("wages_cost")}: <strong>${formatEUR(wagesTotal)}</strong></div><div>${t("total_job_cost")}: <strong>${formatEUR(expenseTotal)}</strong></div><div>${t("net_total")}: <strong>${formatEUR(netTotal)}</strong></div></div></div>
       </div>`);
 
       document.querySelectorAll('[data-period]').forEach((btn)=>btn.addEventListener('click', ()=>{ accountingDashboardPeriod = btn.dataset.period || 'month'; renderDash(); }));
@@ -4198,7 +4197,7 @@ async function renderAccountingPanel(){
             subtotal: fd.get("subtotal") || 0,
             vat: fd.get("vat") || 0,
             total: fd.get("total") || 0,
-            category: fd.get("category") || null,
+            category: isExpense ? (fd.get("category") || 5) : null,
             subcategory: fd.get("subcategory"),
             payment_method: fd.get("payment_method"),
             status: fd.get("status") || "pending",
