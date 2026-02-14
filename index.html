@@ -423,6 +423,7 @@ code{background:#10182810;padding:2px 6px;border-radius:8px}
 <input type="file" id="photoPicker" accept="image/*" style="display:none"/>
 <div class="toast" id="toast">Saved</div>
 
+<script src="./accounting_export_utils.js"></script>
 <script>
 window.SUPABASE_URL = "https://pbxqfaiwhpjeejrnfqgu.supabase.co";
 window.SUPABASE_ANON_KEY = "sb_publishable_XiTA_HTrPe2Dy8hO09n58w_0o64H3no";
@@ -3689,8 +3690,7 @@ function aiStatusClass(status){
 }
 
 function fmtMoney(value){
-  const n = Number(value || 0);
-  return `${Number.isFinite(n) ? n.toFixed(2) : "0.00"} €`;
+  return `${formatMoneyES(value)} €`;
 }
 
 async function triggerInvoiceAiProcessing(invoiceId){
@@ -3735,46 +3735,13 @@ async function ensureJsZip(){
   return window.JSZip;
 }
 
-function formatEsDecimal(value){
-  const n = Number(value);
-  const safe = Number.isFinite(n) ? n : 0;
-  return safe.toFixed(2).replace(".", ",");
-}
-
-function csvEscape(value){
-  return `"${String(value ?? "").replaceAll('"','""')}"`;
+function formatMoneyES(value){
+  return window.AccountingCsvUtils.formatMoneyES(value);
 }
 
 function buildInvoiceCsv(items){
-  const headers = ["project","id","type","counterparty_name","counterparty_nif","document_date","invoice_number","currency","base_imponible","iva_amount","total","concept","category","subcategory","ocr_status","review_status","warnings"];
-  const rows = [headers.join(";")];
-  for(const inv of items || []){
-    const warnings = Array.isArray(inv?.warnings) ? inv.warnings.join("|") : (Array.isArray(inv?.ai_warnings) ? inv.ai_warnings.join("|") : "");
-    const row = [
-      "Copo 23 (El Saladillo)",
-      inv?.id || "",
-      inv?.type || "",
-      inv?.counterparty_name || inv?.vendor_name || inv?.vendor_or_client || "",
-      inv?.counterparty_nif || inv?.vendor_tax_id || "",
-      inv?.document_date || inv?.issue_date || inv?.date || "",
-      inv?.invoice_number || "",
-      inv?.currency || "EUR",
-      formatEsDecimal(inv?.base_imponible ?? inv?.subtotal),
-      formatEsDecimal(inv?.iva_amount ?? inv?.vat_total ?? inv?.vat),
-      formatEsDecimal(inv?.total),
-      inv?.concept || "",
-      inv?.category_main || inv?.category || "",
-      inv?.subcategory || "",
-      inv?.ocr_status || "pending",
-      inv?.review_status || "needs_review",
-      warnings,
-    ].map(csvEscape);
-    rows.push(row.join(";"));
-  }
-return `\uFEFF${rows.join("\n")}`;
+  return window.AccountingCsvUtils.buildManagerInvoiceCsv(items, { project: "Copo 23" });
 }
-
-
 
 async function renderAccounting(){
   if(!canAccessAccounting()){
@@ -4041,16 +4008,32 @@ async function renderAccountingPanel(){
 
   if(accountingView === "accounting-export-expense" || accountingView === "accounting-export-income"){
     const exportType = accountingView === "accounting-export-expense" ? "expense" : "income";
-    renderAccountingScreen(exportType === "expense" ? "Exportar Gastos" : "Exportar Ingresos", `<form id="exportForm" class="acc-form"><label>Desde<input type="date" name="from"></label><label>Hasta<input type="date" name="to"></label><div class="row"><button class="smallbtn" type="button" id="btnExportCsv">Exportar CSV</button><button class="smallbtn" type="button" id="btnExportZip">Exportar CSV + ZIP imágenes</button></div></form>`);
+    renderAccountingScreen(exportType === "expense" ? "Exportar Gastos" : "Exportar Ingresos", `<form id="exportForm" class="acc-form"><label>Desde<input type="date" name="from"></label><label>Hasta<input type="date" name="to"></label><label><input type="checkbox" name="include_pending"> Incluir pendientes OCR</label><div id="exportNotice" class="muted"></div><div class="row"><button class="smallbtn" type="button" id="btnExportCsv">Exportar CSV</button><button class="smallbtn" type="button" id="btnExportZip">Exportar CSV + ZIP imágenes</button></div></form>`);
 
     async function loadForExport(){
       const fd = new FormData(el('exportForm'));
+      const includePending = fd.get('include_pending') === 'on' || new URLSearchParams(location.search).get('include_pending') === '1';
       const filters = { type: exportType, date_from: fd.get('from') || null, date_to: fd.get('to') || null };
       const res = await accountingInvoke('list_invoices', { filters });
-      return (res.items || []).filter((inv)=>{
-        const hasStructured = Boolean(inv?.counterparty_name || inv?.invoice_number || inv?.base_imponible !== null || inv?.total);
-        return inv?.ocr_status === 'done' || hasStructured;
-      });
+      const allItems = res.items || [];
+      const processed = allItems.filter((inv)=> inv?.ocr_status === 'done' && (inv?.ai_status === 'ready' || inv?.review_status === 'ok' || inv?.concept));
+      const pendingCount = allItems.length - processed.length;
+      const notice = el('exportNotice');
+      if(!includePending && pendingCount > 0){
+        notice.textContent = `${pendingCount} facturas pendientes OCR se excluyeron del CSV.`;
+      }else{
+        notice.textContent = includePending ? `Incluyendo ${pendingCount} pendientes por petición.` : '';
+      }
+
+      const idsWithFile = allItems.filter((inv)=>inv.file_path).map((inv)=>inv.id);
+      let fileUrls = {};
+      if(idsWithFile.length){
+        const urls = await accountingInvoke('get_download_urls', { invoice_ids: idsWithFile });
+        fileUrls = urls?.items || {};
+      }
+
+      const selected = includePending ? allItems : processed;
+      return selected.map((inv)=>({ ...inv, file_url: fileUrls?.[inv.id]?.signedUrl || '' }));
     }
 
     el('btnExportCsv').addEventListener('click', async()=>{
