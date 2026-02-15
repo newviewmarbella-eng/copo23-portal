@@ -4613,14 +4613,36 @@ function workerDailyCost(worker){
   return Number(worker?.day_rate || 0) + Number(worker?.ss_day || 0) + Number(worker?.other_day || 0);
 }
 
-function formatYmd(date){ return date.toISOString().slice(0,10); }
-
-function mondayOf(date){
+function toISODate(date){
   const d = new Date(date);
-  const day = (d.getDay() + 6) % 7;
-  d.setDate(d.getDate() - day);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function addDays(date, amount){
+  const d = new Date(date);
+  d.setDate(d.getDate() + amount);
   d.setHours(0,0,0,0);
   return d;
+}
+
+function startOfISOWeek(date){
+  const d = new Date(date);
+  d.setHours(0,0,0,0);
+  const day = (d.getDay() + 6) % 7;
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - day);
+  monday.setHours(0,0,0,0);
+  return monday;
+}
+
+function formatYmd(date){ return toISODate(date); }
+
+function isDevMode(){
+  const qs = new URLSearchParams(location.search);
+  return qs.get('dev') === '1' || isAccountingDebugEnabled() || location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.protocol === 'file:';
 }
 
 function renderWorkerTabs(active){
@@ -4687,18 +4709,26 @@ function bindWorkerTabNav(){
 async function renderWorkerTimesheetsView(){
   const workersRes = await accountingInvoke("list_workers", { active:true });
   const workers = (workersRes.items || []).filter((w)=>w.active !== false);
-  const base = mondayOf(new Date());
   const offset = Number(sessionStorage.getItem('accounting_ts_offset') || '0');
   const mode = sessionStorage.getItem('accounting_ts_mode') || 'week';
   const selectedDayRaw = Number(sessionStorage.getItem('accounting_ts_selected_day') || '0');
   const selectedDay = Number.isFinite(selectedDayRaw) ? Math.max(0, Math.min(6, selectedDayRaw)) : 0;
   sessionStorage.setItem('accounting_ts_selected_day', String(selectedDay));
 
-  const weekStart = new Date(base);
-  weekStart.setDate(base.getDate() + (offset * 7));
-  const days = Array.from({length:7}, (_,i)=>{ const d = new Date(weekStart); d.setDate(weekStart.getDate()+i); return d; });
-  const from = formatYmd(days[0]);
-  const to = formatYmd(days[6]);
+  const currentRangeStart = addDays(startOfISOWeek(new Date()), offset * 7);
+  const monday = startOfISOWeek(currentRangeStart);
+  const days = Array.from({length:7}, (_,i)=>addDays(monday, i));
+  const from = toISODate(monday);
+  const sunday = addDays(monday, 6);
+  const to = toISODate(sunday);
+  const labels = ["L","M","X","J","V","S","D"];
+
+  if(isDevMode()){
+    console.info("ISO week:", from, "→", to, days.map(toISODate));
+    const checkMonday = startOfISOWeek(new Date('2025-12-14T00:00:00'));
+    const checkSunday = addDays(checkMonday, 6);
+    console.info("ISO week check (contains 2025-12-14):", toISODate(checkMonday), "→", toISODate(checkSunday));
+  }
 
   const tsRes = await accountingInvoke("list_timesheets_range", { from, to });
   const map = new Set((tsRes.items||[]).filter((r)=>r.present !== false).map((r)=>`${r.worker_id}__${r.work_date || r.date}`));
@@ -4751,7 +4781,7 @@ async function renderWorkerTimesheetsView(){
     const safeIdx = Number.isFinite(selectedIdx) ? Math.max(0, Math.min(6, selectedIdx)) : 0;
     dayStrip.innerHTML = days.map((d, idx)=>{
       const ymd = formatYmd(d);
-      return `<button class="ts-daypill ${idx===safeIdx?'active':''}" type="button" data-day-index="${idx}">${"LMXJVSD"[idx] || '-'}<small>${ymd.slice(5)}</small></button>`;
+      return `<button class="ts-daypill ${idx===safeIdx?'active':''}" type="button" data-day-index="${idx}">${labels[idx] || '-'}<small>${ymd.slice(5)}</small></button>`;
     }).join('');
   };
 
