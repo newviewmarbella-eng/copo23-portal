@@ -173,6 +173,8 @@ textarea{width:100%;min-height:56px;border-radius:14px;border:1px solid var(--li
 .acc-chip-group{display:flex;gap:8px;flex-wrap:wrap}
 .acc-chip{padding:8px 12px;border:1px solid var(--line);border-radius:999px;background:#fff;cursor:pointer;font-weight:700}
 .acc-chip.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+.acc-chip-group--small{gap:6px}
+.acc-chip-group--small .acc-chip{padding:5px 10px;font-size:12px}
 .acc-big-number{font-size:32px;font-weight:900;line-height:1.1;margin-top:4px}
 .acc-mini-line{font-size:13px;color:var(--muted);margin-top:4px}
 .acc-grid-2{display:grid;gap:10px;grid-template-columns:1fr 1fr}
@@ -632,6 +634,11 @@ const I18N = {
     category_subcontract: "Subcontract",
     category_rental: "Rental",
     category_other: "Other",
+    breakdown_tab_categories: "Categories",
+    breakdown_tab_subcategories: "Subcategories",
+    breakdown_unclassified: "Unclassified",
+    breakdown_other: "Other",
+    breakdown_subcategory_no_data: "No subcategory data for this period",
     issues_title: "Issues",
     issues_filter_issue: "Issue type",
     issues_filter_type: "Invoice type",
@@ -807,6 +814,11 @@ const I18N = {
     category_subcontract: "Subcontrata",
     category_rental: "Alquiler",
     category_other: "Otros",
+    breakdown_tab_categories: "Categorías",
+    breakdown_tab_subcategories: "Subcategorías",
+    breakdown_unclassified: "Sin clasificar",
+    breakdown_other: "Otros",
+    breakdown_subcategory_no_data: "No hay datos de subcategorías en este periodo",
     issues_title: "Issues",
     issues_filter_issue: "Tipo de issue",
     issues_filter_type: "Tipo de factura",
@@ -982,6 +994,11 @@ const I18N = {
     category_subcontract: "Onderaanneming",
     category_rental: "Huur",
     category_other: "Overig",
+    breakdown_tab_categories: "Categorieën",
+    breakdown_tab_subcategories: "Subcategorieën",
+    breakdown_unclassified: "Niet geclassificeerd",
+    breakdown_other: "Overig",
+    breakdown_subcategory_no_data: "Geen subcategoriegegevens voor deze periode",
     issues_title: "Issues",
     issues_filter_issue: "Issue type",
     issues_filter_type: "Factuurtype",
@@ -2501,9 +2518,11 @@ let accountingSelectedInvoiceIds = new Set();
 let accountingInvoiceFilters = {};
 let accountingInvoiceHighlightedId = null;
 let accountingDashboardPeriod = "month";
+let accountingDashboardBreakdownTab = "categories";
 let accountingDashboardRefreshSeq = 0;
 let accountingInvoicesCache = [];
 let accountingInvoicesCacheAt = 0;
+let accountingDashboardChartPayload = null;
 let currentPlan = (DATA.plans || [])[0] || null;
 let noteDraftImage = null;
 let notesCache = {};
@@ -2526,6 +2545,7 @@ let audioCtx = null;
 const dashboardCharts = {
   bar: null,
   donut: null,
+  donutSubcategory: null,
   line: null
 };
 let dashboardResizeListenerBound = false;
@@ -4395,6 +4415,7 @@ function destroyChartInstance(key){
 function destroyDisconnectedDashboardCharts(){
   if(dashboardCharts.bar && !dashboardCharts.bar.canvas.isConnected) destroyChartInstance('bar');
   if(dashboardCharts.donut && !dashboardCharts.donut.canvas.isConnected) destroyChartInstance('donut');
+  if(dashboardCharts.donutSubcategory && !dashboardCharts.donutSubcategory.canvas.isConnected) destroyChartInstance('donutSubcategory');
   if(dashboardCharts.line && !dashboardCharts.line.canvas.isConnected) destroyChartInstance('line');
 }
 
@@ -4408,6 +4429,7 @@ function ensureDashboardResizeListener(){
   window.addEventListener('resize', ()=>{
     dashboardCharts.bar?.resize();
     dashboardCharts.donut?.resize();
+    dashboardCharts.donutSubcategory?.resize();
     dashboardCharts.line?.resize();
   });
   dashboardResizeListenerBound = true;
@@ -4455,19 +4477,46 @@ function buildBarChart(canvas, colors){
   });
 }
 
-function buildDonutChart(canvas, colors){
+function buildDonutChart(canvas, colors, options = {}){
   return new Chart(canvas.getContext('2d'), {
     type: 'doughnut',
-    data: { labels: [], datasets: [{ data: [], backgroundColor: [colors.primary, colors.secondary, '#667085', '#98a2b3', '#d0d5dd'] }] },
+    data: { labels: [], datasets: [{ data: [], backgroundColor: options.palette || [colors.primary, colors.secondary, '#667085', '#98a2b3', '#d0d5dd', '#eaecf0', '#cfd4dc'] }] },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'bottom', labels: { color: colors.textColor } },
+        legend: {
+          position: 'bottom',
+          labels: { color: colors.textColor, boxWidth: options.compactLegend ? 10 : 14, padding: options.compactLegend ? 8 : 12, font: options.compactLegend ? { size: 11 } : undefined }
+        },
         tooltip: { callbacks: { label: (ctx)=> `${ctx.label}: ${formatCurrencyES(ctx.parsed || 0)}` } }
       }
     }
   });
+}
+
+function normalizeDashboardSubcategory(raw){
+  const value = String(raw ?? '').trim().replace(/\s+/g, ' ');
+  if(!value) return t('breakdown_unclassified');
+  const lowered = value.toLowerCase();
+  if(lowered === 'sin clasificar' || lowered === 'otros_otros') return t('breakdown_unclassified');
+  return value;
+}
+
+function buildSubcategoryDonutRows(expenseInvoices){
+  const grouped = new Map();
+  expenseInvoices.forEach((inv)=>{
+    const amount = parseAmount(inv?.total);
+    if(amount <= 0) return;
+    const label = normalizeDashboardSubcategory(inv?.subcategory);
+    grouped.set(label, (grouped.get(label) || 0) + amount);
+  });
+  const rows = Array.from(grouped.entries()).map(([label, value])=>({ label, value })).sort((a,b)=>b.value-a.value);
+  if(rows.length <= 6) return rows;
+  const top = rows.slice(0,6);
+  const rest = rows.slice(6).reduce((sum,row)=>sum+row.value,0);
+  if(rest > 0.0001) top.push({ label: t('breakdown_other'), value: rest });
+  return top;
 }
 
 function buildLineChart(canvas, colors){
@@ -4494,8 +4543,11 @@ function buildLineChart(canvas, colors){
 }
 
 async function ensureDashboardCanvasReady(){
-  if(getCanvas('chartIncomeVsExpenses') && getCanvas('chartCategoryDonut') && getCanvas('chartTimeline')) return;
-  await new Promise((resolve)=>requestAnimationFrame(resolve));
+  for(let attempt = 0; attempt < 4; attempt += 1){
+    if(getCanvas('chartIncomeVsExpenses') && getCanvas('chartCategoryDonut') && getCanvas('chartTimeline')) return true;
+    await new Promise((resolve)=>requestAnimationFrame(resolve));
+  }
+  return !!(getCanvas('chartIncomeVsExpenses') && getCanvas('chartCategoryDonut') && getCanvas('chartTimeline'));
 }
 
 function buildTimelineBuckets(range, incomeInvoices, expenseInvoices, wagesDaily){
@@ -4623,8 +4675,10 @@ async function updateDashboardCharts(payload){
     console.info('[dashboard] chartjs-unavailable');
     return;
   }
+  accountingDashboardChartPayload = payload;
   ensureDashboardResizeListener();
-  await ensureDashboardCanvasReady();
+  const canvasesReady = await ensureDashboardCanvasReady();
+  if(!canvasesReady) return;
   destroyDisconnectedDashboardCharts();
 
   const { incomeTotal, expenseTotal, expenseByCategory, incomeInvoices, expenseInvoices, wagesDaily, range } = payload;
@@ -4641,26 +4695,33 @@ async function updateDashboardCharts(payload){
     setChartNoDataState('chartIncomeVsExpensesEmpty', false);
   }
 
-  const donutRows = [
+  const categoryRows = [
     { label: t('category_materials'), value: expenseByCategory[1] || 0 },
     { label: t('category_labor'), value: expenseByCategory[2] || 0 },
     { label: t('category_subcontract'), value: expenseByCategory[3] || 0 },
     { label: t('category_rental'), value: expenseByCategory[4] || 0 },
     { label: t('category_other'), value: expenseByCategory[5] || 0 }
   ];
-  const donutHasData = donutRows.some((row)=>row.value > 0.0001);
+  const subcategoryRows = buildSubcategoryDonutRows(expenseInvoices || []);
   const donutCanvas = getCanvas('chartCategoryDonut');
-  if(!donutHasData){
+  if(donutCanvas){
     destroyChartInstance('donut');
-    setChartNoDataState('chartCategoryDonutEmpty', true, 'Sin datos en este periodo');
-  }else if(donutCanvas){
-    destroyChartInstance('donut');
-    dashboardCharts.donut = buildDonutChart(donutCanvas, colors);
-    dashboardCharts.donut.data.labels = donutRows.map((row)=>row.label);
-    dashboardCharts.donut.data.datasets[0].data = donutRows.map((row)=>row.value);
-    dashboardCharts.donut.update();
-    scheduleChartResize(dashboardCharts.donut);
-    setChartNoDataState('chartCategoryDonutEmpty', false);
+    destroyChartInstance('donutSubcategory');
+    const useSubcategories = accountingDashboardBreakdownTab === 'subcategories';
+    const donutRows = useSubcategories ? subcategoryRows : categoryRows;
+    const noDataMessage = useSubcategories ? t('breakdown_subcategory_no_data') : 'Sin datos en este periodo';
+    const hasData = donutRows.some((row)=>row.value > 0.0001);
+    if(!hasData){
+      setChartNoDataState('chartCategoryDonutEmpty', true, noDataMessage);
+    }else{
+      const chartKey = useSubcategories ? 'donutSubcategory' : 'donut';
+      dashboardCharts[chartKey] = buildDonutChart(donutCanvas, colors, { compactLegend: useSubcategories });
+      dashboardCharts[chartKey].data.labels = donutRows.map((row)=>row.label);
+      dashboardCharts[chartKey].data.datasets[0].data = donutRows.map((row)=>row.value);
+      dashboardCharts[chartKey].update();
+      scheduleChartResize(dashboardCharts[chartKey]);
+      setChartNoDataState('chartCategoryDonutEmpty', false);
+    }
   }
 
   const timeline = buildTimelineBuckets(range, incomeInvoices, expenseInvoices, wagesDaily);
@@ -4682,6 +4743,17 @@ async function updateDashboardCharts(payload){
     setChartNoDataState('chartTimelineEmpty', false);
   }
 }
+
+function bindDashboardBreakdownTabs(){
+  document.querySelectorAll('[data-breakdown-tab]').forEach((btn)=>btn.addEventListener('click', async ()=>{
+    const tab = btn.dataset.breakdownTab === 'subcategories' ? 'subcategories' : 'categories';
+    if(tab === accountingDashboardBreakdownTab) return;
+    accountingDashboardBreakdownTab = tab;
+    document.querySelectorAll('[data-breakdown-tab]').forEach((node)=>node.classList.toggle('active', node.dataset.breakdownTab === accountingDashboardBreakdownTab));
+    if(accountingDashboardChartPayload) await updateDashboardCharts(accountingDashboardChartPayload);
+  }));
+}
+
 
 async function loadAccountingInvoices(filters = {}, options = {}){
   const list = await accountingInvoke("list_invoices", { filters });
@@ -4867,13 +4939,14 @@ async function renderAccountingPanel(){
         </div>
 
         <div class="acc-chart-card"><div class="acc-chart-title">📊 Comparativa Ingresos vs Gastos</div><div class="acc-chart-wrap"><canvas id="chartIncomeVsExpenses"></canvas><div id="chartIncomeVsExpensesEmpty" class="acc-chart-empty">Sin datos</div></div></div>
-        <div class="acc-chart-card"><div class="acc-chart-title">🍩 Distribución por categoría</div><div class="acc-chart-wrap"><canvas id="chartCategoryDonut"></canvas><div id="chartCategoryDonutEmpty" class="acc-chart-empty">Sin datos en este periodo</div></div></div>
+        <div class="acc-chart-card"><div class="acc-chart-title">🍩 ${t('category_breakdown_title')}</div><div class="acc-chip-group acc-chip-group--small"><button class="acc-chip ${accountingDashboardBreakdownTab==='categories'?'active':''}" type="button" data-breakdown-tab="categories">${t('breakdown_tab_categories')}</button><button class="acc-chip ${accountingDashboardBreakdownTab==='subcategories'?'active':''}" type="button" data-breakdown-tab="subcategories">${t('breakdown_tab_subcategories')}</button></div><div class="acc-chart-wrap"><canvas id="chartCategoryDonut"></canvas><div id="chartCategoryDonutEmpty" class="acc-chart-empty">Sin datos en este periodo</div></div></div>
         <div class="acc-chart-card"><div class="acc-chart-title">📈 Evolución temporal</div><div class="acc-chart-wrap"><canvas id="chartTimeline"></canvas><div id="chartTimelineEmpty" class="acc-chart-empty">Sin datos</div></div></div>
 
         <div class="notice"><strong>${t("job_control_title")}</strong><div class="acc-grid-2"><div>${t("expense_total")}: <strong>${formatEUR(expenseTotal)}</strong></div><div>${t("expense_invoices_total")}: <strong>${formatEUR(expenseInvoicesTotal)}</strong></div><div>${t("wages_cost")}: <strong>${formatEUR(wagesTotal)}</strong></div><div>${t("net_total")}: <strong>${formatEUR(netTotal)}</strong></div></div></div>
       </div>`);
 
       document.querySelectorAll('[data-period]').forEach((btn)=>btn.addEventListener('click', ()=>refreshDashboard(btn.dataset.period || 'month')));
+      bindDashboardBreakdownTabs();
 
       if(refreshSeq !== accountingDashboardRefreshSeq) return;
 
