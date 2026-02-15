@@ -4045,10 +4045,30 @@ function normalizeCategory(v){
   return { id: 5, issue: true };
 }
 
+const PROJECT_START = new Date('2025-01-01T00:00:00');
+
+function utcTodayStart(){
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
+
+function clampDate(date, minDate, maxDate){
+  if(!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+  if(minDate instanceof Date && !Number.isNaN(minDate.getTime()) && date < minDate) return new Date(minDate.getTime());
+  if(maxDate instanceof Date && !Number.isNaN(maxDate.getTime()) && date > maxDate) return new Date(maxDate.getTime());
+  return date;
+}
+
 // Parsea fechas de facturas/jornales de forma robusta (ISO y DD/MM/YYYY).
-function parseDateSafe(input, recordId){
+function parseDateSafe(input, recordId, options = {}){
   const raw = normalizeText(input);
-  const warnInvalid = ()=>console.warn('[dashboard] invalid date', input, recordId || '');
+  const warnInvalid = ()=>{
+    if(options?.warnContext === 'timeline'){
+      console.warn('[timeline] invalid/out-of-range date', input, recordId || '');
+      return;
+    }
+    console.warn('[dashboard] invalid date', input, recordId || '');
+  };
   if(!raw){
     warnInvalid();
     return null;
@@ -4086,7 +4106,17 @@ function parseDateSafe(input, recordId){
     warnInvalid();
     return null;
   }
+
+  const minDate = options?.minDate;
+  if(minDate instanceof Date && !Number.isNaN(minDate.getTime()) && date < minDate){
+    warnInvalid();
+    return null;
+  }
   return date;
+}
+
+function parseTimelineDate(input, recordId){
+  return parseDateSafe(input, recordId, { minDate: PROJECT_START, warnContext: 'timeline' });
 }
 
 // Clave diaria estable para series temporales y filtros.
@@ -4114,7 +4144,7 @@ function dateIsoToUtcDate(iso){
 
 function dateRangeFor(period){
   if(period === "all") return {from:null, to:null};
-  const now = new Date();
+  const now = utcTodayStart();
   const toIso = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(now.getUTCDate()).padStart(2, "0")}`;
   let fromIso = toIso;
   if(period === "week"){
@@ -4303,85 +4333,106 @@ async function ensureDashboardCanvasReady(){
 function buildTimelineBuckets(range, incomeInvoices, expenseInvoices, wagesDaily){
   const hasBoundedRange = !!(range?.fromIso && range?.toIso);
   const monthly = range?.period === 'month' || range?.period === 'all';
-  const allKeys = new Set();
   const rows = {};
   const validStats = { income: 0, expense: 0, wages: 0 };
   const invalidStats = { income: 0, expense: 0, wages: 0 };
+  const validDates = [];
+  const today = utcTodayStart();
+  const boundedRangeStart = hasBoundedRange ? clampDate(dateIsoToUtcDate(range.fromIso), PROJECT_START, today) : null;
+  const boundedRangeEnd = hasBoundedRange ? clampDate(dateIsoToUtcDate(range.toIso), PROJECT_START, today) : null;
 
   const toBucket = (date)=> {
     if(!date) return null;
     return monthly ? formatMonthKey(date) : formatDayKey(date);
   };
 
-  const addRangeKeys = (fromDate, toDate)=>{
-    if(!fromDate || !toDate) return;
-    if(monthly){
-      const cursor = new Date(Date.UTC(fromDate.getUTCFullYear(), fromDate.getUTCMonth(), 1));
-      const end = new Date(Date.UTC(toDate.getUTCFullYear(), toDate.getUTCMonth(), 1));
-      while(cursor <= end){
-        allKeys.add(formatMonthKey(cursor));
-        cursor.setUTCMonth(cursor.getUTCMonth() + 1);
-      }
-      return;
-    }
-    const cursor = new Date(fromDate.getTime());
-    while(cursor <= toDate){
-      allKeys.add(formatDayKey(cursor));
-      cursor.setUTCDate(cursor.getUTCDate() + 1);
-    }
-  };
-
-  if(hasBoundedRange){
-    addRangeKeys(dateIsoToUtcDate(range.fromIso), dateIsoToUtcDate(range.toIso));
-  }
-
   const addAmount = (key, field, amount)=>{
     if(!key) return;
-    allKeys.add(key);
     if(!rows[key]) rows[key] = { income: 0, expense: 0 };
     rows[key][field] += parseAmount(amount);
   };
 
+  const collectDate = (date)=>{
+    if(!(date instanceof Date) || Number.isNaN(date.getTime())) return false;
+    if(date > today){
+      console.warn('[timeline] invalid/out-of-range date', formatDayKey(date), 'future');
+      return false;
+    }
+    if(hasBoundedRange && boundedRangeStart && boundedRangeEnd && (date < boundedRangeStart || date > boundedRangeEnd)) return false;
+    validDates.push(date);
+    return true;
+  };
+
   incomeInvoices.forEach((inv)=>{
-    const date = parseDateSafe(inv?.invoice_date_iso || inv?.invoice_date || inv?.issue_date || inv?.date, inv?.id || inv?.invoice_number || 'income');
+    const date = parseTimelineDate(inv?.invoice_date_iso || inv?.invoice_date || inv?.issue_date || inv?.date, inv?.id || inv?.invoice_number || 'income');
     if(!date){
       invalidStats.income += 1;
       return;
     }
+    if(!collectDate(date)) return;
     validStats.income += 1;
     addAmount(toBucket(date), 'income', inv?.total);
   });
 
   expenseInvoices.forEach((inv)=>{
-    const date = parseDateSafe(inv?.invoice_date_iso || inv?.invoice_date || inv?.issue_date || inv?.date, inv?.id || inv?.invoice_number || 'expense');
+    const date = parseTimelineDate(inv?.invoice_date_iso || inv?.invoice_date || inv?.issue_date || inv?.date, inv?.id || inv?.invoice_number || 'expense');
     if(!date){
       invalidStats.expense += 1;
       return;
     }
+    if(!collectDate(date)) return;
     validStats.expense += 1;
     addAmount(toBucket(date), 'expense', inv?.total);
   });
 
   Object.entries(wagesDaily || {}).forEach(([inputDate, total])=>{
-    const date = parseDateSafe(inputDate, 'workday');
+    const date = parseTimelineDate(inputDate, 'workday');
     if(!date){
       invalidStats.wages += 1;
       return;
     }
+    if(!collectDate(date)) return;
     validStats.wages += 1;
     addAmount(toBucket(date), 'expense', total);
   });
 
-  if(!hasBoundedRange && allKeys.size > 0){
-    const sortedKeys = [...allKeys].sort();
-    const firstKey = sortedKeys[0];
-    const lastKey = sortedKeys[sortedKeys.length - 1];
-    const startDate = monthly ? dateIsoToUtcDate(`${firstKey}-01`) : dateIsoToUtcDate(firstKey);
-    const endDate = monthly ? dateIsoToUtcDate(`${lastKey}-01`) : dateIsoToUtcDate(lastKey);
-    addRangeKeys(startDate, endDate);
+  const sortedValidDates = validDates.slice().sort((a, b)=>a - b);
+  const minValidDataDate = sortedValidDates[0] || null;
+  const maxValidDataDate = sortedValidDates[sortedValidDates.length - 1] || null;
+
+  const boundedMin = clampDate(minValidDataDate || PROJECT_START, PROJECT_START, today) || new Date(PROJECT_START.getTime());
+  const boundedMax = clampDate(maxValidDataDate || today, PROJECT_START, today) || new Date(today.getTime());
+
+  let startDate = null;
+  let endDate = null;
+  if(hasBoundedRange){
+    startDate = boundedRangeStart;
+    endDate = boundedRangeEnd;
+  }else if(sortedValidDates.length > 0){
+    startDate = boundedMin;
+    endDate = boundedMax;
   }
 
-  const labels = [...allKeys].sort();
+  if(startDate && endDate && startDate <= endDate){
+    if(monthly){
+      const cursor = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), 1));
+      const end = new Date(Date.UTC(endDate.getUTCFullYear(), endDate.getUTCMonth(), 1));
+      while(cursor <= end){
+        const key = formatMonthKey(cursor);
+        if(!rows[key]) rows[key] = { income: 0, expense: 0 };
+        cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+      }
+    }else{
+      const cursor = new Date(startDate.getTime());
+      while(cursor <= endDate){
+        const key = formatDayKey(cursor);
+        if(!rows[key]) rows[key] = { income: 0, expense: 0 };
+        cursor.setUTCDate(cursor.getUTCDate() + 1);
+      }
+    }
+  }
+
+  const labels = Object.keys(rows).sort();
   const incomeData = labels.map((k)=> rows[k]?.income || 0);
   const expenseData = labels.map((k)=> rows[k]?.expense || 0);
   console.info('[dashboard] timeline invoices valid=%d invalid=%d expenseValid=%d expenseInvalid=%d wagesValid=%d wagesInvalid=%d minDate=%s maxDate=%s points=%d mode=%s',
