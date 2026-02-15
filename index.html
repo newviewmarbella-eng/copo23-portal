@@ -188,6 +188,13 @@ textarea{width:100%;min-height:56px;border-radius:14px;border:1px solid var(--li
 .acc-breakdown-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .acc-breakdown-metrics div{font-size:12px;color:var(--muted)}
 .acc-breakdown-metrics strong{display:block;color:#101828;font-size:14px;margin-top:2px}
+.acc-dashboard-kpis{display:grid;gap:10px;grid-template-columns:repeat(5,minmax(0,1fr))}
+.acc-chart-card{position:relative;background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:12px;min-height:280px;display:grid;gap:10px}
+.acc-chart-title{font-weight:900;font-size:15px}
+.acc-chart-wrap{position:relative;height:240px}
+.acc-chart-wrap canvas{width:100% !important;height:240px !important}
+.acc-chart-empty{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--muted);font-size:13px;background:#ffffffc8;border-radius:12px}
+.acc-chart-empty.visible{display:flex}
 .acc-issues-filters{display:grid;gap:8px;grid-template-columns:1fr 1fr}
 .acc-issue-row{border:1px solid var(--line);border-radius:12px;padding:10px;background:#fbfcfd;display:grid;gap:8px}
 .acc-bar{height:9px;border-radius:999px;background:#eaecf0;overflow:hidden}
@@ -197,10 +204,13 @@ textarea{width:100%;min-height:56px;border-radius:14px;border:1px solid var(--li
 .acc-day-line{display:flex;justify-content:space-between;gap:8px;font-size:13px}
 @media(max-width:560px){
   .acc-grid-2,
+  .acc-dashboard-kpis,
   .acc-quick-actions,
   .acc-breakdown-metrics,
   .acc-issues-filters{grid-template-columns:1fr}
 }
+@media(max-width:1200px){.acc-dashboard-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:780px){.acc-dashboard-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .worker-tabs{display:flex;gap:8px;flex-wrap:wrap}
 .worker-tab-btn{padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;cursor:pointer;font-weight:700}
 .worker-tab-btn.active{background:var(--ink);color:#fff;border-color:var(--ink)}
@@ -455,6 +465,7 @@ code{background:#10182810;padding:2px 6px;border-radius:8px}
 <div class="toast" id="toast">Saved</div>
 
 <script src="./accounting_export_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 window.SUPABASE_URL = "https://pbxqfaiwhpjeejrnfqgu.supabase.co";
 window.SUPABASE_ANON_KEY = "sb_publishable_XiTA_HTrPe2Dy8hO09n58w_0o64H3no";
@@ -2492,6 +2503,13 @@ let progressSaveTimers = {};
 let realtimeChannel = null;
 let audioCtx = null;
 
+const accountingDashboardCharts = {
+  incomeVsExpenses: null,
+  categoryDonut: null,
+  timeline: null
+};
+
+
 function t(key){
   const dict = I18N[currentLanguage()] || I18N.en;
   return dict[key] ?? I18N.en[key] ?? key;
@@ -4072,6 +4090,178 @@ function debugAccounting(...args){
   if(isAccountingDebugEnabled()) console.info("[accounting]", ...args);
 }
 
+function formatCurrencyES(value){
+  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseAmount(value));
+}
+
+function getCssColorVar(name, fallback){
+  const root = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return root || fallback;
+}
+
+function ensureDashboardChartInstances(){
+  if(!window.Chart) return;
+  const primary = getCssColorVar('--primary', '#2f80ed');
+  const secondary = '#344054';
+  const line = getCssColorVar('--line', '#d0d5dd');
+  const textColor = getCssColorVar('--ink', '#101828');
+  const tooltipLabel = (ctx)=> `${ctx.dataset.label}: ${formatCurrencyES(ctx.parsed?.y ?? ctx.parsed ?? 0)}`;
+
+  const barCanvas = el('chartIncomeVsExpenses');
+  if(barCanvas && !accountingDashboardCharts.incomeVsExpenses){
+    accountingDashboardCharts.incomeVsExpenses = new Chart(barCanvas.getContext('2d'), {
+      type: 'bar',
+      data: { labels: [], datasets: [{ label: t('income_total'), data: [], backgroundColor: primary }, { label: t('expense_total'), data: [], backgroundColor: secondary }] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'top', labels: { color: textColor } }, tooltip: { callbacks: { label: tooltipLabel } } },
+        scales: { y: { ticks: { callback: (v)=>formatCurrencyES(v), color: textColor }, grid: { color: line } }, x: { ticks: { color: textColor }, grid: { display: false } } }
+      }
+    });
+  }
+
+  const donutCanvas = el('chartCategoryDonut');
+  if(donutCanvas && !accountingDashboardCharts.categoryDonut){
+    accountingDashboardCharts.categoryDonut = new Chart(donutCanvas.getContext('2d'), {
+      type: 'doughnut',
+      data: { labels: [], datasets: [{ data: [], backgroundColor: [primary, secondary, '#667085', '#98a2b3', '#d0d5dd'] }] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { color: textColor } },
+          tooltip: { callbacks: { label: (ctx)=> `${ctx.label}: ${formatCurrencyES(ctx.parsed || 0)}` } }
+        }
+      }
+    });
+  }
+
+  const lineCanvas = el('chartTimeline');
+  if(lineCanvas && !accountingDashboardCharts.timeline){
+    accountingDashboardCharts.timeline = new Chart(lineCanvas.getContext('2d'), {
+      type: 'line',
+      data: { labels: [], datasets: [{ label: t('income_total'), data: [], borderColor: primary, backgroundColor: primary, tension: 0.25 }, { label: t('expense_total'), data: [], borderColor: secondary, backgroundColor: secondary, tension: 0.25 }] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'top', labels: { color: textColor } }, tooltip: { callbacks: { label: tooltipLabel } } },
+        scales: { y: { ticks: { callback: (v)=>formatCurrencyES(v), color: textColor }, grid: { color: line } }, x: { ticks: { color: textColor }, grid: { color: '#f2f4f7' } } }
+      }
+    });
+  }
+}
+
+function setChartNoDataState(id, visible){
+  const node = el(id);
+  if(!node) return;
+  node.classList.toggle('visible', !!visible);
+}
+
+function diffDaysRange(range){
+  if(!range?.fromIso || !range?.toIso) return 0;
+  const from = dateIsoToUtcDate(range.fromIso);
+  const to = dateIsoToUtcDate(range.toIso);
+  if(!from || !to) return 0;
+  return Math.floor((to.getTime() - from.getTime()) / 86400000) + 1;
+}
+
+function buildTimelineBuckets(range, incomeInvoices, expenseInvoices, wagesDaily){
+  const hasBoundedRange = !!(range?.fromIso && range?.toIso);
+  const spanDays = diffDaysRange(range);
+  const monthly = hasBoundedRange ? spanDays > 90 : true;
+  const allKeys = new Set();
+  const rows = {};
+
+  const toBucket = (iso)=> {
+    if(!iso) return null;
+    return monthly ? iso.slice(0, 7) : iso;
+  };
+
+  if(hasBoundedRange){
+    if(monthly){
+      let cur = new Date(Date.UTC(Number(range.fromIso.slice(0,4)), Number(range.fromIso.slice(5,7)) - 1, 1));
+      const end = new Date(Date.UTC(Number(range.toIso.slice(0,4)), Number(range.toIso.slice(5,7)) - 1, 1));
+      while(cur <= end){
+        const key = `${cur.getUTCFullYear()}-${String(cur.getUTCMonth()+1).padStart(2,'0')}`;
+        allKeys.add(key);
+        cur.setUTCMonth(cur.getUTCMonth()+1);
+      }
+    }else{
+      let cur = dateIsoToUtcDate(range.fromIso);
+      const end = dateIsoToUtcDate(range.toIso);
+      while(cur <= end){
+        const key = `${cur.getUTCFullYear()}-${String(cur.getUTCMonth()+1).padStart(2,'0')}-${String(cur.getUTCDate()).padStart(2,'0')}`;
+        allKeys.add(key);
+        cur.setUTCDate(cur.getUTCDate()+1);
+      }
+    }
+  }
+
+  const addAmount = (key, field, amount)=>{
+    if(!key) return;
+    allKeys.add(key);
+    if(!rows[key]) rows[key] = { income: 0, expense: 0 };
+    rows[key][field] += parseAmount(amount);
+  };
+
+  incomeInvoices.forEach((inv)=> addAmount(toBucket(inv?.invoice_date_iso), 'income', inv?.total));
+  expenseInvoices.forEach((inv)=> addAmount(toBucket(inv?.invoice_date_iso), 'expense', inv?.total));
+  Object.entries(wagesDaily || {}).forEach(([iso, total])=> addAmount(toBucket(iso), 'expense', total));
+
+  const labels = [...allKeys].sort();
+  const incomeData = labels.map((k)=> rows[k]?.income || 0);
+  const expenseData = labels.map((k)=> rows[k]?.expense || 0);
+  return { labels, incomeData, expenseData, mode: monthly ? 'month' : 'day' };
+}
+
+function updateDashboardCharts(payload){
+  if(!window.Chart){
+    console.info('[dashboard] chartjs-unavailable');
+    return;
+  }
+  ensureDashboardChartInstances();
+  const { incomeTotal, expenseTotal, expenseByCategory, incomeInvoices, expenseInvoices, wagesDaily, range } = payload;
+
+  const bar = accountingDashboardCharts.incomeVsExpenses;
+  if(bar){
+    bar.data.labels = [t('income_total'), t('expense_total')];
+    bar.data.datasets[0].label = t('income_total');
+    bar.data.datasets[1].label = t('expense_total');
+    bar.data.datasets[0].data = [incomeTotal];
+    bar.data.datasets[1].data = [expenseTotal];
+    bar.update();
+    setChartNoDataState('chartIncomeVsExpensesEmpty', (incomeTotal + expenseTotal) <= 0.0001);
+  }
+
+  const donut = accountingDashboardCharts.categoryDonut;
+  if(donut){
+    const rows = [
+      { label: t('category_materials'), value: expenseByCategory[1] || 0 },
+      { label: t('category_labor'), value: expenseByCategory[2] || 0 },
+      { label: t('category_subcontract'), value: expenseByCategory[3] || 0 },
+      { label: t('category_rental'), value: expenseByCategory[4] || 0 },
+      { label: t('category_other'), value: expenseByCategory[5] || 0 }
+    ].filter((row)=> row.value > 0.0001);
+    donut.data.labels = rows.map((row)=>row.label);
+    donut.data.datasets[0].data = rows.map((row)=>row.value);
+    donut.update();
+    setChartNoDataState('chartCategoryDonutEmpty', rows.length === 0);
+  }
+
+  const timeline = accountingDashboardCharts.timeline;
+  if(timeline){
+    const series = buildTimelineBuckets(range, incomeInvoices, expenseInvoices, wagesDaily);
+    timeline.data.labels = series.labels;
+    timeline.data.datasets[0].label = `${t('income_total')} (${series.mode === 'month' ? 'mensual' : 'diario'})`;
+    timeline.data.datasets[1].label = `${t('expense_total')} (${series.mode === 'month' ? 'mensual' : 'diario'})`;
+    timeline.data.datasets[0].data = series.incomeData;
+    timeline.data.datasets[1].data = series.expenseData;
+    timeline.update();
+    setChartNoDataState('chartTimelineEmpty', series.labels.length === 0 || (series.incomeData.every((v)=>v===0) && series.expenseData.every((v)=>v===0)));
+  }
+}
+
 async function loadAccountingInvoices(filters = {}, options = {}){
   const list = await accountingInvoke("list_invoices", { filters });
   const items = (list.items || []).map(normalizeInvoiceForAccounting);
@@ -4129,18 +4319,22 @@ async function getWorkdaysSummary(range){
     : await accountingInvoke("list_timesheets", {});
   const presentRows = (tsRes.items || []).filter((r)=>r.present !== false);
   const summary = new Map();
+  const daily = {};
   presentRows.forEach((row)=>{
     const id = String(row.worker_id || "");
     const worker = byWorker.get(id);
     if(!worker) return;
+    const dailyCost = workerDailyCost(worker);
     if(!summary.has(id)) summary.set(id, {workerId:id, name:worker.name || "—", days:0, total:0});
     const entry = summary.get(id);
     entry.days += 1;
-    entry.total += workerDailyCost(worker);
+    entry.total += dailyCost;
+    const iso = parseDateISO(row?.work_date || row?.date);
+    if(iso) daily[iso] = (daily[iso] || 0) + dailyCost;
   });
   const perWorker = [...summary.values()].sort((a,b)=>b.total-a.total);
   const total = perWorker.reduce((acc,row)=>acc + row.total, 0);
-  return { total, perWorker, workdays: presentRows };
+  return { total, perWorker, workdays: presentRows, daily };
 }
 
 async function renderAccounting(){
@@ -4196,7 +4390,7 @@ async function renderAccountingPanel(){
         getWorkdaysSummary(range)
       ]);
       const invoices = invRes.status === "fulfilled" ? (invRes.value || []) : [];
-      const workdaysSummary = wdRes.status === "fulfilled" ? wdRes.value : { total: 0, perWorker: [] };
+      const workdaysSummary = wdRes.status === "fulfilled" ? wdRes.value : { total: 0, perWorker: [], workdays: [], daily: {} };
       const wagesTotal = workdaysSummary.total || 0;
       const dashboardWarnings = [];
 
@@ -4225,6 +4419,7 @@ async function renderAccountingPanel(){
       const incomeInvoices = filterInvoicesByType(periodInvoices, "income");
       const expenseInvoices = filterInvoicesByType(periodInvoices, "expenses");
       debugAccounting("dashboard", { period: accountingDashboardPeriod, totalInvoices: loadedInvoices.length, periodInvoices: periodInvoices.length, incomeInvoices: incomeInvoices.length, expenseInvoices: expenseInvoices.length, workdays: (workdaysSummary.workdays || []).length });
+      console.info('[dashboard] period=%s range=%s..%s invoices=%d income=%d expense=%d workdays=%d', accountingDashboardPeriod, range?.fromIso || 'min', range?.toIso || 'max', periodInvoices.length, incomeInvoices.length, expenseInvoices.length, (workdaysSummary.workdays || []).length);
       const incomeTotal = incomeInvoices.reduce((a,i)=>a + parseAmount(i.total),0);
       const expenseInvoicesTotal = expenseInvoices.reduce((a,i)=>a + parseAmount(i.total),0);
       const expenseTotal = expenseInvoicesTotal + wagesTotal;
@@ -4241,18 +4436,30 @@ async function renderAccountingPanel(){
         <div class="acc-chip-group">${periodButtons.map((p)=>`<button class="acc-chip ${accountingDashboardPeriod===p.id?'active':''}" type="button" data-period="${p.id}">${p.label}</button>`).join("")}</div>
         ${dashboardWarnings.length ? `<div class="notice" style="border-color:#fed7aa;background:#fffbeb;color:#b54708"><strong>Advertencias</strong><div>${dashboardWarnings.map((msg)=>`<div>${esc(msg)}</div>`).join("")}</div></div>` : ""}
 
-        <div class="acc-grid-2">
+        <div class="acc-dashboard-kpis">
           <div class="kpi"><div class="muted">${t("income_total")}</div><div class="acc-big-number">${formatEUR(incomeTotal)}</div></div>
           <div class="kpi"><div class="muted">${t("expense_total")}</div><div class="acc-big-number">${formatEUR(expenseTotal)}</div></div>
           <div class="kpi"><div class="muted">${t("expense_invoices_total")}</div><div class="acc-big-number">${formatEUR(expenseInvoicesTotal)}</div></div>
           <div class="kpi"><div class="muted">${t("wages_cost")}</div><div class="acc-big-number">${formatEUR(wagesTotal)}</div></div>
-          <div class="kpi" style="grid-column:1/-1;border-color:#101828"><div class="muted">${t("net_total")}</div><div class="acc-big-number">${formatEUR(netTotal)}</div></div>
+          <div class="kpi"><div class="muted">${t("net_total")}</div><div class="acc-big-number">${formatEUR(netTotal)}</div></div>
         </div>
 
-        <div class="notice"><strong>${t("category_breakdown_title")}</strong><div class="acc-breakdown-list">${categoryRows.map((row)=>{ const totalExpense = expenseByCategory[row.id] || 0; return `<div class="acc-breakdown-row"><strong>${t(row.key)}</strong><div class="acc-breakdown-metrics"><div>${t("mode_expenses")}<strong>${formatEUR(totalExpense)}</strong></div><div>${t("mode_net")}<strong>${formatEUR(-totalExpense)}</strong></div></div></div>`; }).join("")}</div></div>
+        <div class="acc-chart-card"><div class="acc-chart-title">📊 Comparativa Ingresos vs Gastos</div><div class="acc-chart-wrap"><canvas id="chartIncomeVsExpenses"></canvas><div id="chartIncomeVsExpensesEmpty" class="acc-chart-empty">Sin datos</div></div></div>
+        <div class="acc-chart-card"><div class="acc-chart-title">🍩 Distribución por categoría</div><div class="acc-chart-wrap"><canvas id="chartCategoryDonut"></canvas><div id="chartCategoryDonutEmpty" class="acc-chart-empty">Sin datos</div></div></div>
+        <div class="acc-chart-card"><div class="acc-chart-title">📈 Evolución temporal</div><div class="acc-chart-wrap"><canvas id="chartTimeline"></canvas><div id="chartTimelineEmpty" class="acc-chart-empty">Sin datos</div></div></div>
 
-        <div class="notice"><strong>${t("job_control_title")}</strong><div class="acc-grid-2"><div>${t("expense_total")}: <strong>${formatEUR(expenseTotal)}</strong></div><div>${t("wages_cost")}: <strong>${formatEUR(wagesTotal)}</strong></div><div>${t("total_job_cost")}: <strong>${formatEUR(expenseTotal)}</strong></div><div>${t("net_total")}: <strong>${formatEUR(netTotal)}</strong></div></div></div>
+        <div class="notice"><strong>${t("job_control_title")}</strong><div class="acc-grid-2"><div>${t("expense_total")}: <strong>${formatEUR(expenseTotal)}</strong></div><div>${t("expense_invoices_total")}: <strong>${formatEUR(expenseInvoicesTotal)}</strong></div><div>${t("wages_cost")}: <strong>${formatEUR(wagesTotal)}</strong></div><div>${t("net_total")}: <strong>${formatEUR(netTotal)}</strong></div></div></div>
       </div>`);
+
+      updateDashboardCharts({
+        incomeTotal,
+        expenseTotal,
+        expenseByCategory,
+        incomeInvoices,
+        expenseInvoices,
+        wagesDaily: workdaysSummary.daily || {},
+        range
+      });
 
       document.querySelectorAll('[data-period]').forEach((btn)=>btn.addEventListener('click', ()=>{ accountingDashboardPeriod = btn.dataset.period || 'month'; renderDash(); }));
     };
