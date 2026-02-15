@@ -191,7 +191,7 @@ textarea{width:100%;min-height:56px;border-radius:14px;border:1px solid var(--li
 .acc-dashboard-kpis{display:grid;gap:10px;grid-template-columns:repeat(5,minmax(0,1fr))}
 .acc-chart-card{position:relative;background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:12px;min-height:280px;display:grid;gap:10px}
 .acc-chart-title{font-weight:900;font-size:15px}
-.acc-chart-wrap{position:relative;height:240px}
+.acc-chart-wrap{position:relative;height:240px;min-height:240px}
 .acc-chart-wrap canvas{width:100% !important;height:240px !important}
 .acc-chart-empty{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--muted);font-size:13px;background:#ffffffc8;border-radius:12px}
 .acc-chart-empty.visible{display:flex}
@@ -2503,11 +2503,12 @@ let progressSaveTimers = {};
 let realtimeChannel = null;
 let audioCtx = null;
 
-const accountingDashboardCharts = {
-  incomeVsExpenses: null,
-  categoryDonut: null,
-  timeline: null
+const dashboardCharts = {
+  bar: null,
+  donut: null,
+  line: null
 };
+let dashboardResizeListenerBound = false;
 
 
 function t(key){
@@ -4099,63 +4100,122 @@ function getCssColorVar(name, fallback){
   return root || fallback;
 }
 
-function ensureDashboardChartInstances(){
-  if(!window.Chart) return;
-  const primary = getCssColorVar('--primary', '#2f80ed');
-  const secondary = '#344054';
-  const line = getCssColorVar('--line', '#d0d5dd');
-  const textColor = getCssColorVar('--ink', '#101828');
-  const tooltipLabel = (ctx)=> `${ctx.dataset.label}: ${formatCurrencyES(ctx.parsed?.y ?? ctx.parsed ?? 0)}`;
+function getCanvas(id){
+  return document.getElementById(id);
+}
 
-  const barCanvas = el('chartIncomeVsExpenses');
-  if(barCanvas && !accountingDashboardCharts.incomeVsExpenses){
-    accountingDashboardCharts.incomeVsExpenses = new Chart(barCanvas.getContext('2d'), {
-      type: 'bar',
-      data: { labels: [], datasets: [{ label: t('income_total'), data: [], backgroundColor: primary }, { label: t('expense_total'), data: [], backgroundColor: secondary }] },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { position: 'top', labels: { color: textColor } }, tooltip: { callbacks: { label: tooltipLabel } } },
-        scales: { y: { ticks: { callback: (v)=>formatCurrencyES(v), color: textColor }, grid: { color: line } }, x: { ticks: { color: textColor }, grid: { display: false } } }
-      }
-    });
-  }
-
-  const donutCanvas = el('chartCategoryDonut');
-  if(donutCanvas && !accountingDashboardCharts.categoryDonut){
-    accountingDashboardCharts.categoryDonut = new Chart(donutCanvas.getContext('2d'), {
-      type: 'doughnut',
-      data: { labels: [], datasets: [{ data: [], backgroundColor: [primary, secondary, '#667085', '#98a2b3', '#d0d5dd'] }] },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { position: 'bottom', labels: { color: textColor } },
-          tooltip: { callbacks: { label: (ctx)=> `${ctx.label}: ${formatCurrencyES(ctx.parsed || 0)}` } }
-        }
-      }
-    });
-  }
-
-  const lineCanvas = el('chartTimeline');
-  if(lineCanvas && !accountingDashboardCharts.timeline){
-    accountingDashboardCharts.timeline = new Chart(lineCanvas.getContext('2d'), {
-      type: 'line',
-      data: { labels: [], datasets: [{ label: t('income_total'), data: [], borderColor: primary, backgroundColor: primary, tension: 0.25 }, { label: t('expense_total'), data: [], borderColor: secondary, backgroundColor: secondary, tension: 0.25 }] },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { position: 'top', labels: { color: textColor } }, tooltip: { callbacks: { label: tooltipLabel } } },
-        scales: { y: { ticks: { callback: (v)=>formatCurrencyES(v), color: textColor }, grid: { color: line } }, x: { ticks: { color: textColor }, grid: { color: '#f2f4f7' } } }
-      }
-    });
+function destroyChartInstance(key){
+  const chart = dashboardCharts[key];
+  if(chart){
+    chart.destroy();
+    dashboardCharts[key] = null;
   }
 }
 
-function setChartNoDataState(id, visible){
+function destroyDisconnectedDashboardCharts(){
+  if(dashboardCharts.bar && !dashboardCharts.bar.canvas.isConnected) destroyChartInstance('bar');
+  if(dashboardCharts.donut && !dashboardCharts.donut.canvas.isConnected) destroyChartInstance('donut');
+  if(dashboardCharts.line && !dashboardCharts.line.canvas.isConnected) destroyChartInstance('line');
+}
+
+function scheduleChartResize(chart){
+  if(!chart) return;
+  requestAnimationFrame(()=>chart.resize());
+}
+
+function ensureDashboardResizeListener(){
+  if(dashboardResizeListenerBound) return;
+  window.addEventListener('resize', ()=>{
+    dashboardCharts.bar?.resize();
+    dashboardCharts.donut?.resize();
+    dashboardCharts.line?.resize();
+  });
+  dashboardResizeListenerBound = true;
+}
+
+function setChartNoDataState(id, visible, message){
   const node = el(id);
   if(!node) return;
+  node.textContent = message || 'Sin datos';
   node.classList.toggle('visible', !!visible);
+}
+
+function chartBaseColors(){
+  return {
+    primary: getCssColorVar('--primary', '#2f80ed'),
+    secondary: '#344054',
+    lineColor: getCssColorVar('--line', '#d0d5dd'),
+    textColor: getCssColorVar('--ink', '#101828')
+  };
+}
+
+function buildBarChart(canvas, colors){
+  return new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: [t('income_total'), t('expense_total')],
+      datasets: [{
+        label: t('expense_total'),
+        data: [0, 0],
+        backgroundColor: [colors.primary, colors.secondary]
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (ctx)=> `${ctx.label}: ${formatCurrencyES(ctx.parsed?.y ?? 0)}` } }
+      },
+      scales: {
+        y: { ticks: { callback: (v)=>formatCurrencyES(v), color: colors.textColor }, grid: { color: colors.lineColor } },
+        x: { ticks: { color: colors.textColor }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+function buildDonutChart(canvas, colors){
+  return new Chart(canvas.getContext('2d'), {
+    type: 'doughnut',
+    data: { labels: [], datasets: [{ data: [], backgroundColor: [colors.primary, colors.secondary, '#667085', '#98a2b3', '#d0d5dd'] }] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: colors.textColor } },
+        tooltip: { callbacks: { label: (ctx)=> `${ctx.label}: ${formatCurrencyES(ctx.parsed || 0)}` } }
+      }
+    }
+  });
+}
+
+function buildLineChart(canvas, colors){
+  const tooltipLabel = (ctx)=> `${ctx.dataset.label}: ${formatCurrencyES(ctx.parsed?.y ?? ctx.parsed ?? 0)}`;
+  return new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        { label: t('income_total'), data: [], borderColor: colors.primary, backgroundColor: colors.primary, tension: 0.25 },
+        { label: t('expense_total'), data: [], borderColor: colors.secondary, backgroundColor: colors.secondary, tension: 0.25 }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'top', labels: { color: colors.textColor } }, tooltip: { callbacks: { label: tooltipLabel } } },
+      scales: {
+        y: { ticks: { callback: (v)=>formatCurrencyES(v), color: colors.textColor }, grid: { color: colors.lineColor } },
+        x: { ticks: { color: colors.textColor }, grid: { color: '#f2f4f7' } }
+      }
+    }
+  });
+}
+
+async function ensureDashboardCanvasReady(){
+  if(getCanvas('chartIncomeVsExpenses') && getCanvas('chartCategoryDonut') && getCanvas('chartTimeline')) return;
+  await new Promise((resolve)=>requestAnimationFrame(resolve));
 }
 
 function diffDaysRange(range){
@@ -4215,50 +4275,65 @@ function buildTimelineBuckets(range, incomeInvoices, expenseInvoices, wagesDaily
   return { labels, incomeData, expenseData, mode: monthly ? 'month' : 'day' };
 }
 
-function updateDashboardCharts(payload){
+async function updateDashboardCharts(payload){
   if(!window.Chart){
     console.info('[dashboard] chartjs-unavailable');
     return;
   }
-  ensureDashboardChartInstances();
+  ensureDashboardResizeListener();
+  await ensureDashboardCanvasReady();
+  destroyDisconnectedDashboardCharts();
+
   const { incomeTotal, expenseTotal, expenseByCategory, incomeInvoices, expenseInvoices, wagesDaily, range } = payload;
+  const colors = chartBaseColors();
 
-  const bar = accountingDashboardCharts.incomeVsExpenses;
-  if(bar){
-    bar.data.labels = [t('income_total'), t('expense_total')];
-    bar.data.datasets[0].label = t('income_total');
-    bar.data.datasets[1].label = t('expense_total');
-    bar.data.datasets[0].data = [incomeTotal];
-    bar.data.datasets[1].data = [expenseTotal];
-    bar.update();
-    setChartNoDataState('chartIncomeVsExpensesEmpty', (incomeTotal + expenseTotal) <= 0.0001);
+  const barCanvas = getCanvas('chartIncomeVsExpenses');
+  if(barCanvas){
+    if(!dashboardCharts.bar) dashboardCharts.bar = buildBarChart(barCanvas, colors);
+    dashboardCharts.bar.data.labels = [t('income_total'), t('expense_total')];
+    dashboardCharts.bar.data.datasets[0].data = [incomeTotal, expenseTotal];
+    dashboardCharts.bar.update();
+    scheduleChartResize(dashboardCharts.bar);
+    setChartNoDataState('chartIncomeVsExpensesEmpty', false);
   }
 
-  const donut = accountingDashboardCharts.categoryDonut;
-  if(donut){
-    const rows = [
-      { label: t('category_materials'), value: expenseByCategory[1] || 0 },
-      { label: t('category_labor'), value: expenseByCategory[2] || 0 },
-      { label: t('category_subcontract'), value: expenseByCategory[3] || 0 },
-      { label: t('category_rental'), value: expenseByCategory[4] || 0 },
-      { label: t('category_other'), value: expenseByCategory[5] || 0 }
-    ].filter((row)=> row.value > 0.0001);
-    donut.data.labels = rows.map((row)=>row.label);
-    donut.data.datasets[0].data = rows.map((row)=>row.value);
-    donut.update();
-    setChartNoDataState('chartCategoryDonutEmpty', rows.length === 0);
+  const donutRows = [
+    { label: t('category_materials'), value: expenseByCategory[1] || 0 },
+    { label: t('category_labor'), value: expenseByCategory[2] || 0 },
+    { label: t('category_subcontract'), value: expenseByCategory[3] || 0 },
+    { label: t('category_rental'), value: expenseByCategory[4] || 0 },
+    { label: t('category_other'), value: expenseByCategory[5] || 0 }
+  ];
+  const donutHasData = donutRows.some((row)=>row.value > 0.0001);
+  const donutCanvas = getCanvas('chartCategoryDonut');
+  if(!donutHasData){
+    destroyChartInstance('donut');
+    setChartNoDataState('chartCategoryDonutEmpty', true, 'Sin datos en este periodo');
+  }else if(donutCanvas){
+    if(!dashboardCharts.donut) dashboardCharts.donut = buildDonutChart(donutCanvas, colors);
+    dashboardCharts.donut.data.labels = donutRows.map((row)=>row.label);
+    dashboardCharts.donut.data.datasets[0].data = donutRows.map((row)=>row.value);
+    dashboardCharts.donut.update();
+    scheduleChartResize(dashboardCharts.donut);
+    setChartNoDataState('chartCategoryDonutEmpty', false);
   }
 
-  const timeline = accountingDashboardCharts.timeline;
-  if(timeline){
-    const series = buildTimelineBuckets(range, incomeInvoices, expenseInvoices, wagesDaily);
-    timeline.data.labels = series.labels;
-    timeline.data.datasets[0].label = `${t('income_total')} (${series.mode === 'month' ? 'mensual' : 'diario'})`;
-    timeline.data.datasets[1].label = `${t('expense_total')} (${series.mode === 'month' ? 'mensual' : 'diario'})`;
-    timeline.data.datasets[0].data = series.incomeData;
-    timeline.data.datasets[1].data = series.expenseData;
-    timeline.update();
-    setChartNoDataState('chartTimelineEmpty', series.labels.length === 0 || (series.incomeData.every((v)=>v===0) && series.expenseData.every((v)=>v===0)));
+  const timeline = buildTimelineBuckets(range, incomeInvoices, expenseInvoices, wagesDaily);
+  const timelineHasData = timeline.labels.length > 0;
+  const lineCanvas = getCanvas('chartTimeline');
+  if(!timelineHasData){
+    destroyChartInstance('line');
+    setChartNoDataState('chartTimelineEmpty', true, 'Sin datos en este periodo');
+  }else if(lineCanvas){
+    if(!dashboardCharts.line) dashboardCharts.line = buildLineChart(lineCanvas, colors);
+    dashboardCharts.line.data.labels = timeline.labels;
+    dashboardCharts.line.data.datasets[0].label = `${t('income_total')} (${timeline.mode === 'month' ? 'mensual' : 'diario'})`;
+    dashboardCharts.line.data.datasets[1].label = `${t('expense_total')} (${timeline.mode === 'month' ? 'mensual' : 'diario'})`;
+    dashboardCharts.line.data.datasets[0].data = timeline.incomeData;
+    dashboardCharts.line.data.datasets[1].data = timeline.expenseData;
+    dashboardCharts.line.update();
+    scheduleChartResize(dashboardCharts.line);
+    setChartNoDataState('chartTimelineEmpty', false);
   }
 }
 
@@ -4383,7 +4458,8 @@ async function renderAccountingPanel(){
       {id:5, key:"category_other"}
     ];
 
-    const renderDash = async()=>{
+    async function refreshDashboard(filterKey){
+      accountingDashboardPeriod = filterKey || accountingDashboardPeriod || 'month';
       const range = dateRangeFor(accountingDashboardPeriod);
       const [invRes, wdRes] = await Promise.allSettled([
         loadAccountingInvoices(accountingInvoiceFilters || {}),
@@ -4407,7 +4483,6 @@ async function renderAccountingPanel(){
         const detail = normalizeText(wdRes.reason?.message || wdRes.reason || "unknown error");
         dashboardWarnings.push(fmt(t("dashboard_timesheets_error"), { error: detail }));
       }
-
       if(dashboardWarnings.length) toast(dashboardWarnings[0]);
 
       const loadedInvoices = invRes.status === "fulfilled" ? invoices : accountingInvoicesCache.slice();
@@ -4416,10 +4491,9 @@ async function renderAccountingPanel(){
       if(periodInvoices.length === 0 && invoiceListCount > 0){
         dashboardWarnings.push(fmt(t("dashboard_invoice_loader_mismatch"), { dashboardCount: periodInvoices.length, invoiceCount: invoiceListCount }));
       }
+
       const incomeInvoices = filterInvoicesByType(periodInvoices, "income");
       const expenseInvoices = filterInvoicesByType(periodInvoices, "expenses");
-      debugAccounting("dashboard", { period: accountingDashboardPeriod, totalInvoices: loadedInvoices.length, periodInvoices: periodInvoices.length, incomeInvoices: incomeInvoices.length, expenseInvoices: expenseInvoices.length, workdays: (workdaysSummary.workdays || []).length });
-      console.info('[dashboard] period=%s range=%s..%s invoices=%d income=%d expense=%d workdays=%d', accountingDashboardPeriod, range?.fromIso || 'min', range?.toIso || 'max', periodInvoices.length, incomeInvoices.length, expenseInvoices.length, (workdaysSummary.workdays || []).length);
       const incomeTotal = incomeInvoices.reduce((a,i)=>a + parseAmount(i.total),0);
       const expenseInvoicesTotal = expenseInvoices.reduce((a,i)=>a + parseAmount(i.total),0);
       const expenseTotal = expenseInvoicesTotal + wagesTotal;
@@ -4431,6 +4505,9 @@ async function renderAccountingPanel(){
         expenseByCategory[categoryId] += parseAmount(inv.total);
       });
       expenseByCategory[2] += wagesTotal;
+
+      debugAccounting("dashboard", { period: accountingDashboardPeriod, totalInvoices: loadedInvoices.length, periodInvoices: periodInvoices.length, incomeInvoices: incomeInvoices.length, expenseInvoices: expenseInvoices.length, workdays: (workdaysSummary.workdays || []).length });
+      console.info('[dashboard] period=%s range=%s..%s invoices=%d income=%d expense=%d workdays=%d', accountingDashboardPeriod, range?.fromIso || 'min', range?.toIso || 'max', periodInvoices.length, incomeInvoices.length, expenseInvoices.length, (workdaysSummary.workdays || []).length);
 
       renderAccountingScreen(t("dashboard_title"), `<div class="acc-view">
         <div class="acc-chip-group">${periodButtons.map((p)=>`<button class="acc-chip ${accountingDashboardPeriod===p.id?'active':''}" type="button" data-period="${p.id}">${p.label}</button>`).join("")}</div>
@@ -4445,13 +4522,15 @@ async function renderAccountingPanel(){
         </div>
 
         <div class="acc-chart-card"><div class="acc-chart-title">📊 Comparativa Ingresos vs Gastos</div><div class="acc-chart-wrap"><canvas id="chartIncomeVsExpenses"></canvas><div id="chartIncomeVsExpensesEmpty" class="acc-chart-empty">Sin datos</div></div></div>
-        <div class="acc-chart-card"><div class="acc-chart-title">🍩 Distribución por categoría</div><div class="acc-chart-wrap"><canvas id="chartCategoryDonut"></canvas><div id="chartCategoryDonutEmpty" class="acc-chart-empty">Sin datos</div></div></div>
+        <div class="acc-chart-card"><div class="acc-chart-title">🍩 Distribución por categoría</div><div class="acc-chart-wrap"><canvas id="chartCategoryDonut"></canvas><div id="chartCategoryDonutEmpty" class="acc-chart-empty">Sin datos en este periodo</div></div></div>
         <div class="acc-chart-card"><div class="acc-chart-title">📈 Evolución temporal</div><div class="acc-chart-wrap"><canvas id="chartTimeline"></canvas><div id="chartTimelineEmpty" class="acc-chart-empty">Sin datos</div></div></div>
 
         <div class="notice"><strong>${t("job_control_title")}</strong><div class="acc-grid-2"><div>${t("expense_total")}: <strong>${formatEUR(expenseTotal)}</strong></div><div>${t("expense_invoices_total")}: <strong>${formatEUR(expenseInvoicesTotal)}</strong></div><div>${t("wages_cost")}: <strong>${formatEUR(wagesTotal)}</strong></div><div>${t("net_total")}: <strong>${formatEUR(netTotal)}</strong></div></div></div>
       </div>`);
 
-      updateDashboardCharts({
+      document.querySelectorAll('[data-period]').forEach((btn)=>btn.addEventListener('click', ()=>refreshDashboard(btn.dataset.period || 'month')));
+
+      await updateDashboardCharts({
         incomeTotal,
         expenseTotal,
         expenseByCategory,
@@ -4460,11 +4539,9 @@ async function renderAccountingPanel(){
         wagesDaily: workdaysSummary.daily || {},
         range
       });
+    }
 
-      document.querySelectorAll('[data-period]').forEach((btn)=>btn.addEventListener('click', ()=>{ accountingDashboardPeriod = btn.dataset.period || 'month'; renderDash(); }));
-    };
-
-    await renderDash();
+    await refreshDashboard(accountingDashboardPeriod);
     return;
   }
 
