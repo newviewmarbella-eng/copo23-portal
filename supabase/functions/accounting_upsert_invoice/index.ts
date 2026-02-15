@@ -19,11 +19,12 @@ serve(async (req) => {
       subtotal: Number(body?.subtotal || 0),
       vat: Number(body?.vat || 0),
       total: Number(body?.total || 0),
-      category: body?.category ? Number(body.category) : null,
+      category: body?.category ? String(body.category) : null,
       subcategory: body?.subcategory ?? null,
       payment_method: body?.payment_method ?? null,
       status: body?.status || "pending",
       file_path: body?.file_path ?? null,
+      concept_accounting: body?.concept_accounting ?? null,
       notes: body?.notes ?? null,
     };
 
