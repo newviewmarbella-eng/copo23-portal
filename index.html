@@ -2482,6 +2482,7 @@ let accountingSelectedInvoiceIds = new Set();
 let accountingInvoiceFilters = {};
 let accountingInvoiceHighlightedId = null;
 let accountingDashboardPeriod = "month";
+let accountingDashboardRefreshSeq = 0;
 let accountingInvoicesCache = [];
 let accountingInvoicesCacheAt = 0;
 let currentPlan = (DATA.plans || [])[0] || null;
@@ -2509,6 +2510,7 @@ const dashboardCharts = {
   line: null
 };
 let dashboardResizeListenerBound = false;
+let dashboardCurrencyFormatterCache = { locale: "", formatter: null };
 
 
 function t(key){
@@ -3990,8 +3992,36 @@ function parseAmount(value){
   return parseNumberSafe(value);
 }
 
+function dashboardLocale(){
+  const lang = currentLanguage();
+  if(lang === 'nl') return 'nl-NL';
+  if(lang === 'en') return 'en-GB';
+  return 'es-ES';
+}
+
+function getDashboardCurrencyFormatter(){
+  const locale = dashboardLocale() || 'es-ES';
+  if(dashboardCurrencyFormatterCache.formatter && dashboardCurrencyFormatterCache.locale === locale){
+    return dashboardCurrencyFormatterCache.formatter;
+  }
+  dashboardCurrencyFormatterCache = {
+    locale,
+    formatter: new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    })
+  };
+  return dashboardCurrencyFormatterCache.formatter;
+}
+
+function formatCurrencyValue(value){
+  return getDashboardCurrencyFormatter().format(Number(parseAmount(value)));
+}
+
 function formatEUR(n){
-  return `${parseNumberSafe(n).toFixed(2).replace(".", ",")} €`;
+  return formatCurrencyValue(n);
 }
 
 function normalizeText(s){
@@ -4015,13 +4045,65 @@ function normalizeCategory(v){
   return { id: 5, issue: true };
 }
 
-function parseDateISO(value){
-  const iso = normalizeText(value).slice(0, 10);
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
-  const [year, month, day] = iso.split("-").map(Number);
+// Parsea fechas de facturas/jornales de forma robusta (ISO y DD/MM/YYYY).
+function parseDateSafe(input, recordId){
+  const raw = normalizeText(input);
+  const warnInvalid = ()=>console.warn('[dashboard] invalid date', input, recordId || '');
+  if(!raw){
+    warnInvalid();
+    return null;
+  }
+
+  let year = 0;
+  let month = 0;
+  let day = 0;
+  const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:$|T.*$)/);
+  if(isoMatch){
+    year = Number(isoMatch[1]);
+    month = Number(isoMatch[2]);
+    day = Number(isoMatch[3]);
+  }else{
+    const esMatch = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if(esMatch){
+      day = Number(esMatch[1]);
+      month = Number(esMatch[2]);
+      year = Number(esMatch[3]);
+    }else{
+      warnInvalid();
+      return null;
+    }
+  }
+
   const date = new Date(Date.UTC(year, month - 1, day));
-  if(date.getUTCFullYear() !== year || (date.getUTCMonth() + 1) !== month || date.getUTCDate() !== day) return null;
-  return iso;
+  if(
+    !Number.isFinite(date.getTime())
+    || date.getUTCFullYear() !== year
+    || (date.getUTCMonth() + 1) !== month
+    || date.getUTCDate() !== day
+    || year < 2000
+    || year > 2100
+  ){
+    warnInvalid();
+    return null;
+  }
+  return date;
+}
+
+// Clave diaria estable para series temporales y filtros.
+function formatDayKey(date){
+  if(!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+}
+
+// Clave mensual estable para series temporales.
+function formatMonthKey(date){
+  if(!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+function parseDateISO(value, recordId){
+  const date = parseDateSafe(value, recordId);
+  return formatDayKey(date);
 }
 
 function dateIsoToUtcDate(iso){
@@ -4046,14 +4128,14 @@ function dateRangeFor(period){
 }
 
 function invoiceDateValue(inv){
-  const iso = parseDateISO(inv?.invoice_date || inv?.issue_date || inv?.date);
+  const iso = parseDateISO(inv?.invoice_date || inv?.issue_date || inv?.date, inv?.id || inv?.invoice_number);
   return dateIsoToUtcDate(iso);
 }
 
 function filterInvoicesByPeriod(invoices, range){
   if(!range?.from || !range?.to) return invoices.slice();
   return invoices.filter((inv)=>{
-    const iso = inv?.invoice_date_iso || parseDateISO(inv?.invoice_date || inv?.issue_date || inv?.date);
+    const iso = inv?.invoice_date_iso || parseDateISO(inv?.invoice_date || inv?.issue_date || inv?.date, inv?.id || inv?.invoice_number);
     if(!iso) return false;
     return iso >= range.fromIso && iso <= range.toIso;
   });
@@ -4079,7 +4161,7 @@ function normalizeInvoiceForAccounting(inv){
     vat: parseAmount(inv?.vat_total ?? inv?.vat),
     category: category.id,
     categoryIssue: category.issue,
-    invoice_date_iso: parseDateISO(inv?.invoice_date || inv?.issue_date || inv?.date)
+    invoice_date_iso: parseDateISO(inv?.invoice_date || inv?.issue_date || inv?.date, inv?.id || inv?.invoice_number)
   };
 }
 
@@ -4092,7 +4174,7 @@ function debugAccounting(...args){
 }
 
 function formatCurrencyES(value){
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseAmount(value));
+  return formatCurrencyValue(value);
 }
 
 function getCssColorVar(name, fallback){
@@ -4218,44 +4300,39 @@ async function ensureDashboardCanvasReady(){
   await new Promise((resolve)=>requestAnimationFrame(resolve));
 }
 
-function diffDaysRange(range){
-  if(!range?.fromIso || !range?.toIso) return 0;
-  const from = dateIsoToUtcDate(range.fromIso);
-  const to = dateIsoToUtcDate(range.toIso);
-  if(!from || !to) return 0;
-  return Math.floor((to.getTime() - from.getTime()) / 86400000) + 1;
-}
-
 function buildTimelineBuckets(range, incomeInvoices, expenseInvoices, wagesDaily){
   const hasBoundedRange = !!(range?.fromIso && range?.toIso);
-  const spanDays = diffDaysRange(range);
-  const monthly = hasBoundedRange ? spanDays > 90 : true;
+  const monthly = range?.period === 'month' || range?.period === 'all';
   const allKeys = new Set();
   const rows = {};
+  const validStats = { income: 0, expense: 0, wages: 0 };
+  const invalidStats = { income: 0, expense: 0, wages: 0 };
 
-  const toBucket = (iso)=> {
-    if(!iso) return null;
-    return monthly ? iso.slice(0, 7) : iso;
+  const toBucket = (date)=> {
+    if(!date) return null;
+    return monthly ? formatMonthKey(date) : formatDayKey(date);
+  };
+
+  const addRangeKeys = (fromDate, toDate)=>{
+    if(!fromDate || !toDate) return;
+    if(monthly){
+      const cursor = new Date(Date.UTC(fromDate.getUTCFullYear(), fromDate.getUTCMonth(), 1));
+      const end = new Date(Date.UTC(toDate.getUTCFullYear(), toDate.getUTCMonth(), 1));
+      while(cursor <= end){
+        allKeys.add(formatMonthKey(cursor));
+        cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+      }
+      return;
+    }
+    const cursor = new Date(fromDate.getTime());
+    while(cursor <= toDate){
+      allKeys.add(formatDayKey(cursor));
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
   };
 
   if(hasBoundedRange){
-    if(monthly){
-      let cur = new Date(Date.UTC(Number(range.fromIso.slice(0,4)), Number(range.fromIso.slice(5,7)) - 1, 1));
-      const end = new Date(Date.UTC(Number(range.toIso.slice(0,4)), Number(range.toIso.slice(5,7)) - 1, 1));
-      while(cur <= end){
-        const key = `${cur.getUTCFullYear()}-${String(cur.getUTCMonth()+1).padStart(2,'0')}`;
-        allKeys.add(key);
-        cur.setUTCMonth(cur.getUTCMonth()+1);
-      }
-    }else{
-      let cur = dateIsoToUtcDate(range.fromIso);
-      const end = dateIsoToUtcDate(range.toIso);
-      while(cur <= end){
-        const key = `${cur.getUTCFullYear()}-${String(cur.getUTCMonth()+1).padStart(2,'0')}-${String(cur.getUTCDate()).padStart(2,'0')}`;
-        allKeys.add(key);
-        cur.setUTCDate(cur.getUTCDate()+1);
-      }
-    }
+    addRangeKeys(dateIsoToUtcDate(range.fromIso), dateIsoToUtcDate(range.toIso));
   }
 
   const addAmount = (key, field, amount)=>{
@@ -4265,13 +4342,60 @@ function buildTimelineBuckets(range, incomeInvoices, expenseInvoices, wagesDaily
     rows[key][field] += parseAmount(amount);
   };
 
-  incomeInvoices.forEach((inv)=> addAmount(toBucket(inv?.invoice_date_iso), 'income', inv?.total));
-  expenseInvoices.forEach((inv)=> addAmount(toBucket(inv?.invoice_date_iso), 'expense', inv?.total));
-  Object.entries(wagesDaily || {}).forEach(([iso, total])=> addAmount(toBucket(iso), 'expense', total));
+  incomeInvoices.forEach((inv)=>{
+    const date = parseDateSafe(inv?.invoice_date_iso || inv?.invoice_date || inv?.issue_date || inv?.date, inv?.id || inv?.invoice_number || 'income');
+    if(!date){
+      invalidStats.income += 1;
+      return;
+    }
+    validStats.income += 1;
+    addAmount(toBucket(date), 'income', inv?.total);
+  });
+
+  expenseInvoices.forEach((inv)=>{
+    const date = parseDateSafe(inv?.invoice_date_iso || inv?.invoice_date || inv?.issue_date || inv?.date, inv?.id || inv?.invoice_number || 'expense');
+    if(!date){
+      invalidStats.expense += 1;
+      return;
+    }
+    validStats.expense += 1;
+    addAmount(toBucket(date), 'expense', inv?.total);
+  });
+
+  Object.entries(wagesDaily || {}).forEach(([inputDate, total])=>{
+    const date = parseDateSafe(inputDate, 'workday');
+    if(!date){
+      invalidStats.wages += 1;
+      return;
+    }
+    validStats.wages += 1;
+    addAmount(toBucket(date), 'expense', total);
+  });
+
+  if(!hasBoundedRange && allKeys.size > 0){
+    const sortedKeys = [...allKeys].sort();
+    const firstKey = sortedKeys[0];
+    const lastKey = sortedKeys[sortedKeys.length - 1];
+    const startDate = monthly ? dateIsoToUtcDate(`${firstKey}-01`) : dateIsoToUtcDate(firstKey);
+    const endDate = monthly ? dateIsoToUtcDate(`${lastKey}-01`) : dateIsoToUtcDate(lastKey);
+    addRangeKeys(startDate, endDate);
+  }
 
   const labels = [...allKeys].sort();
   const incomeData = labels.map((k)=> rows[k]?.income || 0);
   const expenseData = labels.map((k)=> rows[k]?.expense || 0);
+  console.info('[dashboard] timeline invoices valid=%d invalid=%d expenseValid=%d expenseInvalid=%d wagesValid=%d wagesInvalid=%d minDate=%s maxDate=%s points=%d mode=%s',
+    validStats.income,
+    invalidStats.income,
+    validStats.expense,
+    invalidStats.expense,
+    validStats.wages,
+    invalidStats.wages,
+    labels[0] || '-',
+    labels[labels.length - 1] || '-',
+    labels.length,
+    monthly ? 'month' : 'day'
+  );
   return { labels, incomeData, expenseData, mode: monthly ? 'month' : 'day' };
 }
 
@@ -4289,7 +4413,8 @@ async function updateDashboardCharts(payload){
 
   const barCanvas = getCanvas('chartIncomeVsExpenses');
   if(barCanvas){
-    if(!dashboardCharts.bar) dashboardCharts.bar = buildBarChart(barCanvas, colors);
+    destroyChartInstance('bar');
+    dashboardCharts.bar = buildBarChart(barCanvas, colors);
     dashboardCharts.bar.data.labels = [t('income_total'), t('expense_total')];
     dashboardCharts.bar.data.datasets[0].data = [incomeTotal, expenseTotal];
     dashboardCharts.bar.update();
@@ -4310,7 +4435,8 @@ async function updateDashboardCharts(payload){
     destroyChartInstance('donut');
     setChartNoDataState('chartCategoryDonutEmpty', true, 'Sin datos en este periodo');
   }else if(donutCanvas){
-    if(!dashboardCharts.donut) dashboardCharts.donut = buildDonutChart(donutCanvas, colors);
+    destroyChartInstance('donut');
+    dashboardCharts.donut = buildDonutChart(donutCanvas, colors);
     dashboardCharts.donut.data.labels = donutRows.map((row)=>row.label);
     dashboardCharts.donut.data.datasets[0].data = donutRows.map((row)=>row.value);
     dashboardCharts.donut.update();
@@ -4325,7 +4451,8 @@ async function updateDashboardCharts(payload){
     destroyChartInstance('line');
     setChartNoDataState('chartTimelineEmpty', true, 'Sin datos en este periodo');
   }else if(lineCanvas){
-    if(!dashboardCharts.line) dashboardCharts.line = buildLineChart(lineCanvas, colors);
+    destroyChartInstance('line');
+    dashboardCharts.line = buildLineChart(lineCanvas, colors);
     dashboardCharts.line.data.labels = timeline.labels;
     dashboardCharts.line.data.datasets[0].label = `${t('income_total')} (${timeline.mode === 'month' ? 'mensual' : 'diario'})`;
     dashboardCharts.line.data.datasets[1].label = `${t('expense_total')} (${timeline.mode === 'month' ? 'mensual' : 'diario'})`;
@@ -4404,7 +4531,7 @@ async function getWorkdaysSummary(range){
     const entry = summary.get(id);
     entry.days += 1;
     entry.total += dailyCost;
-    const iso = parseDateISO(row?.work_date || row?.date);
+    const iso = parseDateISO(row?.work_date || row?.date, row?.id || row?.worker_id || 'workday');
     if(iso) daily[iso] = (daily[iso] || 0) + dailyCost;
   });
   const perWorker = [...summary.values()].sort((a,b)=>b.total-a.total);
@@ -4459,12 +4586,14 @@ async function renderAccountingPanel(){
     ];
 
     async function refreshDashboard(filterKey){
+      const refreshSeq = ++accountingDashboardRefreshSeq;
       accountingDashboardPeriod = filterKey || accountingDashboardPeriod || 'month';
-      const range = dateRangeFor(accountingDashboardPeriod);
+      const range = { ...dateRangeFor(accountingDashboardPeriod), period: accountingDashboardPeriod };
       const [invRes, wdRes] = await Promise.allSettled([
         loadAccountingInvoices(accountingInvoiceFilters || {}),
         getWorkdaysSummary(range)
       ]);
+      if(refreshSeq !== accountingDashboardRefreshSeq) return;
       const invoices = invRes.status === "fulfilled" ? (invRes.value || []) : [];
       const workdaysSummary = wdRes.status === "fulfilled" ? wdRes.value : { total: 0, perWorker: [], workdays: [], daily: {} };
       const wagesTotal = workdaysSummary.total || 0;
@@ -4509,6 +4638,8 @@ async function renderAccountingPanel(){
       debugAccounting("dashboard", { period: accountingDashboardPeriod, totalInvoices: loadedInvoices.length, periodInvoices: periodInvoices.length, incomeInvoices: incomeInvoices.length, expenseInvoices: expenseInvoices.length, workdays: (workdaysSummary.workdays || []).length });
       console.info('[dashboard] period=%s range=%s..%s invoices=%d income=%d expense=%d workdays=%d', accountingDashboardPeriod, range?.fromIso || 'min', range?.toIso || 'max', periodInvoices.length, incomeInvoices.length, expenseInvoices.length, (workdaysSummary.workdays || []).length);
 
+      if(refreshSeq !== accountingDashboardRefreshSeq) return;
+
       renderAccountingScreen(t("dashboard_title"), `<div class="acc-view">
         <div class="acc-chip-group">${periodButtons.map((p)=>`<button class="acc-chip ${accountingDashboardPeriod===p.id?'active':''}" type="button" data-period="${p.id}">${p.label}</button>`).join("")}</div>
         ${dashboardWarnings.length ? `<div class="notice" style="border-color:#fed7aa;background:#fffbeb;color:#b54708"><strong>Advertencias</strong><div>${dashboardWarnings.map((msg)=>`<div>${esc(msg)}</div>`).join("")}</div></div>` : ""}
@@ -4529,6 +4660,8 @@ async function renderAccountingPanel(){
       </div>`);
 
       document.querySelectorAll('[data-period]').forEach((btn)=>btn.addEventListener('click', ()=>refreshDashboard(btn.dataset.period || 'month')));
+
+      if(refreshSeq !== accountingDashboardRefreshSeq) return;
 
       await updateDashboardCharts({
         incomeTotal,
