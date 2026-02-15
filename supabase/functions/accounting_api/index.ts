@@ -536,7 +536,7 @@ Devuelve SOLO JSON válido con este schema exacto:
   "category_label": "Materiales",
   "subcategory": "",
   "lines": [
-    {"description": "", "qty": 1, "unit_price": 0, "line_total": 0, "vat_percent": 21, "category": "materiales|mano_obra|subcontrata|alquiler|otros"}
+    {"description": "", "qty": 1, "unit_price": 0, "line_total": 0, "vat_percent": 21, "category": "materiales|mano_de_obra|subcontrata|alquiler|otros"}
   ],
   "confidence": {"supplier": 0, "invoice_number": 0, "totals": 0}
 }
@@ -544,7 +544,7 @@ Reglas:
 - Para expense: supplier = emisor (OBRAMAT, BigMat, Leroy Merlin, etc), customer = receptor (Jesús / NVM si aparece).
 - Si hay duda: proveedor suele ir arriba izquierda con logo/marca; cliente suele ir como “SR ...” o “Cliente”.
 - concept obligatorio, entre 5 y 12 palabras.
-- category y subcategory obligatorias. Si no se sabe: category=5, category_label="Otros", subcategory="Sin clasificar".
+- category y subcategory obligatorias. Si no se sabe: category="otros", category_label="Otros", subcategory="Sin clasificar".
 - Números siempre como number (no strings), con punto decimal.
 - Mantén invoice_number como string literal.
 - Responde ÚNICAMENTE JSON parseable.
@@ -606,7 +606,7 @@ ${ocrText}`,
         });
 
         const inferred = inferInvoiceCategoryHeuristic(supplier.name || "", ocrText || "");
-        const aiCategory = ({1:"materiales",2:"mano_obra",3:"subcontrata",4:"alquiler",5:"otros"})[normalizeCategory(structured?.category)] || "";
+        const aiCategory = ({1:"materiales",2:"mano_de_obra",3:"subcontrata",4:"alquiler",5:"otros"})[normalizeCategory(structured?.category)] || "";
         const category = aiCategory || inferred.category;
         const categoryLabel = normalizeCategoryLabel(normalizeCategory(structured?.category), structured?.category_label);
         const concept = sanitizeShortConcept(structured?.concept) || `${supplier.name || "Proveedor"} - gastos`;

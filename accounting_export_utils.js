@@ -16,7 +16,7 @@
   function normalizeCategoryLegacy(value) {
     const raw = String(value ?? "").trim().toLowerCase();
     if (["1", "materiales", "materials"].includes(raw)) return "materiales";
-    if (["2", "mano de obra", "mano_obra", "labor", "labour"].includes(raw)) return "mano_obra";
+    if (["2", "mano de obra", "mano_obra", "mano_de_obra", "labor", "labour"].includes(raw)) return "mano_de_obra";
     if (["3", "subcontrata", "subcontract"].includes(raw)) return "subcontrata";
     if (["4", "alquiler", "rent", "rental"].includes(raw)) return "alquiler";
     return "otros";
@@ -24,7 +24,7 @@
 
   const CATEGORY_LABEL_ES = {
     materiales: "Materiales",
-    mano_obra: "Mano de obra",
+    mano_de_obra: "Mano de obra",
     subcontrata: "Subcontrata",
     alquiler: "Alquiler",
     otros: "Otros",
