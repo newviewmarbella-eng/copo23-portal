@@ -14,7 +14,7 @@ serve(async (req) => {
 
     let query = client.from("accounting_invoices").select("*").order("date", { ascending: true }).limit(1000);
     if (f.type) query = query.eq("type", f.type);
-    if (f.category) query = query.eq("category", Number(f.category));
+    if (f.category) query = query.eq("category", String(f.category));
     if (f.date_from) query = query.gte("date", f.date_from);
     if (f.date_to) query = query.lte("date", f.date_to);
     const { data: rows, error } = await query;

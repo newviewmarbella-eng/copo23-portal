@@ -638,7 +638,13 @@ const I18N = {
     issues_counts: "Issue counters",
     issues_menu_desc: "Data quality and invoice review",
     open_edit_invoice: "Open/Edit invoice",
-    no_data: "No data"
+    no_data: "No data",
+    accounting_category_label: "Category",
+    accounting_subcategory_label: "Subcategory",
+    accounting_select_category: "Select category",
+    accounting_select_subcategory: "Select subcategory",
+    accounting_category_required: "Category is required for expenses",
+    accounting_subcategory_required: "Subcategory is required"
   },
   es: {
     project_title: "Copo 23 (El Saladillo) – Portal de progreso",
@@ -807,7 +813,13 @@ const I18N = {
     issues_counts: "Contadores de issues",
     issues_menu_desc: "Calidad de datos y revisión de facturas",
     open_edit_invoice: "Abrir/Editar factura",
-    no_data: "Sin datos"
+    no_data: "Sin datos",
+    accounting_category_label: "Categoría",
+    accounting_subcategory_label: "Subcategoría",
+    accounting_select_category: "Selecciona categoría",
+    accounting_select_subcategory: "Selecciona subcategoría",
+    accounting_category_required: "La categoría es obligatoria para gastos",
+    accounting_subcategory_required: "La subcategoría es obligatoria"
   },
   nl: {
     project_title: "Copo 23 (El Saladillo) – Voortgangsportaal",
@@ -976,7 +988,13 @@ const I18N = {
     issues_counts: "Issue tellers",
     issues_menu_desc: "Datakwaliteit en factuurcontrole",
     open_edit_invoice: "Factuur openen/bewerken",
-    no_data: "Geen gegevens"
+    no_data: "Geen gegevens",
+    accounting_category_label: "Categorie",
+    accounting_subcategory_label: "Subcategorie",
+    accounting_select_category: "Selecteer categorie",
+    accounting_select_subcategory: "Selecteer subcategorie",
+    accounting_category_required: "Categorie is verplicht voor kosten",
+    accounting_subcategory_required: "Subcategorie is verplicht"
   }
 };
 
@@ -2458,6 +2476,7 @@ const LS_ACCESS_ROLE = "accessRole";
 const LS_ACCESS_AUTHOR = "accessAuthor";
 const LS_PIN_ROLE = "pin_role";
 const LS_PIN_AUTHOR = "pin_author";
+const LS_ACCT_VENDOR_DEFAULTS = "acct_vendor_defaults_v1";
 const ROLE_VIEWER = "viewer";
 const ROLE_CLIENT = "client";
 const ROLE_FOREMAN = "foreman";
@@ -3977,7 +3996,20 @@ function formatMoneyES(value){
 }
 
 function buildInvoiceCsv(items){
-  return window.AccountingCsvUtils.buildManagerInvoiceCsv(items, { project: "Copo 23" });
+  const mapped = (items || []).map((inv)=>{
+    const category = normalizeCategoryLegacy(inv?.category);
+    const subcategory = String(inv?.subcategory || "otros_otros");
+    return {
+      ...inv,
+      project: "Copo 23",
+      category,
+      category_label: accountingCategoryLabel(category, "es"),
+      subcategory,
+      subcategory_label: accountingSubcategoryLabel(category, subcategory, "es"),
+      concept_accounting: normalizeText(inv?.concept_accounting) || buildConceptAccounting({ ...inv, category, subcategory })
+    };
+  });
+  return window.AccountingCsvUtils.buildManagerInvoiceCsv(mapped, { project: "Copo 23" });
 }
 
 function parseNumberSafe(x){
@@ -4043,6 +4075,137 @@ function normalizeCategory(v){
   if(["4", "alquiler", "rent", "rental"].includes(raw)) return { id: 4, issue: false };
   if(["5", "otros", "other"].includes(raw)) return { id: 5, issue: false };
   return { id: 5, issue: true };
+}
+
+function normalizeCategoryLegacy(value){
+  const raw = normalizeText(value).toLowerCase();
+  if(["1", "materiales", "materials", "materiales"].includes(raw)) return "materiales";
+  if(["2", "mano de obra", "labor", "labour", "mano_obra"].includes(raw)) return "mano_obra";
+  if(["3", "subcontrata", "subcontract"].includes(raw)) return "subcontrata";
+  if(["4", "alquiler", "rent", "rental"].includes(raw)) return "alquiler";
+  return "otros";
+}
+
+const ACCOUNTING_CATEGORIES = {
+  materiales: {
+    labels: { es: "Materiales", en: "Materials", nl: "Materialen" },
+    subcategories: [
+      ["aridos_cementos", { es: "Áridos y cementos", en: "Aggregates and cement", nl: "Granulaten en cement" }],
+      ["bloques_yesos", { es: "Bloques y yesos", en: "Blocks and plasters", nl: "Blokken en gips" }],
+      ["adhesivos_juntas_selladores", { es: "Adhesivos, juntas y selladores", en: "Adhesives, joints and sealants", nl: "Lijmen, voegen en kitten" }],
+      ["impermeabilizacion", { es: "Impermeabilización", en: "Waterproofing", nl: "Waterdichting" }],
+      ["pintura_preparacion", { es: "Pintura y preparación", en: "Paint and prep", nl: "Verf en voorbereiding" }],
+      ["pladur_perfileria", { es: "Pladur y perfilería", en: "Drywall and framing", nl: "Gipsplaat en profielen" }],
+      ["carpinteria_madera", { es: "Carpintería madera", en: "Wood carpentry", nl: "Houttimmerwerk" }],
+      ["carpinteria_aluminio_pvc", { es: "Carpintería aluminio/PVC", en: "Aluminium/PVC carpentry", nl: "Aluminium/PVC schrijnwerk" }],
+      ["electricidad_materiales", { es: "Materiales electricidad", en: "Electrical materials", nl: "Elektramateriaal" }],
+      ["fontaneria_materiales", { es: "Materiales fontanería", en: "Plumbing materials", nl: "Loodgietersmateriaal" }],
+      ["clima_materiales", { es: "Materiales climatización", en: "HVAC materials", nl: "HVAC materiaal" }],
+      ["solados_alicatados", { es: "Solados y alicatados", en: "Flooring and tiling", nl: "Vloeren en tegels" }],
+      ["ferreteria_consumibles", { es: "Ferretería y consumibles", en: "Hardware and consumables", nl: "Ijzerwaren en verbruik" }],
+      ["jardin_exterior", { es: "Jardín y exterior", en: "Garden and exterior", nl: "Tuin en buiten" }],
+      ["otros_materiales", { es: "Otros materiales", en: "Other materials", nl: "Overige materialen" }]
+    ]
+  },
+  mano_obra: {
+    labels: { es: "Mano de obra", en: "Labor", nl: "Arbeid" },
+    subcategories: [["jornales_internos", { es: "Jornales internos", en: "Internal day wages", nl: "Interne daglonen" }],["autonomos_mo_directa", { es: "Autónomos MO directa", en: "Freelance direct labor", nl: "Zelfstandige directe arbeid" }],["seguridad_social_costes", { es: "Costes Seguridad Social", en: "Social security costs", nl: "Sociale zekerheidskosten" }],["horas_extra_pluses", { es: "Horas extra y pluses", en: "Overtime and bonuses", nl: "Overuren en toeslagen" }],["dietas_desplazamientos", { es: "Dietas y desplazamientos", en: "Meals and travel", nl: "Dagvergoedingen en verplaatsing" }],["otros_mano_obra", { es: "Otros mano de obra", en: "Other labor", nl: "Overige arbeid" }]]
+  },
+  subcontrata: {
+    labels: { es: "Subcontrata", en: "Subcontract", nl: "Onderaanneming" },
+    subcategories: [["albanileria", { es: "Albañilería", en: "Masonry", nl: "Metselwerk" }],["electricidad", { es: "Electricidad", en: "Electrical", nl: "Elektra" }],["fontaneria", { es: "Fontanería", en: "Plumbing", nl: "Loodgieterij" }],["climatizacion", { es: "Climatización", en: "HVAC", nl: "Klimaat" }],["carpinteria_madera", { es: "Carpintería madera", en: "Wood carpentry", nl: "Houttimmerwerk" }],["aluminio_pvc", { es: "Aluminio/PVC", en: "Aluminium/PVC", nl: "Aluminium/PVC" }],["pintura", { es: "Pintura", en: "Painting", nl: "Schilderwerk" }],["revestimientos_especiales", { es: "Revestimientos especiales", en: "Special coatings", nl: "Speciale afwerkingen" }],["piscina", { es: "Piscina", en: "Pool", nl: "Zwembad" }],["jardineria", { es: "Jardinería", en: "Gardening", nl: "Tuinwerk" }],["tecnico_arquitecto", { es: "Técnico / arquitecto", en: "Engineer / architect", nl: "Technicus / architect" }],["gestion_residuos", { es: "Gestión residuos", en: "Waste management", nl: "Afvalbeheer" }],["otros_subcontrata", { es: "Otros subcontrata", en: "Other subcontract", nl: "Overige onderaanneming" }]]
+  },
+  alquiler: {
+    labels: { es: "Alquiler", en: "Rental", nl: "Huur" },
+    subcategories: [["maquinaria", { es: "Maquinaria", en: "Machinery", nl: "Machines" }],["herramientas", { es: "Herramientas", en: "Tools", nl: "Gereedschap" }],["andamios", { es: "Andamios", en: "Scaffolding", nl: "Steigers" }],["contenedores", { es: "Contenedores", en: "Containers", nl: "Containers" }],["vehiculos", { es: "Vehículos", en: "Vehicles", nl: "Voertuigen" }],["otros_alquiler", { es: "Otros alquiler", en: "Other rental", nl: "Overige huur" }]]
+  },
+  otros: {
+    labels: { es: "Otros", en: "Other", nl: "Overig" },
+    subcategories: [["transporte_portes", { es: "Transporte y portes", en: "Transport and freight", nl: "Transport en vracht" }],["gasolina", { es: "Gasolina", en: "Fuel", nl: "Brandstof" }],["tasas_licencias", { es: "Tasas y licencias", en: "Fees and permits", nl: "Heffingen en vergunningen" }],["comisiones_bancarias", { es: "Comisiones bancarias", en: "Bank fees", nl: "Bankkosten" }],["oficina_software", { es: "Oficina y software", en: "Office and software", nl: "Kantoor en software" }],["seguros", { es: "Seguros", en: "Insurance", nl: "Verzekeringen" }],["restauracion", { es: "Restauración", en: "Meals", nl: "Horeca" }],["imprevistos", { es: "Imprevistos", en: "Unexpected", nl: "Onvoorzien" }],["otros_otros", { es: "Otros", en: "Other", nl: "Overig" }]]
+  }
+};
+
+
+
+function accountingLang(){
+  const lang = currentLanguage();
+  return ["es","en","nl"].includes(lang) ? lang : "es";
+}
+
+function accountingCategoryLabel(categoryKey, lang = accountingLang()){
+  const cat = ACCOUNTING_CATEGORIES[normalizeCategoryLegacy(categoryKey)] || ACCOUNTING_CATEGORIES.otros;
+  return cat?.labels?.[lang] || cat?.labels?.es || "Otros";
+}
+
+function accountingSubcategoryLabel(categoryKey, subcategoryKey, lang = accountingLang()){
+  const cat = ACCOUNTING_CATEGORIES[normalizeCategoryLegacy(categoryKey)] || ACCOUNTING_CATEGORIES.otros;
+  const row = (cat.subcategories || []).find(([key])=>key === String(subcategoryKey || ""));
+  if(!row) return (cat.subcategories?.[0]?.[1]?.[lang]) || (cat.subcategories?.[0]?.[1]?.es) || "Otros";
+  return row[1]?.[lang] || row[1]?.es || row[0];
+}
+
+function getAccountingSubcategories(categoryKey){
+  const cat = ACCOUNTING_CATEGORIES[normalizeCategoryLegacy(categoryKey)] || ACCOUNTING_CATEGORIES.otros;
+  return cat.subcategories || [];
+}
+
+function normalizedVendorName(value){
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .replace(/[.,;:()\[\]{}'"`´!?\/\\-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function loadVendorDefaults(){
+  try{
+    const raw = localStorage.getItem(LS_ACCT_VENDOR_DEFAULTS);
+    const parsed = JSON.parse(raw || "{}");
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  }catch(_){ return {}; }
+}
+
+function saveVendorDefault(vendor, category, subcategory){
+  const key = normalizedVendorName(vendor);
+  if(!key) return;
+  const map = loadVendorDefaults();
+  map[key] = { category: normalizeCategoryLegacy(category), subcategory: String(subcategory || "otros_otros"), updatedAt: new Date().toISOString() };
+  try{ localStorage.setItem(LS_ACCT_VENDOR_DEFAULTS, JSON.stringify(map)); }catch(_){ }
+}
+
+function getVendorDefault(vendor){
+  const key = normalizedVendorName(vendor);
+  if(!key) return null;
+  return loadVendorDefaults()[key] || null;
+}
+
+function inferCategorySubcategory({ vendor = "", ocrText = "", fromWorkday = false }){
+  if(fromWorkday) return { category: "mano_obra", subcategory: "jornales_internos" };
+  const v = normalizedVendorName(vendor);
+  const text = normalizedVendorName(ocrText);
+  if(/\b(bigmat|leroy|obramat)\b/.test(v)){
+    if(/\b(cemento|arena)\b/.test(text)) return { category: "materiales", subcategory: "aridos_cementos" };
+    if(/\b(adhesivo|sellador|silicona|junta)\b/.test(text)) return { category: "materiales", subcategory: "adhesivos_juntas_selladores" };
+    return { category: "materiales", subcategory: "ferreteria_consumibles" };
+  }
+  if(/\b(rent|alquiler)\b/.test(v)) return { category: "alquiler", subcategory: "maquinaria" };
+  if(/\bsl\b/.test(v) && /\bservicios\b/.test(text)) return { category: "subcontrata", subcategory: "albanileria" };
+  return { category: "otros", subcategory: "otros_otros" };
+}
+
+function buildConceptAccounting(inv){
+  const lang = accountingLang();
+  const category = normalizeCategoryLegacy(inv?.category);
+  const subcategory = String(inv?.subcategory || "otros_otros");
+  const categoryLabel = accountingCategoryLabel(category, lang);
+  const subcategoryLabel = accountingSubcategoryLabel(category, subcategory, lang);
+  const vendor = normalizeText(inv?.vendor_or_client || inv?.vendor_name || inv?.counterparty_name) || "Proveedor";
+  const concept = normalizeText(inv?.concept)
+    || normalizeText(inv?.ocr_text || "").split(/\n+/).map((line)=>line.replace(/\d{4,}/g, "").trim()).filter(Boolean).slice(0, 2).join(" · ")
+    || `Compra/Servicio ${subcategoryLabel}`;
+  return `Copo 23 – ${categoryLabel} / ${subcategoryLabel}: ${concept} (${vendor})`.slice(0, 240);
 }
 
 const PROJECT_START = new Date('2025-01-01T00:00:00');
@@ -4182,15 +4345,20 @@ function normalizeInvoiceType(rawType){
 }
 
 function normalizeInvoiceForAccounting(inv){
-  const category = normalizeCategory(inv?.category);
+  const categoryKey = normalizeCategoryLegacy(inv?.category);
+  const subcategory = String(inv?.subcategory || "otros_otros").trim() || "otros_otros";
+  const legacy = normalizeCategory(inv?.category);
   return {
     ...inv,
     type: normalizeType(inv?.type),
     total: parseAmount(inv?.total),
     subtotal: parseAmount(inv?.subtotal),
     vat: parseAmount(inv?.vat_total ?? inv?.vat),
-    category: category.id,
-    categoryIssue: category.issue,
+    category: categoryKey,
+    categoryId: normalizeCategory(categoryKey).id,
+    categoryIssue: legacy.issue,
+    subcategory,
+    concept_accounting: normalizeText(inv?.concept_accounting) || buildConceptAccounting({ ...inv, category: categoryKey, subcategory }),
     invoice_date_iso: parseDateISO(inv?.invoice_date || inv?.issue_date || inv?.date, inv?.id || inv?.invoice_number)
   };
 }
@@ -4551,16 +4719,11 @@ function invoiceIssues(inv){
 }
 
 function categoryLabel(raw){
-  const v = String(raw || "").trim().toLowerCase();
-  if(["1","materiales","materials"].includes(v)) return "Materiales";
-  if(["2","mano de obra","labor","labour"].includes(v)) return "Mano de obra";
-  if(["3","subcontrata","subcontract"].includes(v)) return "Subcontrata";
-  if(["4","alquiler","rent","rental"].includes(v)) return "Alquiler";
-  return "Otros";
+  return accountingCategoryLabel(raw, "es");
 }
 
 function categoryIdFromInvoice(raw){
-  return normalizeCategory(raw).id;
+  return normalizeCategory(normalizeCategoryLegacy(raw)).id;
 }
 
 async function getWorkdaysSummary(range){
@@ -4731,12 +4894,40 @@ async function renderAccountingPanel(){
 
   if(accountingView === "accounting-new-expense" || accountingView === "accounting-new-income"){
     const isExpense = accountingView === "accounting-new-expense";
-    renderAccountingScreen(isExpense ? "Añadir Gasto" : "Añadir Ingreso", `<form id="accInvoiceForm" class="acc-form"><label>${isExpense?"Proveedor":"Cliente / pagador"}<input name="vendor_or_client"></label><label>Fecha<input type="date" name="date"></label><label>${isExpense?"Nº factura":"Referencia"}<input name="invoice_number"></label><label>Base<input type="number" step="0.01" name="subtotal"></label><label>IVA<input type="number" step="0.01" name="vat" value="0"></label><label>Total<input type="number" step="0.01" name="total"></label><label>Categoría (1-5)<input type="number" min="1" max="5" name="category"></label><label>Subcategoría<input name="subcategory"></label><label>Método pago<input name="payment_method"></label><label>Estado<select name="status"><option value="pending">pendiente</option><option value="paid">pagada</option></select></label><label>Archivo (imagen/PDF)<input type="file" name="file" id="invoiceFile" accept="image/*,application/pdf"></label><img id="invoicePreview" alt="Vista previa" style="max-width:280px;display:none;border:1px solid var(--line);border-radius:12px;padding:4px"/><label>Texto OCR<textarea name="ocr_text" id="ocrText"></textarea></label><label>Notas<textarea name="notes"></textarea></label><div class="row"><button id="invoiceSaveBtn" class="smallbtn primary progress-btn" type="submit"><span class="progress-label" data-progress-label></span></button></div></form>`);
+    const categoryOptions = Object.entries(ACCOUNTING_CATEGORIES).map(([key, cfg])=>`<option value="${key}">${esc(cfg.labels[accountingLang()] || cfg.labels.es)}</option>`).join("");
+    renderAccountingScreen(isExpense ? "Añadir Gasto" : "Añadir Ingreso", `<form id="accInvoiceForm" class="acc-form"><label>${isExpense?"Proveedor":"Cliente / pagador"}<input name="vendor_or_client" id="invoiceVendor"></label><label>Fecha<input type="date" name="date"></label><label>${isExpense?"Nº factura":"Referencia"}<input name="invoice_number"></label><label>Base<input type="number" step="0.01" name="subtotal"></label><label>IVA<input type="number" step="0.01" name="vat" value="0"></label><label>Total<input type="number" step="0.01" name="total"></label><label>${t("accounting_category_label")}<select name="category" id="invoiceCategory"><option value="">${t("accounting_select_category")}</option>${categoryOptions}</select></label><label>${t("accounting_subcategory_label")}<select name="subcategory" id="invoiceSubcategory"><option value="">${t("accounting_select_subcategory")}</option></select></label><label>Método pago<input name="payment_method"></label><label>Estado<select name="status"><option value="pending">pendiente</option><option value="paid">pagada</option></select></label><label>Archivo (imagen/PDF)<input type="file" name="file" id="invoiceFile" accept="image/*,application/pdf"></label><img id="invoicePreview" alt="Vista previa" style="max-width:280px;display:none;border:1px solid var(--line);border-radius:12px;padding:4px"/><label>Texto OCR<textarea name="ocr_text" id="ocrText"></textarea></label><label>Notas<textarea name="notes"></textarea></label><div class="row"><button id="invoiceSaveBtn" class="smallbtn primary progress-btn" type="submit"><span class="progress-label" data-progress-label></span></button></div></form>`);
     const form = el("accInvoiceForm");
     const fileInput = el("invoiceFile");
     const preview = el("invoicePreview");
     const saveBtn = el("invoiceSaveBtn");
     const saveBtnLabel = saveBtn?.querySelector("[data-progress-label]");
+    const vendorInput = el("invoiceVendor");
+    const categorySelect = el("invoiceCategory");
+    const subcategorySelect = el("invoiceSubcategory");
+    let categoryTouched = false;
+    let subcategoryTouched = false;
+    const updateSubcategories = (categoryKey, keepCurrent = false)=>{
+      const key = normalizeCategoryLegacy(categoryKey || "otros");
+      const options = getAccountingSubcategories(key);
+      const previous = keepCurrent ? String(subcategorySelect?.value || "") : "";
+      subcategorySelect.innerHTML = `<option value="">${t("accounting_select_subcategory")}</option>` + options.map(([subKey, labels])=>`<option value="${subKey}">${esc(labels[accountingLang()] || labels.es)}</option>`).join("");
+      if(previous && options.some(([subKey])=>subKey === previous)) subcategorySelect.value = previous;
+    };
+    updateSubcategories("", false);
+    categorySelect?.addEventListener("change", ()=>{
+      categoryTouched = true;
+      updateSubcategories(categorySelect.value, false);
+    });
+    subcategorySelect?.addEventListener("change", ()=>{ subcategoryTouched = true; });
+    vendorInput?.addEventListener("blur", ()=>{
+      if(categoryTouched || subcategoryTouched) return;
+      const def = getVendorDefault(vendorInput.value);
+      if(!def) return;
+      categorySelect.value = normalizeCategoryLegacy(def.category);
+      updateSubcategories(categorySelect.value, false);
+      subcategorySelect.value = String(def.subcategory || "");
+      debugAccounting("vendor default applied", vendorInput.value, def);
+    });
     let isSaving = false;
     let didNavigate = false;
     renderProgressLabel(saveBtnLabel, t("save"));
@@ -4767,6 +4958,18 @@ async function renderAccountingPanel(){
       form?.setAttribute("aria-busy", "true");
       try{
         const fd = new FormData(ev.target);
+        const vendorDefault = getVendorDefault(fd.get("vendor_or_client") || "");
+        if(vendorDefault && !categoryTouched && !fd.get("category")){
+          fd.set("category", normalizeCategoryLegacy(vendorDefault.category));
+          fd.set("subcategory", String(vendorDefault.subcategory || "otros_otros"));
+        }
+        if(!categoryTouched){
+          const inferred = inferCategorySubcategory({ vendor: fd.get("vendor_or_client") || "", ocrText: fd.get("ocr_text") || "", fromWorkday:false });
+          if(!fd.get("category")) fd.set("category", inferred.category);
+          if(!fd.get("subcategory")) fd.set("subcategory", inferred.subcategory);
+        }
+        if(isExpense && !fd.get("category")) throw new Error(t("accounting_category_required"));
+        if(fd.get("category") && !fd.get("subcategory")) throw new Error(t("accounting_subcategory_required"));
         const file = fd.get("file");
         if(file && file.size){
           const invoice = await accountingInvoke("create_invoice", {
@@ -4777,8 +4980,8 @@ async function renderAccountingPanel(){
             subtotal: fd.get("subtotal") || 0,
             vat: fd.get("vat") || 0,
             total: fd.get("total") || 0,
-            category: isExpense ? (fd.get("category") || 5) : null,
-            subcategory: fd.get("subcategory"),
+            category: normalizeCategoryLegacy(fd.get("category") || (isExpense ? "otros" : "")),
+            subcategory: fd.get("subcategory") || "otros_otros",
             payment_method: fd.get("payment_method"),
             status: fd.get("status") || "pending",
             notes: fd.get("notes"),
@@ -4801,6 +5004,15 @@ async function renderAccountingPanel(){
             subtotal: fd.get("subtotal") || 0,
             vat: fd.get("vat") || 0,
             total: fd.get("total") || 0,
+            category: normalizeCategoryLegacy(fd.get("category") || "otros"),
+            subcategory: fd.get("subcategory") || "otros_otros",
+            concept_accounting: buildConceptAccounting({
+              category: normalizeCategoryLegacy(fd.get("category") || "otros"),
+              subcategory: fd.get("subcategory") || "otros_otros",
+              concept: null,
+              ocr_text: fd.get("ocr_text") || "",
+              vendor_or_client: fd.get("vendor_or_client") || ""
+            }),
             status: fd.get("status") || "pending",
             ai_status: "processing",
             ocr_status: "processing"
@@ -4809,6 +5021,7 @@ async function renderAccountingPanel(){
         }else{
           throw new Error("Debes adjuntar archivo para crear factura definitiva");
         }
+        saveVendorDefault(fd.get("vendor_or_client") || "", fd.get("category") || "otros", fd.get("subcategory") || "otros_otros");
         toast("Factura guardada");
         saveBtn?.classList.remove("is-saving");
         saveBtn?.classList.add("is-done");

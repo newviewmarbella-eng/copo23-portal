@@ -98,6 +98,21 @@ function sanitizeCategory(value: unknown) {
   return ALLOWED_CATEGORIES.has(category) ? category : "other";
 }
 
+
+
+function inferInvoiceCategoryHeuristic(supplierName: string, ocrText: string) {
+  const vendor = String(supplierName || "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+  const text = String(ocrText || "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+  if (/(bigmat|leroy|obramat)/.test(vendor)) {
+    if (/(cemento|arena)/.test(text)) return { category: "materiales", subcategory: "aridos_cementos" };
+    if (/(adhesivo|sellador|silicona|junta)/.test(text)) return { category: "materiales", subcategory: "adhesivos_juntas_selladores" };
+    return { category: "materiales", subcategory: "ferreteria_consumibles" };
+  }
+  if (/(rent|alquiler)/.test(vendor)) return { category: "alquiler", subcategory: "maquinaria" };
+  if (/\bsl\b/.test(vendor) && /servicios/.test(text)) return { category: "subcontrata", subcategory: "albanileria" };
+  return { category: "otros", subcategory: "otros_otros" };
+}
+
 function inferMainCategory(lines: Array<{ category: string }>) {
   const counts = new Map<string, number>();
   for (const line of lines) {
@@ -140,7 +155,7 @@ serve(async (req) => {
         subtotal: parseNumber(body?.subtotal),
         vat: parseNumber(body?.vat),
         total: parseNumber(body?.total),
-        category: body?.category ? parseNumber(body.category) : null,
+        category: body?.category ? String(body.category) : null,
         subcategory: body?.subcategory ?? null,
         payment_method: body?.payment_method ?? null,
         status: String(body?.status || "pending"),
@@ -153,6 +168,7 @@ serve(async (req) => {
         review_status: body?.review_status ? String(body.review_status) : "needs_review",
         warnings: Array.isArray(body?.warnings) ? body.warnings : [],
         concept: body?.concept ?? null,
+        concept_accounting: body?.concept_accounting ?? null,
         ai_status: body?.ai_status ? String(body.ai_status) : null,
         idempotency_key: body?.idempotency_key ? String(body.idempotency_key) : null,
       };
@@ -168,7 +184,7 @@ serve(async (req) => {
       let query = client.from("accounting_invoices").select("*").order("date", { ascending: false }).limit(500);
       if (f.type) query = query.eq("type", String(f.type));
       if (f.status) query = query.eq("status", String(f.status));
-      if (f.category) query = query.eq("category", Number(f.category));
+      if (f.category) query = query.eq("category", String(f.category));
       if (f.date_from) query = query.gte("date", String(f.date_from));
       if (f.date_to) query = query.lte("date", String(f.date_to));
       if (f.search) query = query.or(`vendor_or_client.ilike.%${String(f.search)}%,counterparty_name.ilike.%${String(f.search)}%,vendor_name.ilike.%${String(f.search)}%`);
@@ -377,6 +393,9 @@ serve(async (req) => {
         ocr_status: String(body?.ocr_status || "pending"),
         review_status: "needs_review",
         file_path: filePath,
+        category: body?.category ? String(body.category) : null,
+        subcategory: body?.subcategory ?? null,
+        concept_accounting: body?.concept_accounting ?? null,
       };
       if (body?.file_name !== undefined) updates.file_name = body.file_name ?? null;
       if (body?.file_type !== undefined) updates.file_type = body.file_type ?? null;
@@ -586,10 +605,12 @@ ${ocrText}`,
           total: structured?.totals?.total,
         });
 
-        const category = normalizeCategory(structured?.category);
-        const categoryLabel = normalizeCategoryLabel(category, structured?.category_label);
+        const inferred = inferInvoiceCategoryHeuristic(supplier.name || "", ocrText || "");
+        const aiCategory = ({1:"materiales",2:"mano_obra",3:"subcontrata",4:"alquiler",5:"otros"})[normalizeCategory(structured?.category)] || "";
+        const category = aiCategory || inferred.category;
+        const categoryLabel = normalizeCategoryLabel(normalizeCategory(structured?.category), structured?.category_label);
         const concept = sanitizeShortConcept(structured?.concept) || `${supplier.name || "Proveedor"} - gastos`;
-        const subcategory = String(structured?.subcategory || "").trim() || "Sin clasificar";
+        const subcategory = String(structured?.subcategory || "").trim() || inferred.subcategory;
 
         const issueDate = asIsoDate(structured?.issue_date);
         const invoiceNumber = String(structured?.invoice_number || "").trim() || null;
