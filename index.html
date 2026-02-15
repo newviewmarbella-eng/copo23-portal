@@ -4070,7 +4070,7 @@ function normalizeType(v){
 function normalizeCategory(v){
   const raw = normalizeText(v).toLowerCase();
   if(["1", "materiales", "materials"].includes(raw)) return { id: 1, issue: false };
-  if(["2", "mano de obra", "labor", "labour"].includes(raw)) return { id: 2, issue: false };
+  if(["2", "mano de obra", "mano_obra", "mano_de_obra", "labor", "labour"].includes(raw)) return { id: 2, issue: false };
   if(["3", "subcontrata", "subcontract"].includes(raw)) return { id: 3, issue: false };
   if(["4", "alquiler", "rent", "rental"].includes(raw)) return { id: 4, issue: false };
   if(["5", "otros", "other"].includes(raw)) return { id: 5, issue: false };
@@ -4080,7 +4080,7 @@ function normalizeCategory(v){
 function normalizeCategoryLegacy(value){
   const raw = normalizeText(value).toLowerCase();
   if(["1", "materiales", "materials", "materiales"].includes(raw)) return "materiales";
-  if(["2", "mano de obra", "labor", "labour", "mano_obra"].includes(raw)) return "mano_obra";
+  if(["2", "mano de obra", "labor", "labour", "mano_obra", "mano_de_obra"].includes(raw)) return "mano_de_obra";
   if(["3", "subcontrata", "subcontract"].includes(raw)) return "subcontrata";
   if(["4", "alquiler", "rent", "rental"].includes(raw)) return "alquiler";
   return "otros";
@@ -4107,7 +4107,7 @@ const ACCOUNTING_CATEGORIES = {
       ["otros_materiales", { es: "Otros materiales", en: "Other materials", nl: "Overige materialen" }]
     ]
   },
-  mano_obra: {
+  mano_de_obra: {
     labels: { es: "Mano de obra", en: "Labor", nl: "Arbeid" },
     subcategories: [["jornales_internos", { es: "Jornales internos", en: "Internal day wages", nl: "Interne daglonen" }],["autonomos_mo_directa", { es: "Autónomos MO directa", en: "Freelance direct labor", nl: "Zelfstandige directe arbeid" }],["seguridad_social_costes", { es: "Costes Seguridad Social", en: "Social security costs", nl: "Sociale zekerheidskosten" }],["horas_extra_pluses", { es: "Horas extra y pluses", en: "Overtime and bonuses", nl: "Overuren en toeslagen" }],["dietas_desplazamientos", { es: "Dietas y desplazamientos", en: "Meals and travel", nl: "Dagvergoedingen en verplaatsing" }],["otros_mano_obra", { es: "Otros mano de obra", en: "Other labor", nl: "Overige arbeid" }]]
   },
@@ -4182,7 +4182,7 @@ function getVendorDefault(vendor){
 }
 
 function inferCategorySubcategory({ vendor = "", ocrText = "", fromWorkday = false }){
-  if(fromWorkday) return { category: "mano_obra", subcategory: "jornales_internos" };
+  if(fromWorkday) return { category: "mano_de_obra", subcategory: "jornales_internos" };
   const v = normalizedVendorName(vendor);
   const text = normalizedVendorName(ocrText);
   if(/\b(bigmat|leroy|obramat)\b/.test(v)){
